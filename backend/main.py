@@ -112,6 +112,7 @@ def export_pdf(input_data: PDFExportInput):
             result=raw["result"],
             options=options,
             images=images,
+            iteration_results=raw.get("iteration_results"),
         )
 
         pdf_bytes = compile_latex_to_pdf(tex_content, images)

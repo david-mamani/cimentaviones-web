@@ -88,3 +88,4 @@ class PDFExportInput(BaseModel):
     result: dict[str, Any]
     options: PDFExportOptions = PDFExportOptions()
     images: Optional[dict[str, str]] = None  # {chart_b64, view2d_b64, view3d_b64}
+    iteration_results: Optional[dict[str, Any]] = None  # iteration matrix data

@@ -89,6 +89,8 @@ export default function ParametricIterations() {
       if (!response.ok) throw new Error(`Error ${response.status}`);
       const result = await response.json();
       setIterResult(result);
+      // Save to global store for PDF export
+      useFoundationStore.getState().setIterationResults(result);
     } catch (err) {
       console.error('Error en iteraciones:', err);
     } finally {

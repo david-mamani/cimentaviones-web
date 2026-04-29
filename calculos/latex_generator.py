@@ -78,6 +78,7 @@ def generate_latex(
     result: dict,
     options: dict = None,
     images: dict = None,
+    iteration_results: dict = None,
 ) -> str:
     """
     Genera el contenido de un archivo .tex completo.
@@ -90,6 +91,7 @@ def generate_latex(
 
     include_calculations = options.get('include_calculations', True)
     include_strata = options.get('include_strata', True)
+    include_iterations = options.get('include_iterations', False)
     include_charts = options.get('include_charts', False)
     include_2d = options.get('include_2d', False)
     include_3d = options.get('include_3d', False)
@@ -354,6 +356,46 @@ def generate_latex(
             tex.append(r"\caption{Resultados seg\'un la Norma RNE E.050}" + "\n")
             tex.append(r"\end{table}" + "\n\n")
 
+    # ======================================
+    # ITERATION TABLE
+    # ======================================
+    if include_iterations and iteration_results:
+        tex.append(r"\section{Iteraciones Param\'etricas}" + "\n\n")
+        matrix = iteration_results.get('matrix', [])
+        df_values = iteration_results.get('dfValues', [])
+
+        for di, df_val in enumerate(df_values):
+            if di >= len(matrix):
+                break
+            row = matrix[di]
+            if not row:
+                continue
+
+            tex.append(f"\\subsection{{$D_f = {_fmt(df_val)}$ m}}\n")
+            tex.append(r"\begin{table}[H]" + "\n")
+            tex.append(r"\centering" + "\n")
+            tex.append(r"\footnotesize" + "\n")
+            tex.append(r"\begin{tabular}{c c c c c c}" + "\n")
+            tex.append(r"\toprule" + "\n")
+            tex.append(r"\textbf{B (m)} & \textbf{L (m)} & \textbf{$q_u$ (kPa)} & \textbf{$q_a$ (kPa)} & \textbf{$Q_{max}$ (kN)} & \textbf{FS} \\" + "\n")
+            tex.append(r"\midrule" + "\n")
+
+            for cell in row:
+                res = cell.get('result', {})
+                tex.append(
+                    f"{_fmt(cell.get('B', 0))} & "
+                    f"{_fmt(cell.get('L', 0))} & "
+                    f"{_fmt(res.get('qu', 0))} & "
+                    f"{_fmt(res.get('qa', 0))} & "
+                    f"{_fmt(cell.get('Qmax', 0))} & "
+                    f"{_fmt(res.get('FS', 0))} \\\\ \n"
+                )
+
+            tex.append(r"\bottomrule" + "\n")
+            tex.append(r"\end{tabular}" + "\n")
+            tex.append(f"\\caption{{Resultados para $D_f = {_fmt(df_val)}$ m}}\n")
+            tex.append(r"\end{table}" + "\n\n")
+
     # ══════════════════════════════════════
     # IMAGENES (only if image data was provided)
     # ══════════════════════════════════════
@@ -365,7 +407,7 @@ def generate_latex(
         tex.append(r"\section{Vista 2D --- Secci\'on Transversal}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
-        tex.append(r"\includegraphics[width=0.85\textwidth]{view2d.png}" + "\n")
+        tex.append(r"\includegraphics[width=0.85\textwidth]{view2d}" + "\n")
         tex.append(r"\caption{Secci\'on transversal del modelo geot\'ecnico}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
 
@@ -373,16 +415,16 @@ def generate_latex(
         tex.append(r"\section{Vista 3D --- Modelo BIM}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
-        tex.append(r"\includegraphics[width=0.85\textwidth]{view3d.png}" + "\n")
+        tex.append(r"\includegraphics[width=0.85\textwidth]{view3d}" + "\n")
         tex.append(r"\caption{Modelo 3D IFC de la cimentaci\'on}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
 
     if has_chart:
-        tex.append(r"\section{Iteraciones Param\'etricas}" + "\n\n")
+        tex.append(r"\section{Gr\'afico de Iteraciones}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
-        tex.append(r"\includegraphics[width=0.9\textwidth]{chart.png}" + "\n")
-        tex.append(r"\caption{Iteraciones param\'etricas de capacidad portante}" + "\n")
+        tex.append(r"\includegraphics[width=0.9\textwidth]{chart}" + "\n")
+        tex.append(r"\caption{Gr\'afico de iteraciones param\'etricas de capacidad portante}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
 
     # ── Footer ──
@@ -396,19 +438,19 @@ def generate_latex(
     return ''.join(tex)
 
 
+def _detect_img_ext(b64_data: str) -> str:
+    """Detect image format from data URL prefix."""
+    if b64_data.startswith('data:image/jpeg') or b64_data.startswith('data:image/jpg'):
+        return '.jpg'
+    return '.png'
+
+
 def compile_latex_to_pdf(
     tex_content: str,
     images: dict = None,
 ) -> bytes:
     """
     Compila un documento LaTeX a PDF.
-
-    Args:
-        tex_content: String con el contenido .tex
-        images: dict con {chart_b64, view2d_b64, view3d_b64} en base64
-
-    Returns:
-        bytes del PDF compilado
     """
     if images is None:
         images = {}
@@ -417,16 +459,15 @@ def compile_latex_to_pdf(
         tex_path = os.path.join(tmpdir, 'report.tex')
         pdf_path = os.path.join(tmpdir, 'report.pdf')
 
-        # Save images
-        if images.get('chart_b64'):
-            _save_base64_image(images['chart_b64'], os.path.join(tmpdir, 'chart.png'))
-        if images.get('view2d_b64'):
-            _save_base64_image(images['view2d_b64'], os.path.join(tmpdir, 'view2d.png'))
-        if images.get('view3d_b64'):
-            _save_base64_image(images['view3d_b64'], os.path.join(tmpdir, 'view3d.png'))
+        # Save images (auto-detect JPEG vs PNG)
+        for key, filename_base in [('chart_b64', 'chart'), ('view2d_b64', 'view2d'), ('view3d_b64', 'view3d')]:
+            b64 = images.get(key)
+            if b64:
+                ext = _detect_img_ext(b64)
+                _save_base64_image(b64, os.path.join(tmpdir, filename_base + ext))
 
-        # Write .tex file (pure ASCII content, no encoding issues)
-        with open(tex_path, 'w', encoding='ascii') as f:
+        # Write .tex file
+        with open(tex_path, 'w', encoding='ascii', errors='replace') as f:
             f.write(tex_content)
 
         # Compile with pdflatex (run twice for TOC)
@@ -434,13 +475,22 @@ def compile_latex_to_pdf(
             proc = subprocess.run(
                 ['pdflatex', '-interaction=nonstopmode', '-output-directory', tmpdir, tex_path],
                 capture_output=True,
-                timeout=30,
+                timeout=60,
             )
 
         if not os.path.exists(pdf_path):
-            stderr = proc.stderr.decode('utf-8', errors='replace') if proc.stderr else ''
-            stdout = proc.stdout.decode('utf-8', errors='replace') if proc.stdout else ''
-            raise RuntimeError(f"LaTeX compilation failed:\n{stderr}\n{stdout}")
+            # Extract meaningful error from log
+            log_path = os.path.join(tmpdir, 'report.log')
+            error_lines = []
+            if os.path.exists(log_path):
+                with open(log_path, 'r', encoding='utf-8', errors='replace') as lf:
+                    for line in lf:
+                        if line.startswith('!') or 'Error' in line or 'Fatal' in line:
+                            error_lines.append(line.strip())
+            if error_lines:
+                raise RuntimeError(f"LaTeX error: {'; '.join(error_lines[:5])}")
+            stderr = (proc.stderr or b'').decode('utf-8', errors='replace')
+            raise RuntimeError(f"LaTeX compilation failed (no PDF produced). stderr: {stderr[:300]}")
 
         with open(pdf_path, 'rb') as f:
             return f.read()

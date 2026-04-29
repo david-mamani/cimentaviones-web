@@ -46,6 +46,10 @@ interface FoundationState {
   lbLocked: boolean;   // L = k × B mode
   lbRatio: number;     // k value (default 2.0)
 
+  // Iteration results (for PDF export)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  iterationResults: any | null;
+
   // Acciones - Selección
   toggleSelection: (id: string, multi: boolean) => void;
   clearSelection: () => void;
@@ -74,6 +78,11 @@ interface FoundationState {
   setErrors: (errors: string[]) => void;
   clearResult: () => void;
   reset: () => void;
+
+  // Acciones - Iterations
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setIterationResults: (data: any) => void;
+  clearIterationResults: () => void;
 
   // Acciones - Proyecto
   loadProject: (data: ProjectData) => void;
@@ -126,6 +135,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   selectedIds: [],
   lbLocked: false,
   lbRatio: 2.0,
+  iterationResults: null,
 
   toggleSelection: (id, multi) => {
     set((state) => {
@@ -257,6 +267,9 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   setErrors: (errors) => set({ errors }),
   clearResult: () => set({ result: null }),
 
+  setIterationResults: (data) => set({ iterationResults: data }),
+  clearIterationResults: () => set({ iterationResults: null }),
+
   reset: () => {
     stratumCounter = 0;
     set({
@@ -268,6 +281,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       errors: [],
       lbLocked: false,
       lbRatio: 2.0,
+      iterationResults: null,
     });
   },
 

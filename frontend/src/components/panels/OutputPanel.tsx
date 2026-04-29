@@ -72,6 +72,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   method: string;
   result: any;
 }) {
+  const iterationResults = useFoundationStore((s) => s.iterationResults);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfOptions, setPdfOptions] = useState({
     include_calculations: true,
@@ -90,13 +91,31 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   const captureImages = useCallback(async () => {
     const images: Record<string, string> = {};
 
-    // Capture 2D view (SVG → Canvas → PNG)
+    // Helper: compress a canvas/image to JPEG with max dimensions
+    const compressToJpeg = (canvas: HTMLCanvasElement, maxW = 1200, maxH = 800): string => {
+      let w = canvas.width;
+      let h = canvas.height;
+      if (w > maxW || h > maxH) {
+        const scale = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const small = document.createElement('canvas');
+      small.width = w;
+      small.height = h;
+      const ctx = small.getContext('2d')!;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(canvas, 0, 0, w, h);
+      return small.toDataURL('image/jpeg', 0.7);
+    };
+
+    // Capture 2D view (SVG -> Canvas -> JPEG)
     if (pdfOptions.include_2d) {
       const svg = document.querySelector('svg') as SVGSVGElement;
       if (svg) {
         try {
           const svgClone = svg.cloneNode(true) as SVGSVGElement;
-          // Ensure dimensions
           const bbox = svg.getBoundingClientRect();
           svgClone.setAttribute('width', String(bbox.width));
           svgClone.setAttribute('height', String(bbox.height));
@@ -113,12 +132,12 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           });
 
           const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = bbox.width * 2;  // 2x for resolution
+          tempCanvas.width = bbox.width * 2;
           tempCanvas.height = bbox.height * 2;
           const ctx = tempCanvas.getContext('2d')!;
           ctx.scale(2, 2);
           ctx.drawImage(img, 0, 0);
-          images.view2d_b64 = tempCanvas.toDataURL('image/png');
+          images.view2d_b64 = compressToJpeg(tempCanvas);
           URL.revokeObjectURL(url);
         } catch (e) {
           console.warn('Could not capture 2D view:', e);
@@ -126,13 +145,11 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       }
     }
 
-    // Capture 3D view (WebGL Canvas → PNG)
+    // Capture 3D view (WebGL Canvas -> JPEG)
     if (pdfOptions.include_3d) {
-      // Find the WebGL canvas — it's the only canvas created by Three.js
       const allCanvases = Array.from(document.querySelectorAll('canvas'));
       let canvas3d: HTMLCanvasElement | null = null;
       for (const c of allCanvases) {
-        // Three.js WebGL canvas has a webgl/webgl2 context
         if (c.getContext('webgl2') || c.getContext('webgl')) {
           canvas3d = c;
           break;
@@ -140,7 +157,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       }
       if (canvas3d) {
         try {
-          images.view3d_b64 = canvas3d.toDataURL('image/png');
+          images.view3d_b64 = compressToJpeg(canvas3d);
         } catch (e) {
           console.warn('Could not capture 3D view:', e);
         }
@@ -168,7 +185,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
     try {
       const images = await captureImages();
 
-      const body = {
+      const body: Record<string, unknown> = {
         foundation,
         strata: strata.map((s: any) => ({
           id: s.id, thickness: s.thickness, gamma: s.gamma,
@@ -180,6 +197,11 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         options: pdfOptions,
         images: Object.keys(images).length > 0 ? images : null,
       };
+
+      // Include iteration results if option is checked
+      if (pdfOptions.include_iterations && iterationResults) {
+        body.iteration_results = iterationResults;
+      }
 
       const response = await fetch(`${API_BASE}/api/export-pdf`, {
         method: 'POST',
@@ -201,7 +223,12 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('PDF export error:', err);
-      alert(`Error al exportar PDF: ${err.message}`);
+      // Show a short, user-friendly message instead of full pdflatex output
+      const msg = String(err.message || '');
+      const short = msg.length > 200
+        ? msg.slice(0, 200) + '...'
+        : msg;
+      alert(`Error al exportar PDF: ${short}`);
     } finally {
       setPdfLoading(false);
     }
@@ -314,6 +341,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           {[
             { key: 'include_calculations', label: 'Ecuaciones y cálculos' },
             { key: 'include_strata', label: 'Datos de estratos' },
+            { key: 'include_iterations', label: 'Tabla de iteraciones' },
             { key: 'include_2d', label: 'Vista 2D' },
             { key: 'include_3d', label: 'Vista 3D' },
             { key: 'include_charts', label: 'Gráfico de iteraciones' },
