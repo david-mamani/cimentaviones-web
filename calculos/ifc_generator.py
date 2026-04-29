@@ -366,12 +366,14 @@ def generate_ifc(
     # ══════════════════════════════════════════════
     # COLUMNA / PEDESTAL
     # ══════════════════════════════════════════════
-    col_height = Df - pad_height
+    # The column extends from the top of the footing pad up to the ground surface (z=0)
+    col_height = total_depth - pad_height
     if col_height > 0:
         col_w = min(B * 0.3, 0.5)
+        # Place the column so it sits on top of the footing pad
         col_placement = _create_local_placement(
             ifc_file, storey_placement,
-            origin=(0.0, 0.0, -(basement_depth + col_height))
+            origin=(0.0, 0.0, -(total_depth - pad_height))
         )
 
         col_shape = _create_box_shape(ifc_file, sub_context, col_w, col_w, col_height)

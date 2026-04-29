@@ -42,6 +42,10 @@ interface FoundationState {
   // Selection (synced across all views)
   selectedIds: string[];  // stratum IDs or 'foundation'
 
+  // L/B ratio for rectangular foundations
+  lbLocked: boolean;   // L = k × B mode
+  lbRatio: number;     // k value (default 2.0)
+
   // Acciones - Selección
   toggleSelection: (id: string, multi: boolean) => void;
   clearSelection: () => void;
@@ -61,11 +65,28 @@ interface FoundationState {
   // Acciones - Método
   setMethod: (method: CalculationMethod) => void;
 
+  // Acciones - L/B ratio
+  setLbLocked: (locked: boolean) => void;
+  setLbRatio: (ratio: number) => void;
+
   // Acciones - Cálculo
   calculate: () => void;
   setErrors: (errors: string[]) => void;
   clearResult: () => void;
   reset: () => void;
+
+  // Acciones - Proyecto
+  loadProject: (data: ProjectData) => void;
+}
+
+/** Datos serializables del proyecto */
+export interface ProjectData {
+  foundation: FoundationParams;
+  strata: Stratum[];
+  conditions: SpecialConditions;
+  method: CalculationMethod;
+  lbLocked?: boolean;
+  lbRatio?: number;
 }
 
 const defaultFoundation: FoundationParams = {
@@ -103,6 +124,8 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   result: null,
   errors: [],
   selectedIds: [],
+  lbLocked: false,
+  lbRatio: 2.0,
 
   toggleSelection: (id, multi) => {
     set((state) => {
@@ -126,10 +149,17 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   },
 
   setFoundationParam: (key, value) => {
-    set((state) => ({
-      foundation: { ...state.foundation, [key]: value },
-      result: null,
-    }));
+    set((state) => {
+      const updated = { ...state.foundation, [key]: value };
+      // Auto-update L when B changes and lbLocked is active
+      if (key === 'B' && state.lbLocked && state.foundation.type === 'rectangular') {
+        updated.L = state.lbRatio * (value as number);
+      }
+      return {
+        foundation: updated,
+        result: null,
+      };
+    });
   },
 
   addStratum: () => {
@@ -172,6 +202,33 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     }));
   },
 
+  setLbLocked: (locked) => {
+    set((state) => {
+      if (locked && state.foundation.type === 'rectangular') {
+        // When locking, auto-update L = ratio × B
+        return {
+          lbLocked: locked,
+          foundation: { ...state.foundation, L: state.lbRatio * state.foundation.B },
+          result: null,
+        };
+      }
+      return { lbLocked: locked, result: null };
+    });
+  },
+
+  setLbRatio: (ratio) => {
+    set((state) => {
+      if (state.lbLocked && state.foundation.type === 'rectangular') {
+        return {
+          lbRatio: ratio,
+          foundation: { ...state.foundation, L: ratio * state.foundation.B },
+          result: null,
+        };
+      }
+      return { lbRatio: ratio, result: null };
+    });
+  },
+
   calculate: async () => {
     const state = get();
     try {
@@ -207,6 +264,22 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       strata: [createDefaultStratum()],
       conditions: { ...defaultConditions },
       method: 'terzaghi',
+      result: null,
+      errors: [],
+      lbLocked: false,
+      lbRatio: 2.0,
+    });
+  },
+
+  loadProject: (data) => {
+    stratumCounter = data.strata.length;
+    set({
+      foundation: data.foundation,
+      strata: data.strata,
+      conditions: data.conditions,
+      method: data.method,
+      lbLocked: data.lbLocked ?? false,
+      lbRatio: data.lbRatio ?? 2.0,
       result: null,
       errors: [],
     });

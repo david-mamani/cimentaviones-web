@@ -66,16 +66,24 @@ export default function ParametricIterations() {
     window.addEventListener('mouseup', onUp);
   }, []);
 
+  const lbLocked = useFoundationStore((s) => s.lbLocked);
+  const lbRatio = useFoundationStore((s) => s.lbRatio);
+
   const handleRun = async () => {
     if (!config.varyB && !config.varyDf) return;
     setLoading(true);
     try {
+      const iterConfig: Record<string, unknown> = { ...config };
+      // When lbLocked, pass ratio so backend computes L = k × B for each iteration
+      if (lbLocked && foundation.type === 'rectangular') {
+        iterConfig.lbRatio = lbRatio;
+      }
       const response = await fetch('/api/iterate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           base: { foundation, strata, conditions, method },
-          config,
+          config: iterConfig,
         }),
       });
       if (!response.ok) throw new Error(`Error ${response.status}`);
@@ -190,6 +198,20 @@ export default function ParametricIterations() {
             <IterField label="Inicio" value={config.bStart} onChange={(v) => setConfig({ ...config, bStart: v })} />
             <IterField label="Final" value={config.bEnd} onChange={(v) => setConfig({ ...config, bEnd: v })} />
             <IterField label="ΔB" value={config.bStep} onChange={(v) => setConfig({ ...config, bStep: v })} />
+          </div>
+        )}
+
+        {/* L info for rectangular foundations */}
+        {config.varyB && foundation.type === 'rectangular' && (
+          <div style={{
+            marginBottom: 8, marginLeft: 20, padding: '5px 8px',
+            background: 'rgba(192, 57, 43, 0.08)', border: '1px solid rgba(192, 57, 43, 0.2)',
+            borderRadius: 4, fontSize: 10, color: '#bbb',
+          }}>
+            {lbLocked
+              ? `📐 L = ${lbRatio} × B (L varía automáticamente con B)`
+              : `📐 L = ${foundation.L.toFixed(2)} m (fijo durante iteraciones)`
+            }
           </div>
         )}
 

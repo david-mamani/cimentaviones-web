@@ -56,6 +56,13 @@ export default function FoundationDimensions() {
   const setParam = useFoundationStore((s) => s.setFoundationParam);
   const method = useFoundationStore((s) => s.method);
   const setMethod = useFoundationStore((s) => s.setMethod);
+  const lbLocked = useFoundationStore((s) => s.lbLocked);
+  const lbRatio = useFoundationStore((s) => s.lbRatio);
+  const setLbLocked = useFoundationStore((s) => s.setLbLocked);
+  const setLbRatio = useFoundationStore((s) => s.setLbRatio);
+
+  const isRectangular = foundation.type === 'rectangular';
+  const currentRatio = foundation.B > 0 ? (foundation.L / foundation.B).toFixed(2) : '—';
 
   return (
     <div className="space-y-5">
@@ -106,7 +113,7 @@ export default function FoundationDimensions() {
           />
 
           {/* L solo para rectangular */}
-          {foundation.type === 'rectangular' && (
+          {isRectangular && (
             <InputField
               id="input-L"
               label="Longitud L"
@@ -114,6 +121,7 @@ export default function FoundationDimensions() {
               value={foundation.L}
               onChange={(v) => setParam('L', v)}
               min={0.01}
+              disabled={lbLocked}
             />
           )}
 
@@ -151,6 +159,56 @@ export default function FoundationDimensions() {
             step={1}
           />
         </div>
+
+        {/* L/B ratio toggle — only for rectangular */}
+        {isRectangular && (
+          <div style={{
+            marginTop: 12,
+            padding: '8px 10px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 6,
+          }}>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              cursor: 'pointer', fontSize: 12, color: '#ccc',
+            }}>
+              <input
+                type="checkbox"
+                checked={lbLocked}
+                onChange={(e) => setLbLocked(e.target.checked)}
+                style={{ accentColor: '#c0392b' }}
+              />
+              L en función de B (L = k × B)
+            </label>
+
+            {lbLocked ? (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: '#888' }}>k =</span>
+                <input
+                  type="number"
+                  value={lbRatio}
+                  onChange={(e) => setLbRatio(parseFloat(e.target.value) || 1)}
+                  min={1}
+                  max={10}
+                  step={0.1}
+                  style={{
+                    width: 60, padding: '3px 6px',
+                    background: '#2a2a2a', border: '1px solid #505050',
+                    color: '#fff', fontSize: 12, borderRadius: 4,
+                  }}
+                />
+                <span style={{ fontSize: 11, color: '#666' }}>
+                  → L = {(lbRatio * foundation.B).toFixed(2)} m
+                </span>
+              </div>
+            ) : (
+              <div style={{ marginTop: 6, fontSize: 11, color: '#666' }}>
+                Relación actual: L/B = {currentRatio}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

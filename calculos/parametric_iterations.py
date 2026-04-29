@@ -57,12 +57,20 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
         for b in b_values:
             # Construir input con B y Df modificados
             f_type = base_input["foundation"]["type"]
+            lb_ratio = config.get("lbRatio")  # L = lbRatio × B (when locked)
+            if f_type in ("cuadrada", "circular"):
+                L = b
+            elif lb_ratio and lb_ratio > 0:
+                L = lb_ratio * b
+            else:
+                L = base_input["foundation"]["L"]
+
             modified_input = {
                 **base_input,
                 "foundation": {
                     **base_input["foundation"],
                     "B": b,
-                    "L": b if f_type in ("cuadrada", "circular") else base_input["foundation"]["L"],
+                    "L": L,
                     "Df": df,
                 },
             }
