@@ -13,6 +13,7 @@ interface CadNumericInputProps {
   max?: number;
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
 }
 
 export default function CadNumericInput({
@@ -23,6 +24,7 @@ export default function CadNumericInput({
   max,
   className = 'cad-input',
   style,
+  disabled = false,
 }: CadNumericInputProps) {
   // text holds the raw string the user sees/types
   const [text, setText] = useState(String(value));
@@ -93,10 +95,13 @@ export default function CadNumericInput({
       onChange={handleChange}
       onFocus={handleFocus}
       onBlur={handleBlur}
+      disabled={disabled}
       style={{
         ...style,
         color: showDash ? '#555' : undefined,
         fontStyle: showDash ? 'italic' : undefined,
+        opacity: disabled ? 0.5 : undefined,
+        cursor: disabled ? 'not-allowed' : undefined,
       }}
     />
   );

@@ -62,6 +62,10 @@ function DimensionsSection() {
   const [open, setOpen] = useState(true);
   const f = useFoundationStore((s) => s.foundation);
   const setParam = useFoundationStore((s) => s.setFoundationParam);
+  const lbLocked = useFoundationStore((s) => s.lbLocked);
+  const lbRatio = useFoundationStore((s) => s.lbRatio);
+  const setLbLocked = useFoundationStore((s) => s.setLbLocked);
+  const setLbRatio = useFoundationStore((s) => s.setLbRatio);
 
   return (
     <Section title="Dimensiones" open={open} onToggle={() => setOpen(!open)}>
@@ -70,10 +74,36 @@ function DimensionsSection() {
           onChange={(v) => setParam('B', v)} />
       </PropRow>
       {(f.type === 'rectangular') && (
-        <PropRow label="Lado L (m)">
-          <CadNumericInput value={f.L} step={0.1} min={0}
-            onChange={(v) => setParam('L', v)} />
-        </PropRow>
+        <>
+          <PropRow label="Lado L (m)">
+            <CadNumericInput value={f.L} step={0.1} min={0}
+              onChange={(v) => setParam('L', v)}
+              disabled={lbLocked} />
+          </PropRow>
+          {/* L/B ratio lock */}
+          <div style={{ marginBottom: 6, padding: '4px 0' }}>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 11, cursor: 'pointer', color: '#bbb',
+            }}>
+              <input
+                type="checkbox"
+                className="cad-checkbox"
+                checked={lbLocked}
+                onChange={(e) => setLbLocked(e.target.checked)}
+              />
+              L = k × B
+            </label>
+            {lbLocked && (
+              <div style={{ marginTop: 4, marginLeft: 22 }}>
+                <PropRow label="k (L/B)">
+                  <CadNumericInput value={lbRatio} step={0.1} min={1}
+                    onChange={(v) => setLbRatio(v)} />
+                </PropRow>
+              </div>
+            )}
+          </div>
+        </>
       )}
       <PropRow label="Prof. desplante Df (m)">
         <CadNumericInput value={f.Df} step={0.1} min={0}

@@ -1,6 +1,9 @@
 /**
  * Workspace — Tabbed center area with optional horizontal split.
  * Tracks which side is "active" so new tabs go to the right place.
+ *
+ * IMPORTANT: Tab contents are kept mounted (display:none) to preserve
+ * state (3D model, iteration results) when switching tabs.
  */
 import { useState, useCallback, useRef } from 'react';
 import ResultsPanel from '../visualization/ResultsPanel';
@@ -137,8 +140,6 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
 }) {
-  const active = tabs.find(t => t.id === activeTab);
-
   return (
     <>
       {/* Tab bar */}
@@ -164,15 +165,29 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — ALL tabs stay mounted, only active one is visible */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {active ? <TabContent type={active.type} tabId={active.id} /> : (
+        {tabs.length === 0 ? (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             height: '100%', color: '#555', fontSize: 13,
           }}>
             No hay pestañas abiertas
           </div>
+        ) : (
+          tabs.map(tab => (
+            <div
+              key={tab.id}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: tab.id === activeTab ? 'block' : 'none',
+                overflow: 'hidden',
+              }}
+            >
+              <TabContent type={tab.type} tabId={tab.id} />
+            </div>
+          ))
         )}
       </div>
     </>

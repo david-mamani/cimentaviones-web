@@ -303,10 +303,17 @@ export default function IfcViewer() {
 
       // Counters for stratum ordering
       let strataIndex = 0;
+      // Track processed express IDs to avoid duplicates
+      const processedIDs = new Set<number>();
 
       // Get all meshes from the IFC
       ifcApi.StreamAllMeshes(modelID, (mesh: WebIFC.FlatMesh) => {
         const expressID = mesh.expressID;
+
+        // Skip already-processed elements
+        if (processedIDs.has(expressID)) return;
+        processedIDs.add(expressID);
+
         const placedGeometries = mesh.geometries;
 
         // Determine IFC type
