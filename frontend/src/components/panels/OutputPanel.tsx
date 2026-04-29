@@ -181,20 +181,8 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         }
       }
 
-      // ── Charts: Capture from Plotly with white bg ──
-      if (pdfOptions.include_charts) {
-        const plotlyDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
-        if (plotlyDiv && (window as any).Plotly) {
-          try {
-            const dataUrl = await (window as any).Plotly.toImage(plotlyDiv, {
-              format: 'png', width: 1000, height: 500,
-            });
-            if (dataUrl && dataUrl.length > 5000) {
-              images.chart_b64 = dataUrl;
-            }
-          } catch { /* ignore */ }
-        }
-      }
+      // ── Charts: Will be generated server-side with matplotlib ──
+      // No frontend capture needed for charts
     } finally {
       // ── Restore hidden panes ──
       hiddenPanes.forEach((el) => {
@@ -223,8 +211,8 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         images: Object.keys(images).length > 0 ? images : null,
       };
 
-      // Include iteration results if option is checked
-      if (pdfOptions.include_iterations && iterationResults) {
+      // Always include iteration results if available (needed for table AND chart)
+      if (iterationResults) {
         body.iteration_results = iterationResults;
       }
 

@@ -253,6 +253,10 @@ export default function IfcViewer() {
       const foundAxes = scene.children.find((c) => (c as any).isAxesHelper) as THREE.Object3D | undefined;
       const origAxesVisible = foundAxes?.visible ?? false;
 
+      // Save current camera state
+      const origPos = camera.position.clone();
+      const origTarget = controlsRef.current?.target.clone() ?? new THREE.Vector3(0, -1, 0);
+
       // Apply PDF settings: white bg, low opacity, no grid/axes
       scene.background = new THREE.Color('#ffffff');
       if (gridRef.current) gridRef.current.visible = false;
@@ -264,11 +268,29 @@ export default function IfcViewer() {
         mat.needsUpdate = true;
       });
 
+      // Set PREDETERMINED camera angle (isometric engineering view)
+      camera.position.set(10, 8, 10);
+      camera.lookAt(0, -2, 0);
+      if (controlsRef.current) {
+        controlsRef.current.target.set(0, -2, 0);
+        controlsRef.current.update();
+      }
+      camera.updateProjectionMatrix();
+
       // Render and capture
       renderer.render(scene, camera);
       const dataUrl = renderer.domElement.toDataURL('image/jpeg', 0.85);
 
-      // Restore original state
+      // Restore original camera
+      camera.position.copy(origPos);
+      if (controlsRef.current) {
+        controlsRef.current.target.copy(origTarget);
+        controlsRef.current.update();
+      }
+      camera.lookAt(origTarget);
+      camera.updateProjectionMatrix();
+
+      // Restore original visual state
       scene.background = origBg || new THREE.Color(settings.bgColor);
       if (gridRef.current) gridRef.current.visible = origGridVisible;
       if (foundAxes) foundAxes.visible = origAxesVisible;
