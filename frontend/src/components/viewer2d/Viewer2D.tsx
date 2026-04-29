@@ -107,6 +107,7 @@ export default function Viewer2D() {
       onContextMenu={(e) => e.preventDefault()}
     >
       <svg
+        data-viewer2d="true"
         width="100%"
         height="100%"
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}

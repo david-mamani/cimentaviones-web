@@ -109,31 +109,48 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
     try {
       // ── 2D: SVG → Canvas with white background ──
       if (pdfOptions.include_2d) {
-        // Find the Viewer2D SVG specifically (it has foundation/strata shapes)
-        const allSvgs = document.querySelectorAll('svg');
-        let targetSvg: SVGSVGElement | null = null;
-        for (const svg of allSvgs) {
-          // The Viewer2D SVG has rect elements for strata/foundation
-          if (svg.querySelector('rect') && svg.closest('[style*="position"]')) {
-            targetSvg = svg as SVGSVGElement;
-            break;
-          }
-        }
+        // Use the unique data-viewer2d attribute to find the correct SVG
+        const targetSvg = document.querySelector('svg[data-viewer2d="true"]') as SVGSVGElement | null;
         if (targetSvg) {
           try {
             const svgClone = targetSvg.cloneNode(true) as SVGSVGElement;
-            const bbox = targetSvg.getBoundingClientRect();
-            const w = bbox.width || 800;
-            const h = bbox.height || 600;
-            svgClone.setAttribute('width', String(w));
-            svgClone.setAttribute('height', String(h));
 
-            // Force white background on the SVG clone
+            // Compute standardized viewBox (same formula as Viewer2D init)
+            const totalDepth = strata.reduce((sum: number, s: any) => sum + s.thickness, 0);
+            const soilW = foundation.B + 4;
+            const halfW = soilW / 2;
+            const margin = 2;
+            const labelSpace = 5;
+            const stdViewBox = {
+              x: -halfW - margin - labelSpace,
+              y: -margin,
+              w: soilW + margin * 2 + labelSpace + 8,
+              h: totalDepth + margin * 2 + 1,
+            };
+            svgClone.setAttribute('viewBox', `${stdViewBox.x} ${stdViewBox.y} ${stdViewBox.w} ${stdViewBox.h}`);
+
+            // Set fixed render dimensions
+            const renderW = 1200;
+            const renderH = Math.round(renderW * (stdViewBox.h / stdViewBox.w));
+            svgClone.setAttribute('width', String(renderW));
+            svgClone.setAttribute('height', String(renderH));
+
+            // Force white background as first element
             const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            bgRect.setAttribute('width', '100%');
-            bgRect.setAttribute('height', '100%');
+            bgRect.setAttribute('x', String(stdViewBox.x));
+            bgRect.setAttribute('y', String(stdViewBox.y));
+            bgRect.setAttribute('width', String(stdViewBox.w));
+            bgRect.setAttribute('height', String(stdViewBox.h));
             bgRect.setAttribute('fill', '#ffffff');
             svgClone.insertBefore(bgRect, svgClone.firstChild);
+
+            // Make all text dark for white background readability
+            svgClone.querySelectorAll('text').forEach((t) => {
+              const fill = t.getAttribute('fill');
+              if (fill && (fill.startsWith('#a') || fill.startsWith('#b') || fill.startsWith('#c') || fill.startsWith('#d') || fill.startsWith('#e') || fill.startsWith('#f') || fill === 'white' || fill === '#fff' || fill === '#ffffff')) {
+                t.setAttribute('fill', '#333333');
+              }
+            });
 
             const svgData = new XMLSerializer().serializeToString(svgClone);
             const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -147,13 +164,13 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             });
 
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w * 2;
-            tempCanvas.height = h * 2;
+            tempCanvas.width = renderW * 2;
+            tempCanvas.height = renderH * 2;
             const ctx = tempCanvas.getContext('2d')!;
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             ctx.scale(2, 2);
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(img, 0, 0, renderW, renderH);
             const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
             if (dataUrl.length > 5000) {
               images.view2d_b64 = dataUrl;
