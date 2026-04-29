@@ -192,7 +192,7 @@ def generate_latex(
         tex.append(f"Longitud $L$ & {L} m \\\\\n")
     tex.append(f"Profundidad de desplante $D_f$ & {Df} m \\\\\n")
     tex.append(f"Factor de seguridad $FS$ & {FS} \\\\\n")
-    tex.append(f"Ángulo de inclinación $\\beta$ & {beta}° \\\\\n")
+    tex.append(f"\u00c1ngulo de inclinaci\u00f3n $\\beta$ & {beta}$^{{\\circ}}$ \\\\\n")
 
     if conditions.get('hasWaterTable'):
         tex.append(f"Nivel freático $D_w$ & {conditions.get('waterTableDepth', 0)} m \\\\\n")
@@ -216,7 +216,7 @@ def generate_latex(
         tex.append(r"\centering" + "\n")
         tex.append(r"\begin{tabular}{c c c c c c}" + "\n")
         tex.append(r"\toprule" + "\n")
-        tex.append(r"\textbf{Estrato} & \textbf{Espesor (m)} & \textbf{$\gamma$ (kN/m³)} & \textbf{$c$ (kPa)} & \textbf{$\phi$ (°)} & \textbf{$\gamma_{sat}$ (kN/m³)} \\" + "\n")
+        tex.append(r"\textbf{Estrato} & \textbf{Espesor (m)} & \textbf{$\gamma$ (kN/m\textsuperscript{3})} & \textbf{$c$ (kPa)} & \textbf{$\phi$ ($^{\circ}$)} & \textbf{$\gamma_{sat}$ (kN/m\textsuperscript{3})} \\" + "\n")
         tex.append(r"\midrule" + "\n")
 
         for i, s in enumerate(strata):
@@ -242,14 +242,14 @@ def generate_latex(
 
         tex.append(r"\subsection{Estrato de Diseño}" + "\n")
         tex.append(f"El estrato de diseño es el \\textbf{{Estrato {ds_idx + 1}}} ")
-        tex.append(f"con $\\phi = {ds.get('phi', 0)}°$, $c = {ds.get('c', 0)}$ kPa, ")
-        tex.append(f"$\\gamma = {ds.get('gamma', 0)}$ kN/m³.\n\n")
+        tex.append(f"con $\\phi = {ds.get('phi', 0)}^{{\\circ}}$, $c = {ds.get('c', 0)}$ kPa, ")
+        tex.append(f"$\\gamma = {ds.get('gamma', 0)}$ kN/m\\textsuperscript{{3}}.\n\n")
 
         soil_type = result.get('soilType', 'Fri')
         tex.append(f"Tipo de suelo: \\textbf{{{_escape_latex('Cohesivo' if soil_type == 'Coh' else 'Friccionante')}}}.\n\n")
 
         tex.append(r"\subsection{Factores de Capacidad Portante}" + "\n")
-        tex.append(f"Para $\\phi = {ds.get('phi', 0)}°$:\n")
+        tex.append(f"Para $\\phi = {ds.get('phi', 0)}^{{\\circ}}$:\n")
         tex.append(r"\begin{align*}" + "\n")
         tex.append(f"N_c &= {bf.get('Nc', 0):.2f} \\\\\n")
         tex.append(f"N_q &= {bf.get('Nq', 0):.2f} \\\\\n")
@@ -422,12 +422,13 @@ def compile_latex_to_pdf(
             proc = subprocess.run(
                 ['pdflatex', '-interaction=nonstopmode', '-output-directory', tmpdir, tex_path],
                 capture_output=True,
-                text=True,
                 timeout=30,
             )
 
         if not os.path.exists(pdf_path):
-            raise RuntimeError(f"LaTeX compilation failed:\n{proc.stderr}\n{proc.stdout}")
+            stderr = proc.stderr.decode('utf-8', errors='replace') if proc.stderr else ''
+            stdout = proc.stdout.decode('utf-8', errors='replace') if proc.stdout else ''
+            raise RuntimeError(f"LaTeX compilation failed:\n{stderr}\n{stdout}")
 
         with open(pdf_path, 'rb') as f:
             return f.read()
