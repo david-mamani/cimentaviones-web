@@ -86,28 +86,68 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
     setPdfOptions(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
   };
 
-  // Capture canvas images from the DOM
+  // Capture images from the DOM for PDF export
   const captureImages = useCallback(async () => {
     const images: Record<string, string> = {};
 
-    // Try to capture 2D view canvas
+    // Capture 2D view (SVG → Canvas → PNG)
     if (pdfOptions.include_2d) {
-      const canvas2d = document.querySelector('canvas[data-viewer="2d"]') as HTMLCanvasElement;
-      if (canvas2d) {
-        images.view2d_b64 = canvas2d.toDataURL('image/png');
+      const svg = document.querySelector('svg') as SVGSVGElement;
+      if (svg) {
+        try {
+          const svgClone = svg.cloneNode(true) as SVGSVGElement;
+          // Ensure dimensions
+          const bbox = svg.getBoundingClientRect();
+          svgClone.setAttribute('width', String(bbox.width));
+          svgClone.setAttribute('height', String(bbox.height));
+
+          const svgData = new XMLSerializer().serializeToString(svgClone);
+          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(svgBlob);
+
+          const img = new Image();
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+            img.src = url;
+          });
+
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = bbox.width * 2;  // 2x for resolution
+          tempCanvas.height = bbox.height * 2;
+          const ctx = tempCanvas.getContext('2d')!;
+          ctx.scale(2, 2);
+          ctx.drawImage(img, 0, 0);
+          images.view2d_b64 = tempCanvas.toDataURL('image/png');
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.warn('Could not capture 2D view:', e);
+        }
       }
     }
 
-    // Try to capture 3D view from WebGL renderer
+    // Capture 3D view (WebGL Canvas → PNG)
     if (pdfOptions.include_3d) {
-      const canvas3d = document.querySelector('canvas[data-engine="three.js"]') as HTMLCanvasElement
-        || document.querySelector('.viewer-3d canvas') as HTMLCanvasElement;
+      // Find the WebGL canvas — it's the only canvas created by Three.js
+      const allCanvases = Array.from(document.querySelectorAll('canvas'));
+      let canvas3d: HTMLCanvasElement | null = null;
+      for (const c of allCanvases) {
+        // Three.js WebGL canvas has a webgl/webgl2 context
+        if (c.getContext('webgl2') || c.getContext('webgl')) {
+          canvas3d = c;
+          break;
+        }
+      }
       if (canvas3d) {
-        images.view3d_b64 = canvas3d.toDataURL('image/png');
+        try {
+          images.view3d_b64 = canvas3d.toDataURL('image/png');
+        } catch (e) {
+          console.warn('Could not capture 3D view:', e);
+        }
       }
     }
 
-    // Try to capture Plotly chart
+    // Capture Plotly chart
     if (pdfOptions.include_charts) {
       const plotlyDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
       if (plotlyDiv && (window as any).Plotly) {

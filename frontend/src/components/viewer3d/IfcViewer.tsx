@@ -86,6 +86,7 @@ export default function IfcViewer() {
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
+      preserveDrawingBuffer: true,  // needed for toDataURL() capture
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

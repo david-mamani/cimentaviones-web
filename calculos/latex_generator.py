@@ -346,31 +346,34 @@ def generate_latex(
             tex.append(r"\end{table}" + "\n\n")
 
     # ══════════════════════════════════════
-    # IMÁGENES (if provided)
+    # IMÁGENES (only if image data was provided)
     # ══════════════════════════════════════
-    # These will be replaced with actual file paths during compilation
-    if include_2d:
-        tex.append(r"\section{Vista 2D — Sección Transversal}" + "\n\n")
+    has_2d = include_2d and images.get('view2d_b64')
+    has_3d = include_3d and images.get('view3d_b64')
+    has_chart = include_charts and images.get('chart_b64')
+
+    if has_2d:
+        tex.append(r"\section{Vista 2D --- Secci\'on Transversal}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
         tex.append(r"\includegraphics[width=0.85\textwidth]{view2d.png}" + "\n")
-        tex.append(r"\caption{Sección transversal del modelo geotécnico}" + "\n")
+        tex.append(r"\caption{Secci\'on transversal del modelo geot\'ecnico}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
 
-    if include_3d:
-        tex.append(r"\section{Vista 3D — Modelo BIM}" + "\n\n")
+    if has_3d:
+        tex.append(r"\section{Vista 3D --- Modelo BIM}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
         tex.append(r"\includegraphics[width=0.85\textwidth]{view3d.png}" + "\n")
-        tex.append(r"\caption{Modelo 3D IFC de la cimentación}" + "\n")
+        tex.append(r"\caption{Modelo 3D IFC de la cimentaci\'on}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
 
-    if include_charts:
-        tex.append(r"\section{Gráfico de Iteraciones Paramétricas}" + "\n\n")
+    if has_chart:
+        tex.append(r"\section{Iteraciones Param\'etricas}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
         tex.append(r"\includegraphics[width=0.9\textwidth]{chart.png}" + "\n")
-        tex.append(r"\caption{Iteraciones paramétricas de capacidad portante}" + "\n")
+        tex.append(r"\caption{Iteraciones param\'etricas de capacidad portante}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
 
     # ── Footer ──
