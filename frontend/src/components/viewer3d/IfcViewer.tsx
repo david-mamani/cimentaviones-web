@@ -232,6 +232,60 @@ export default function IfcViewer() {
     });
   }, [settings]);
 
+  // ── Expose global capture function for PDF export ──
+  useEffect(() => {
+    (window as any).__captureView3D = (): string | null => {
+      const scene = sceneRef.current;
+      const renderer = rendererRef.current;
+      const camera = cameraRef.current;
+      if (!scene || !renderer || !camera) return null;
+
+      // Save current state
+      const origBg = (scene.background as THREE.Color)?.clone();
+      const origGridVisible = gridRef.current?.visible ?? false;
+      const origStrataState = strataMeshesRef.current.map((m) => {
+        const mat = m.material as THREE.MeshStandardMaterial;
+        return { opacity: mat.opacity, transparent: mat.transparent };
+      });
+      // Find axes helper using children search (avoids TS closure narrowing)
+      const foundAxes = scene.children.find((c) => (c as any).isAxesHelper) as THREE.Object3D | undefined;
+      const origAxesVisible = foundAxes?.visible ?? false;
+
+      // Apply PDF settings: white bg, low opacity, no grid/axes
+      scene.background = new THREE.Color('#ffffff');
+      if (gridRef.current) gridRef.current.visible = false;
+      if (foundAxes) foundAxes.visible = false;
+      strataMeshesRef.current.forEach((mesh) => {
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = 0.15;
+        mat.transparent = true;
+        mat.needsUpdate = true;
+      });
+
+      // Render and capture
+      renderer.render(scene, camera);
+      const dataUrl = renderer.domElement.toDataURL('image/jpeg', 0.85);
+
+      // Restore original state
+      scene.background = origBg || new THREE.Color(settings.bgColor);
+      if (gridRef.current) gridRef.current.visible = origGridVisible;
+      if (foundAxes) foundAxes.visible = origAxesVisible;
+      strataMeshesRef.current.forEach((mesh, i) => {
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = origStrataState[i]?.opacity ?? settings.strataOpacity;
+        mat.transparent = origStrataState[i]?.transparent ?? true;
+        mat.needsUpdate = true;
+      });
+      renderer.render(scene, camera);
+
+      return dataUrl;
+    };
+
+    return () => {
+      delete (window as any).__captureView3D;
+    };
+  }, [settings]);
+
   // ── Load IFC model ──
   const loadModel = useCallback(async () => {
     if (!ready || !ifcApiRef.current || !sceneRef.current) return;
@@ -240,17 +294,23 @@ export default function IfcViewer() {
     setError(null);
 
     try {
-      // Clear previous meshes from scene
+      // Clear ALL model meshes from scene (robust — avoids race conditions)
       const scene = sceneRef.current;
-      [...strataMeshesRef.current, ...foundationMeshesRef.current, ...waterMeshesRef.current].forEach((mesh) => {
-        scene.remove(mesh);
-        mesh.geometry.dispose();
-        (mesh.material as THREE.Material).dispose();
+      const toRemove: THREE.Object3D[] = [];
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+          toRemove.push(obj);
+        }
       });
-      edgeMeshesRef.current.forEach((edge) => {
-        scene.remove(edge);
-        edge.geometry.dispose();
-        (edge.material as THREE.Material).dispose();
+      toRemove.forEach((obj) => {
+        scene.remove(obj);
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          (obj.material as THREE.Material).dispose();
+        } else if (obj instanceof THREE.LineSegments) {
+          obj.geometry.dispose();
+          (obj.material as THREE.Material).dispose();
+        }
       });
       strataMeshesRef.current = [];
       foundationMeshesRef.current = [];

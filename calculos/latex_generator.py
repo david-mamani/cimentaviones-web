@@ -359,42 +359,66 @@ def generate_latex(
     # ======================================
     # ITERATION TABLE
     # ======================================
-    if include_iterations and iteration_results:
+    if include_iterations:
         tex.append(r"\section{Iteraciones Param\'etricas}" + "\n\n")
-        matrix = iteration_results.get('matrix', [])
-        df_values = iteration_results.get('dfValues', [])
 
-        for di, df_val in enumerate(df_values):
-            if di >= len(matrix):
-                break
-            row = matrix[di]
-            if not row:
-                continue
+        if not iteration_results or not iteration_results.get('matrix'):
+            tex.append(r"\textit{Sin datos para iteraciones. Ejecute las iteraciones param\'etricas primero.}" + "\n\n")
+        else:
+            matrix = iteration_results.get('matrix', [])
+            df_values = iteration_results.get('dfValues', [])
+            calc_num = 1
 
-            tex.append(f"\\subsection{{$D_f = {_fmt(df_val)}$ m}}\n")
-            tex.append(r"\begin{table}[H]" + "\n")
-            tex.append(r"\centering" + "\n")
-            tex.append(r"\footnotesize" + "\n")
-            tex.append(r"\begin{tabular}{c c c c c c}" + "\n")
-            tex.append(r"\toprule" + "\n")
-            tex.append(r"\textbf{B (m)} & \textbf{L (m)} & \textbf{$q_u$ (kPa)} & \textbf{$q_a$ (kPa)} & \textbf{$Q_{max}$ (kN)} & \textbf{FS} \\" + "\n")
-            tex.append(r"\midrule" + "\n")
+            for di, df_val in enumerate(df_values):
+                if di >= len(matrix):
+                    break
+                row = matrix[di]
+                if not row:
+                    continue
 
-            for cell in row:
-                res = cell.get('result', {})
+                tex.append(f"\\subsection{{$D_f = {_fmt(df_val)}$ m}}\n")
+                tex.append(r"\begin{table}[H]" + "\n")
+                tex.append(r"\centering" + "\n")
+                tex.append(r"\scriptsize" + "\n")
+                tex.append(r"\begin{tabular}{c c c c c c c c c c c}" + "\n")
+                tex.append(r"\toprule" + "\n")
                 tex.append(
-                    f"{_fmt(cell.get('B', 0))} & "
-                    f"{_fmt(cell.get('L', 0))} & "
-                    f"{_fmt(res.get('qu', 0))} & "
-                    f"{_fmt(res.get('qa', 0))} & "
-                    f"{_fmt(cell.get('Qmax', 0))} & "
-                    f"{_fmt(res.get('FS', 0))} \\\\ \n"
+                    r"\textbf{N\textsuperscript{o}} & "
+                    r"\textbf{B} & \textbf{L} & \textbf{$D_f$} & "
+                    r"\textbf{$q_u$} & \textbf{$q_{net}$} & \textbf{$q_a$} & "
+                    r"\textbf{$Q_{max}$} & "
+                    r"\textbf{$N_c$} & \textbf{$N_q$} & \textbf{$N_\gamma$} \\" + "\n"
                 )
+                tex.append(
+                    r" & \textbf{(m)} & \textbf{(m)} & \textbf{(m)} & "
+                    r"\textbf{(kPa)} & \textbf{(kPa)} & \textbf{(kPa)} & "
+                    r"\textbf{(kN)} & & & \\" + "\n"
+                )
+                tex.append(r"\midrule" + "\n")
 
-            tex.append(r"\bottomrule" + "\n")
-            tex.append(r"\end{tabular}" + "\n")
-            tex.append(f"\\caption{{Resultados para $D_f = {_fmt(df_val)}$ m}}\n")
-            tex.append(r"\end{table}" + "\n\n")
+                for cell in row:
+                    res = cell.get('result', {})
+                    bf = res.get('bearingFactors', {})
+                    L_val = cell.get('L', res.get('L', 0))
+                    tex.append(
+                        f"{calc_num} & "
+                        f"{_fmt(cell.get('B', 0))} & "
+                        f"{_fmt(L_val)} & "
+                        f"{_fmt(cell.get('Df', 0))} & "
+                        f"{_fmt(res.get('qu', 0))} & "
+                        f"{_fmt(res.get('qnet', 0))} & "
+                        f"{_fmt(res.get('qa', 0))} & "
+                        f"{_fmt(cell.get('Qmax', 0))} & "
+                        f"{_fmt(bf.get('Nc', 0))} & "
+                        f"{_fmt(bf.get('Nq', 0))} & "
+                        f"{_fmt(bf.get('Ngamma', 0))} \\\\ \n"
+                    )
+                    calc_num += 1
+
+                tex.append(r"\bottomrule" + "\n")
+                tex.append(r"\end{tabular}" + "\n")
+                tex.append(f"\\caption{{Iteraciones para $D_f = {_fmt(df_val)}$ m}}\n")
+                tex.append(r"\end{table}" + "\n\n")
 
     # ══════════════════════════════════════
     # IMAGENES (only if image data was provided)

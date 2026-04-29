@@ -82,6 +82,7 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
 
                 row.append({
                     "B": b,
+                    "L": L,
                     "Df": df,
                     "result": result,
                     "Qmax": Qmax,
