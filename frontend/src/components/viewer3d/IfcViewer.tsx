@@ -133,12 +133,14 @@ export default function IfcViewer() {
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x333333);
     grid.position.y = 0.001;
     grid.visible = settings.showGrid;
+    grid.userData.__permanent = true;  // Don't remove during model reload
     scene.add(grid);
     gridRef.current = grid;
 
     // Axis helper
     const axes = new THREE.AxesHelper(2);
     axes.position.set(-8, 0, -8);
+    axes.userData.__permanent = true;  // Don't remove during model reload
     scene.add(axes);
 
     // Animation loop
@@ -298,7 +300,7 @@ export default function IfcViewer() {
       const scene = sceneRef.current;
       const toRemove: THREE.Object3D[] = [];
       scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+        if ((obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) && !obj.userData.__permanent) {
           toRemove.push(obj);
         }
       });

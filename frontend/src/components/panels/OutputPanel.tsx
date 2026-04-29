@@ -88,98 +88,118 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   };
 
   // Capture standardized images for PDF (white backgrounds, clean renders)
+  // Temporarily reveals hidden tabs to ensure correct rendering dimensions
   const captureImages = useCallback(async () => {
     const images: Record<string, string> = {};
 
-    // Helper: resize canvas to max dimensions and output as JPEG
-    const toJpeg = (canvas: HTMLCanvasElement, maxW = 1400, maxH = 900): string => {
-      let w = canvas.width;
-      let h = canvas.height;
-      if (w > maxW || h > maxH) {
-        const scale = Math.min(maxW / w, maxH / h);
-        w = Math.round(w * scale);
-        h = Math.round(h * scale);
+    // ── Temporarily show ALL hidden tab panes so canvases/SVGs have dimensions ──
+    const hiddenPanes: HTMLElement[] = [];
+    document.querySelectorAll('[style*="display: none"]').forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.querySelector('svg, canvas, .js-plotly-plot')) {
+        htmlEl.style.display = 'block';
+        hiddenPanes.push(htmlEl);
       }
-      const out = document.createElement('canvas');
-      out.width = w;
-      out.height = h;
-      const ctx = out.getContext('2d')!;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(canvas, 0, 0, w, h);
-      return out.toDataURL('image/jpeg', 0.85);
-    };
+    });
 
-    // ── 2D: SVG → Canvas with white background ──
-    if (pdfOptions.include_2d) {
-      const svg = document.querySelector('svg') as SVGSVGElement;
-      if (svg) {
-        try {
-          const svgClone = svg.cloneNode(true) as SVGSVGElement;
-          const bbox = svg.getBoundingClientRect();
-          svgClone.setAttribute('width', String(bbox.width));
-          svgClone.setAttribute('height', String(bbox.height));
-          // Force white background on the SVG clone
-          const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          bgRect.setAttribute('width', '100%');
-          bgRect.setAttribute('height', '100%');
-          bgRect.setAttribute('fill', '#ffffff');
-          svgClone.insertBefore(bgRect, svgClone.firstChild);
+    // Wait a frame for layout recalculation
+    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => setTimeout(r, 100));
 
-          const svgData = new XMLSerializer().serializeToString(svgClone);
-          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(svgBlob);
-
-          const img = new Image();
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = reject;
-            img.src = url;
-          });
-
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = bbox.width * 2;
-          tempCanvas.height = bbox.height * 2;
-          const ctx = tempCanvas.getContext('2d')!;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-          ctx.scale(2, 2);
-          ctx.drawImage(img, 0, 0);
-          images.view2d_b64 = toJpeg(tempCanvas);
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          console.warn('Could not capture 2D view:', e);
-        }
-      }
-    }
-
-    // ── 3D: Use global __captureView3D (white bg, 0.15 strata, no grid) ──
-    if (pdfOptions.include_3d) {
-      try {
-        const capture = (window as any).__captureView3D;
-        if (typeof capture === 'function') {
-          const dataUrl = capture();
-          if (dataUrl) {
-            images.view3d_b64 = dataUrl;
+    try {
+      // ── 2D: SVG → Canvas with white background ──
+      if (pdfOptions.include_2d) {
+        // Find the Viewer2D SVG specifically (it has foundation/strata shapes)
+        const allSvgs = document.querySelectorAll('svg');
+        let targetSvg: SVGSVGElement | null = null;
+        for (const svg of allSvgs) {
+          // The Viewer2D SVG has rect elements for strata/foundation
+          if (svg.querySelector('rect') && svg.closest('[style*="position"]')) {
+            targetSvg = svg as SVGSVGElement;
+            break;
           }
         }
-      } catch (e) {
-        console.warn('Could not capture 3D view:', e);
-      }
-    }
+        if (targetSvg) {
+          try {
+            const svgClone = targetSvg.cloneNode(true) as SVGSVGElement;
+            const bbox = targetSvg.getBoundingClientRect();
+            const w = bbox.width || 800;
+            const h = bbox.height || 600;
+            svgClone.setAttribute('width', String(w));
+            svgClone.setAttribute('height', String(h));
 
-    // ── Charts: Generate both qa and Qmax charts with white bg ──
-    if (pdfOptions.include_charts) {
-      const plotlyDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
-      if (plotlyDiv && (window as any).Plotly) {
-        try {
-          // Current chart (whatever metric is active)
-          const dataUrl = await (window as any).Plotly.toImage(plotlyDiv, {
-            format: 'png', width: 1000, height: 500,
-          });
-          images.chart_b64 = dataUrl;
-        } catch { /* ignore */ }
+            // Force white background on the SVG clone
+            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgRect.setAttribute('width', '100%');
+            bgRect.setAttribute('height', '100%');
+            bgRect.setAttribute('fill', '#ffffff');
+            svgClone.insertBefore(bgRect, svgClone.firstChild);
+
+            const svgData = new XMLSerializer().serializeToString(svgClone);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            const img = new Image();
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = reject;
+              img.src = url;
+            });
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w * 2;
+            tempCanvas.height = h * 2;
+            const ctx = tempCanvas.getContext('2d')!;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            ctx.scale(2, 2);
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
+            if (dataUrl.length > 5000) {
+              images.view2d_b64 = dataUrl;
+            }
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            console.warn('Could not capture 2D view:', e);
+          }
+        }
       }
+
+      // ── 3D: Use global __captureView3D (white bg, 0.15 strata, no grid) ──
+      if (pdfOptions.include_3d) {
+        try {
+          const capture = (window as any).__captureView3D;
+          if (typeof capture === 'function') {
+            const dataUrl = capture();
+            // Validate: must be > 5KB to be a real image
+            if (dataUrl && dataUrl.length > 5000) {
+              images.view3d_b64 = dataUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not capture 3D view:', e);
+        }
+      }
+
+      // ── Charts: Capture from Plotly with white bg ──
+      if (pdfOptions.include_charts) {
+        const plotlyDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
+        if (plotlyDiv && (window as any).Plotly) {
+          try {
+            const dataUrl = await (window as any).Plotly.toImage(plotlyDiv, {
+              format: 'png', width: 1000, height: 500,
+            });
+            if (dataUrl && dataUrl.length > 5000) {
+              images.chart_b64 = dataUrl;
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    } finally {
+      // ── Restore hidden panes ──
+      hiddenPanes.forEach((el) => {
+        el.style.display = 'none';
+      });
     }
 
     return images;
