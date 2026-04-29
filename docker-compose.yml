@@ -1,13 +1,16 @@
 services:
-  cimentaviones-web:
+  frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "80:80"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    expose:
+      - "8000"
