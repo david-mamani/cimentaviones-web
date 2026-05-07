@@ -1,12 +1,20 @@
 /**
- * Toolbar — Top ribbon bar in Revit style.
- * Groups: Proyecto | Análisis | Vista | Info
+ * Toolbar — Minimalist top bar with Lucide icons.
+ * All tools visible as icons. No dropdown.
+ * Groups: Logo | Project | Calculate | Views | Info | Theme | Panels
  */
 import { useState, useRef } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { ProjectData } from '../../store/foundationStore';
 import { foundationSchema, stratumSchema, conditionsSchema, validateCalculationInput } from '../../lib/validation';
 import CreditsModal from './CreditsModal';
+import {
+  Save, FolderOpen, Play, RotateCcw,
+  Square, Box, SplitSquareHorizontal,
+  BarChart3, Table2, Info,
+  PanelLeft, PanelRight,
+  Sun, Moon, Loader2,
+} from 'lucide-react';
 
 interface ToolbarProps {
   onToggleLeft: () => void;
@@ -16,11 +24,13 @@ interface ToolbarProps {
   viewMode: 'single' | 'split';
   onSetViewMode: (mode: 'single' | 'split') => void;
   onOpenTab: (type: string) => void;
+  lightMode: boolean;
+  onToggleTheme: () => void;
 }
 
 export default function Toolbar({
   onToggleLeft, onToggleRight, leftCollapsed, rightCollapsed,
-  viewMode, onSetViewMode, onOpenTab,
+  viewMode, onSetViewMode, onOpenTab, lightMode, onToggleTheme,
 }: ToolbarProps) {
   const foundation = useFoundationStore((s) => s.foundation);
   const strata = useFoundationStore((s) => s.strata);
@@ -32,6 +42,7 @@ export default function Toolbar({
   const loadProject = useFoundationStore((s) => s.loadProject);
   const lbLocked = useFoundationStore((s) => s.lbLocked);
   const lbRatio = useFoundationStore((s) => s.lbRatio);
+  const isCalculating = useFoundationStore((s) => s.isCalculating);
 
   const [showCredits, setShowCredits] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,12 +75,7 @@ export default function Toolbar({
 
   const handleSaveProject = () => {
     const data: ProjectData = {
-      foundation,
-      strata,
-      conditions,
-      method,
-      lbLocked,
-      lbRatio,
+      foundation, strata, conditions, method, lbLocked, lbRatio,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -86,100 +92,122 @@ export default function Toolbar({
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data = JSON.parse(ev.target?.result as string) as ProjectData;
-        if (!data.foundation || !data.strata || !data.conditions) {
-          throw new Error('Archivo no válido');
-        }
+        const data = JSON.parse(ev.target?.result as string);
         loadProject(data);
       } catch {
-        setErrors(['Error al cargar el archivo. Verifica que sea un proyecto válido.']);
+        alert('Archivo de proyecto inválido.');
       }
     };
     reader.readAsText(file);
-    // Reset the input so the same file can be re-loaded
     e.target.value = '';
   };
 
   return (
     <>
       <div style={{
-        height: 40,
-        background: '#333',
-        borderBottom: '1px solid #505050',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 8px',
         gap: 2,
+        padding: '0 12px',
+        height: 44,
+        background: 'var(--bg-surface-1)',
+        borderBottom: '1px solid var(--border)',
         flexShrink: 0,
       }}>
-        {/* Logo placeholder */}
+        {/* Logo */}
         <div style={{
           width: 28, height: 28,
-          background: '#c0392b',
+          background: 'var(--accent)',
+          borderRadius: 'var(--radius-sm)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'white', fontWeight: 700, fontSize: 12,
-          marginRight: 8,
+          color: 'var(--bg-base)', fontWeight: 700, fontSize: 11,
+          fontFamily: 'var(--font-sans)',
+          flexShrink: 0,
         }}>
           CA
         </div>
 
-        <Separator />
+        <Sep />
 
-        {/* Project group */}
-        <ToolGroup label="Proyecto">
-          <ToolBtn icon="💾" label="Guardar" onClick={handleSaveProject} />
-          <ToolBtn icon="📂" label="Cargar" onClick={() => fileInputRef.current?.click()} />
-        </ToolGroup>
+        {/* Project */}
+        <ToolBtn icon={<Save size={15} />} title="Guardar proyecto" onClick={handleSaveProject} />
+        <ToolBtn icon={<FolderOpen size={15} />} title="Cargar proyecto" onClick={() => fileInputRef.current?.click()} />
 
-        <Separator />
+        <Sep />
 
-        {/* Analysis group */}
-        <ToolGroup label="Análisis">
-          <ToolBtn icon="▶" label="Calcular" accent onClick={handleCalculate} />
-          <ToolBtn icon="↺" label="Reset" onClick={reset} />
-        </ToolGroup>
+        {/* Calculate — Pill accent button */}
+        <button
+          onClick={handleCalculate}
+          disabled={isCalculating}
+          title="Ejecutar cálculo"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 16px',
+            background: isCalculating ? 'var(--bg-surface-3)' : 'var(--accent)',
+            border: 'none',
+            borderRadius: 20,
+            color: isCalculating ? 'var(--text-secondary)' : 'var(--bg-base)',
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: 'var(--font-sans)',
+            cursor: isCalculating ? 'not-allowed' : 'pointer',
+            transition: 'all var(--transition-fast)',
+            opacity: isCalculating ? 0.7 : 1,
+          }}
+          onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent-hover)'; }}
+          onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent)'; }}
+        >
+          {isCalculating ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={14} />}
+          {isCalculating ? 'Calculando...' : 'Calcular'}
+        </button>
+        <ToolBtn icon={<RotateCcw size={15} />} title="Resetear todo" onClick={reset} />
 
-        <Separator />
+        <Sep />
 
-        {/* View group */}
-        <ToolGroup label="Vista">
-          <ToolBtn icon="□" label="2D" onClick={() => onOpenTab('2d')} />
-          <ToolBtn icon="⬡" label="3D" onClick={() => onOpenTab('3d')} />
-          <ToolBtn
-            icon="▥"
-            label="Split"
-            active={viewMode === 'split'}
-            onClick={() => onSetViewMode(viewMode === 'split' ? 'single' : 'split')}
-          />
-          <ToolBtn icon="⊞" label="Gráficas" onClick={() => onOpenTab('charts')} />
-          <ToolBtn icon="≡" label="Resultados" onClick={() => onOpenTab('results')} />
-        </ToolGroup>
+        {/* View buttons — all visible as icons */}
+        <ToolBtn icon={<Square size={15} />} title="Vista 2D" onClick={() => onOpenTab('2d')} />
+        <ToolBtn icon={<Box size={15} />} title="Vista 3D" onClick={() => onOpenTab('3d')} />
+        <ToolBtn
+          icon={<SplitSquareHorizontal size={15} />}
+          title={viewMode === 'split' ? 'Desactivar Split' : 'Activar Split'}
+          active={viewMode === 'split'}
+          onClick={() => onSetViewMode(viewMode === 'split' ? 'single' : 'split')}
+        />
+        <ToolBtn icon={<BarChart3 size={15} />} title="Gráficas" onClick={() => onOpenTab('charts')} />
+        <ToolBtn icon={<Table2 size={15} />} title="Resultados" onClick={() => onOpenTab('results')} />
 
-        <Separator />
+        <Sep />
 
-        {/* Info group */}
-        <ToolGroup label="Info">
-          <ToolBtn icon="ℹ" label="Créditos" onClick={() => setShowCredits(true)} />
-        </ToolGroup>
+        <ToolBtn icon={<Info size={15} />} title="Créditos" onClick={() => setShowCredits(true)} />
 
+        {/* Spacer */}
         <div style={{ flex: 1 }} />
+
+        {/* Theme toggle */}
+        <ToolBtn
+          icon={lightMode ? <Moon size={15} /> : <Sun size={15} />}
+          title={lightMode ? 'Modo oscuro' : 'Modo claro'}
+          onClick={onToggleTheme}
+        />
+
+        <Sep />
 
         {/* Panel toggles */}
         <ToolBtn
-          icon="◧"
-          label={leftCollapsed ? 'Propiedades' : ''}
+          icon={<PanelLeft size={15} />}
+          title={leftCollapsed ? 'Mostrar propiedades' : 'Ocultar propiedades'}
           active={!leftCollapsed}
           onClick={onToggleLeft}
         />
         <ToolBtn
-          icon="◨"
-          label={rightCollapsed ? 'Salida' : ''}
+          icon={<PanelRight size={15} />}
+          title={rightCollapsed ? 'Mostrar salida' : 'Ocultar salida'}
           active={!rightCollapsed}
           onClick={onToggleRight}
         />
       </div>
 
-      {/* Hidden file input for project loading */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -188,54 +216,48 @@ export default function Toolbar({
         style={{ display: 'none' }}
       />
 
+      {/* Spinner animation */}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+
       {/* Credits modal */}
       {showCredits && <CreditsModal onClose={() => setShowCredits(false)} />}
     </>
   );
 }
 
-function ToolGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ display: 'flex', gap: 1 }}>{children}</div>
-      <span style={{ fontSize: 9, color: '#777', marginTop: -1 }}>{label}</span>
-    </div>
-  );
-}
+/* ─── Sub-components ─── */
 
-function ToolBtn({ icon, label, accent, active, onClick }: {
-  icon: string; label?: string; accent?: boolean; active?: boolean; onClick?: () => void;
+function ToolBtn({ icon, title, active, onClick, disabled }: {
+  icon: React.ReactNode; title: string; active?: boolean;
+  onClick?: () => void; disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      title={label}
+      title={title}
+      disabled={disabled}
       style={{
-        padding: '4px 8px',
-        background: accent ? '#c0392b' : active ? '#454545' : 'transparent',
-        border: accent ? '1px solid #a93226' : active ? '1px solid #606060' : '1px solid transparent',
-        color: accent ? 'white' : '#e0e0e0',
-        cursor: 'pointer',
-        fontSize: 12,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
-        fontFamily: 'inherit',
-        whiteSpace: 'nowrap',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 32, height: 32,
+        background: active ? 'var(--bg-surface-3)' : 'transparent',
+        border: '1px solid ' + (active ? 'var(--border-active)' : 'transparent'),
+        borderRadius: 'var(--radius-sm)',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        transition: 'all var(--transition-fast)',
+        flexShrink: 0,
       }}
-      onMouseEnter={(e) => {
-        if (!accent && !active) e.currentTarget.style.background = '#454545';
-      }}
-      onMouseLeave={(e) => {
-        if (!accent && !active) e.currentTarget.style.background = 'transparent';
-      }}
+      onMouseEnter={(e) => { if (!disabled && !active) { e.currentTarget.style.background = 'var(--bg-surface-2)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+      onMouseLeave={(e) => { if (!disabled && !active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
     >
-      <span>{icon}</span>
-      {label && <span style={{ fontSize: 11 }}>{label}</span>}
+      {icon}
     </button>
   );
 }
 
-function Separator() {
-  return <div style={{ width: 1, height: 28, background: '#505050', margin: '0 6px' }} />;
+function Sep() {
+  return <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 8px', flexShrink: 0 }} />;
 }

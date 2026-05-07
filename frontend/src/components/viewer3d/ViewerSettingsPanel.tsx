@@ -16,19 +16,19 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
   return (
     <div style={{
       position: 'absolute', top: 0, right: 0, bottom: 0,
-      width: 240, background: '#2a2a2a', borderLeft: '1px solid #505050',
+      width: 240, background: 'var(--bg-surface-1)', borderLeft: '1px solid var(--border)',
       overflowY: 'auto', zIndex: 20, display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 10px', borderBottom: '1px solid #505050', background: '#333',
+        padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-2)',
       }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#ddd', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
           ⚙ Visualización 3D
         </span>
         <button onClick={onClose} style={{
-          background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 14, padding: '0 4px',
+          background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: '0 4px',
         }}>✕</button>
       </div>
 
@@ -51,16 +51,16 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
         />
 
         {/* Per-stratum colors */}
-        <p style={{ fontSize: 9, color: '#777', marginTop: 8, marginBottom: 4 }}>Colores por estrato:</p>
+        <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 8, marginBottom: 4 }}>Colores por estrato:</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {strata.map((s, i) => (
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-              <span style={{ fontSize: 9, color: '#888', width: 16 }}>E{i + 1}</span>
+              <span style={{ fontSize: 9, color: 'var(--text-secondary)', width: 16 }}>E{i + 1}</span>
               <input
                 type="color"
                 value={settings.strataColors[i % settings.strataColors.length]}
                 onChange={(e) => settings.setStrataColor(i, e.target.value)}
-                style={{ width: 28, height: 18, border: '1px solid #505050', background: 'none', cursor: 'pointer', padding: 0 }}
+                style={{ width: 28, height: 18, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', padding: 0 }}
               />
             </div>
           ))}
@@ -128,7 +128,7 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
       </div>
 
       {/* Reset button */}
-      <div style={{ padding: 10, borderTop: '1px solid #505050' }}>
+      <div style={{ padding: 10, borderTop: '1px solid var(--border)' }}>
         <button
           className="cad-btn"
           onClick={settings.reset}
@@ -146,9 +146,9 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
 function SectionHeader({ title }: { title: string }) {
   return (
     <p style={{
-      fontSize: 10, fontWeight: 600, color: '#c0392b', marginTop: 12, marginBottom: 6,
+      fontSize: 10, fontWeight: 600, color: 'var(--accent)', marginTop: 12, marginBottom: 6,
       textTransform: 'uppercase', letterSpacing: 0.5,
-      borderBottom: '1px solid #3c3c3c', paddingBottom: 4,
+      borderBottom: '1px solid var(--border)', paddingBottom: 4,
     }}>
       {title}
     </p>
@@ -162,8 +162,8 @@ function SliderControl({ label, value, min, max, step, onChange }: {
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-        <span style={{ fontSize: 10, color: '#999' }}>{label}</span>
-        <span style={{ fontSize: 10, color: '#c0392b', fontFamily: 'Consolas, monospace' }}>
+        <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{label}</span>
+        <span style={{ fontSize: 10, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
           {value.toFixed(2)}
         </span>
       </div>
@@ -172,7 +172,7 @@ function SliderControl({ label, value, min, max, step, onChange }: {
         min={min} max={max} step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ width: '100%', accentColor: '#c0392b', height: 4 }}
+        style={{ width: '100%', accentColor: 'var(--accent)', height: 4 }}
       />
     </div>
   );
@@ -184,7 +184,7 @@ function CheckboxControl({ label, checked, onChange }: {
   return (
     <label style={{
       display: 'flex', alignItems: 'center', gap: 6,
-      fontSize: 10, color: '#999', cursor: 'pointer', marginBottom: 4,
+      fontSize: 10, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 4,
     }}>
       <input
         type="checkbox"
@@ -202,14 +202,14 @@ function ColorControl({ label, value, onChange }: {
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-      <span style={{ fontSize: 10, color: '#999', flex: 1 }}>{label}</span>
+      <span style={{ fontSize: 10, color: 'var(--text-secondary)', flex: 1 }}>{label}</span>
       <input
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{ width: 36, height: 18, border: '1px solid #505050', background: 'none', cursor: 'pointer', padding: 0 }}
+        style={{ width: 36, height: 18, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', padding: 0 }}
       />
-      <span style={{ fontSize: 9, color: '#555', fontFamily: 'Consolas, monospace' }}>{value}</span>
+      <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{value}</span>
     </div>
   );
 }

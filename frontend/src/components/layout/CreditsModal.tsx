@@ -1,5 +1,6 @@
 /**
  * CreditsModal — Modal overlay showing app credits and author info.
+ * Glassmorphism design.
  */
 
 interface CreditsModalProps {
@@ -12,96 +13,95 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.6)',
+        background: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9999,
-        backdropFilter: 'blur(4px)',
+        backdropFilter: 'blur(12px)',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#2a2a2a',
-          border: '1px solid #505050',
-          borderRadius: 10,
+          background: 'var(--bg-surface-1)',
+          border: '1px solid var(--border-active)',
+          borderRadius: 'var(--radius-lg)',
           padding: '28px 32px',
           width: 380,
           maxWidth: '90vw',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          boxShadow: 'var(--shadow-lg)',
           textAlign: 'center',
         }}
       >
         {/* App icon */}
         <div style={{
           width: 52, height: 52,
-          background: '#c0392b',
-          borderRadius: 8,
+          background: 'var(--accent)',
+          borderRadius: 'var(--radius-md)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 16px',
-          fontSize: 22, fontWeight: 800, color: '#fff',
+          fontSize: 22, fontWeight: 800, color: 'var(--text-primary)',
+          fontFamily: 'var(--font-sans)',
         }}>
           CA
         </div>
 
         <h2 style={{
-          fontSize: 18, fontWeight: 700, color: '#fff',
-          marginBottom: 4,
+          fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
+          marginBottom: 4, fontFamily: 'var(--font-sans)',
         }}>
           CimentAviones Web
         </h2>
-        <p style={{ fontSize: 11, color: '#888', marginBottom: 16 }}>
+        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>
           Versión 1.1 — Motor de Análisis Geotécnico
         </p>
 
         <div style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 6,
+          background: 'var(--bg-surface-2)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
           padding: '14px 16px',
           marginBottom: 16,
         }}>
-          <p style={{ fontSize: 12, color: '#ccc', marginBottom: 8, fontWeight: 600 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>
             Desarrollado por
           </p>
-          <p style={{ fontSize: 14, color: '#fff', fontWeight: 500 }}>
-            {/* Placeholder — el usuario lo actualizará */}
+          <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
             David Mamani
           </p>
-          <p style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
             Ingeniería Civil
           </p>
         </div>
 
         <div style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 6,
+          background: 'var(--bg-surface-2)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
           padding: '14px 16px',
           marginBottom: 20,
         }}>
-          <p style={{ fontSize: 12, color: '#ccc', marginBottom: 6, fontWeight: 600 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 600 }}>
             Universidad
           </p>
-          {/* Placeholder for university logo */}
           <div style={{
             width: 60, height: 60,
-            background: '#3a3a3a',
-            borderRadius: 6,
+            background: 'var(--bg-surface-3)',
+            borderRadius: 'var(--radius-md)',
             margin: '0 auto 8px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, color: '#666',
+            fontSize: 10, color: 'var(--text-muted)',
           }}>
             LOGO
           </div>
-          <p style={{ fontSize: 13, color: '#ccc' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-primary)' }}>
             Universidad Católica de Santa María
           </p>
-          <p style={{ fontSize: 10, color: '#777', marginTop: 2 }}>
+          <p style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
             Arequipa, Perú
           </p>
         </div>
 
-        <div style={{ fontSize: 10, color: '#555', marginBottom: 16, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
           Análisis de capacidad portante según Terzaghi, Meyerhof/Hansen (Das), y RNE E.050.
           <br />
           Visualización BIM con IFC2X3 • Gráficos con Plotly.js
@@ -111,14 +111,18 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
           onClick={onClose}
           style={{
             padding: '6px 24px',
-            background: '#c0392b',
+            background: 'var(--accent)',
             border: 'none',
-            color: '#fff',
+            color: 'var(--bg-base)',
             fontSize: 12,
             fontWeight: 600,
-            borderRadius: 4,
+            borderRadius: 20,
             cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            transition: 'background var(--transition-fast)',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-hover)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--accent)'; }}
         >
           Cerrar
         </button>

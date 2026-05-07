@@ -1,12 +1,13 @@
 /**
- * PropertiesPanel — Left panel: all input sections in Revit property-palette style.
- * Uses CadNumericInput for all numeric fields (allows clearing to empty/dash).
+ * PropertiesPanel — Left panel: all input sections with card-based design.
+ * Uses CadNumericInput for all numeric fields.
  */
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { CalculationMethod, FoundationType } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
+import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 
 const TYPES: { value: FoundationType; label: string }[] = [
   { value: 'cuadrada', label: 'Cuadrada' },
@@ -33,7 +34,7 @@ export default function PropertiesPanel() {
   );
 }
 
-/* ─── Foundation Type ─── */
+/* ─── Foundation Type — Cards ─── */
 function TypeSection() {
   const [open, setOpen] = useState(true);
   const type = useFoundationStore((s) => s.foundation.type);
@@ -41,14 +42,47 @@ function TypeSection() {
 
   return (
     <Section title="Tipo de Cimentación" open={open} onToggle={() => setOpen(!open)}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
         {TYPES.map(t => (
           <button
             key={t.value}
-            className={type === t.value ? 'cad-btn cad-btn-accent' : 'cad-btn'}
             onClick={() => setType(t.value)}
-            style={{ fontSize: 11, padding: '5px 4px' }}
+            style={{
+              padding: '10px 8px',
+              background: type === t.value ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
+              border: `1px solid ${type === t.value ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-md)',
+              color: type === t.value ? 'var(--accent)' : 'var(--text-primary)',
+              fontSize: 11,
+              fontWeight: type === t.value ? 600 : 500,
+              fontFamily: 'var(--font-sans)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            onMouseEnter={(e) => {
+              if (type !== t.value) {
+                e.currentTarget.style.borderColor = 'var(--border-active)';
+                e.currentTarget.style.background = 'var(--bg-surface-3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (type !== t.value) {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background = 'var(--bg-surface-2)';
+              }
+            }}
           >
+            {/* Mini SVG icon */}
+            <svg width="24" height="16" viewBox="0 0 24 16" fill="none">
+              {t.value === 'cuadrada' && <rect x="4" y="2" width="16" height="12" rx="1" fill={type === t.value ? 'var(--accent)' : 'var(--text-muted)'} />}
+              {t.value === 'rectangular' && <rect x="2" y="4" width="20" height="8" rx="1" fill={type === t.value ? 'var(--accent)' : 'var(--text-muted)'} />}
+              {t.value === 'circular' && <circle cx="12" cy="8" r="7" fill={type === t.value ? 'var(--accent)' : 'var(--text-muted)'} />}
+              {t.value === 'franja' && <rect x="1" y="5" width="22" height="6" rx="1" fill={type === t.value ? 'var(--accent)' : 'var(--text-muted)'} />}
+            </svg>
             {t.label}
           </button>
         ))}
@@ -84,7 +118,7 @@ function DimensionsSection() {
           <div style={{ marginBottom: 6, padding: '4px 0' }}>
             <label style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 11, cursor: 'pointer', color: '#bbb',
+              fontSize: 11, cursor: 'pointer', color: 'var(--text-secondary)',
             }}>
               <input
                 type="checkbox"
@@ -129,13 +163,30 @@ function MethodSection() {
 
   return (
     <Section title="Método de Cálculo" open={open} onToggle={() => setOpen(!open)}>
-      <div style={{ display: 'flex', gap: 3 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
         {METHODS.map(m => (
           <button
             key={m.value}
-            className={method === m.value ? 'cad-btn cad-btn-accent' : 'cad-btn'}
             onClick={() => setMethod(m.value)}
-            style={{ flex: 1, fontSize: 10, padding: '5px 2px' }}
+            style={{
+              flex: 1,
+              padding: '6px 4px',
+              background: method === m.value ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
+              border: `1px solid ${method === m.value ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-sm)',
+              color: method === m.value ? 'var(--accent)' : 'var(--text-primary)',
+              fontSize: 10,
+              fontWeight: method === m.value ? 600 : 500,
+              fontFamily: 'var(--font-sans)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              if (method !== m.value) e.currentTarget.style.borderColor = 'var(--border-active)';
+            }}
+            onMouseLeave={(e) => {
+              if (method !== m.value) e.currentTarget.style.borderColor = 'var(--border)';
+            }}
           >
             {m.label}
           </button>
@@ -154,7 +205,7 @@ function ConditionsSection() {
   return (
     <Section title="Condiciones Especiales" open={open} onToggle={() => setOpen(!open)}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer', color: 'var(--text-secondary)' }}>
           <input type="checkbox" className="cad-checkbox" checked={cond.hasWaterTable}
             onChange={(e) => setCond('hasWaterTable', e.target.checked)} />
           Nivel freático
@@ -165,7 +216,7 @@ function ConditionsSection() {
               onChange={(v) => setCond('waterTableDepth', v)} />
           </PropRow>
         )}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer', color: 'var(--text-secondary)' }}>
           <input type="checkbox" className="cad-checkbox" checked={cond.hasBasement}
             onChange={(e) => setCond('hasBasement', e.target.checked)} />
           Sótano
@@ -181,7 +232,7 @@ function ConditionsSection() {
   );
 }
 
-/* ─── Strata ─── */
+/* ─── Strata — Table ─── */
 function StrataSection() {
   const [open, setOpen] = useState(true);
   const strata = useFoundationStore((s) => s.strata);
@@ -197,67 +248,132 @@ function StrataSection() {
       open={open}
       onToggle={() => setOpen(!open)}
     >
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-        <thead>
-          <tr style={{ color: '#888' }}>
-            <th style={{ padding: '2px 4px', width: 24 }}>N°</th>
-            <th style={{ padding: '2px 2px' }}>h(m)</th>
-            <th style={{ padding: '2px 2px' }}>γ</th>
-            <th style={{ padding: '2px 2px' }}>c</th>
-            <th style={{ padding: '2px 2px' }}>φ</th>
-            <th style={{ padding: '2px 2px' }}>γsat</th>
-            <th style={{ padding: '2px 2px', width: 20 }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {strata.map((s, i) => (
-            <tr key={s.id}>
-              <td style={{ textAlign: 'center', position: 'relative' }}>
-                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                  <input
-                    type="color"
-                    value={strataColors[i % strataColors.length]}
-                    onChange={(e) => setStrataColor(i, e.target.value)}
-                    style={{
-                      width: 10, height: 10, padding: 0, border: 'none',
-                      background: 'none', cursor: 'pointer',
-                    }}
-                  />
-                  <span style={{ color: '#c0392b', fontWeight: 700, fontSize: 11 }}>{i + 1}</span>
-                </label>
-              </td>
-              <td><CadNumericInput className="stratum-input" value={s.thickness} step={0.1}
-                onChange={(v) => updateStratum(s.id, { thickness: v })} /></td>
-              <td><CadNumericInput className="stratum-input" value={s.gamma} step={0.5}
-                onChange={(v) => updateStratum(s.id, { gamma: v })} /></td>
-              <td><CadNumericInput className="stratum-input" value={s.c} step={1}
-                onChange={(v) => updateStratum(s.id, { c: v })} /></td>
-              <td><CadNumericInput className="stratum-input" value={s.phi} step={1}
-                onChange={(v) => updateStratum(s.id, { phi: v })} /></td>
-              <td><CadNumericInput className="stratum-input" value={s.gammaSat} step={0.5}
-                onChange={(v) => updateStratum(s.id, { gammaSat: v })} /></td>
-              <td>
-                {strata.length > 1 && (
-                  <button
-                    onClick={() => removeStratum(s.id)}
-                    style={{
-                      background: 'none', border: 'none', color: '#777', cursor: 'pointer',
-                      fontSize: 12, padding: 0,
-                    }}
-                    title="Eliminar estrato"
-                  >×</button>
-                )}
-              </td>
+      {/* Table */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          fontSize: 11,
+          fontFamily: 'var(--font-mono)',
+        }}>
+          <thead>
+            <tr>
+              {['', 'h(m)', 'γ', 'c', 'φ°', 'γsat', ''].map((h, i) => (
+                <th key={i} style={{
+                  padding: '4px 2px',
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  textAlign: 'center',
+                  borderBottom: '1px solid var(--border)',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: 0.3,
+                }}>
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {strata.map((s, i) => {
+              const color = strataColors[i % strataColors.length];
+              return (
+                <tr key={s.id}>
+                  {/* Color */}
+                  <td style={{ padding: '3px 2px', textAlign: 'center', width: 22 }}>
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => setStrataColor(i, e.target.value)}
+                      style={{
+                        width: 14, height: 14, padding: 0,
+                        border: '1px solid var(--border)', background: 'none',
+                        cursor: 'pointer', borderRadius: '50%',
+                      }}
+                    />
+                  </td>
+                  {/* h */}
+                  <td style={{ padding: '2px 1px' }}>
+                    <CadNumericInput className="stratum-input" value={s.thickness} step={0.1}
+                      onChange={(v) => updateStratum(s.id, { thickness: v })} />
+                  </td>
+                  {/* gamma */}
+                  <td style={{ padding: '2px 1px' }}>
+                    <CadNumericInput className="stratum-input" value={s.gamma} step={0.5}
+                      onChange={(v) => updateStratum(s.id, { gamma: v })} />
+                  </td>
+                  {/* c */}
+                  <td style={{ padding: '2px 1px' }}>
+                    <CadNumericInput className="stratum-input" value={s.c} step={1}
+                      onChange={(v) => updateStratum(s.id, { c: v })} />
+                  </td>
+                  {/* phi */}
+                  <td style={{ padding: '2px 1px' }}>
+                    <CadNumericInput className="stratum-input" value={s.phi} step={1}
+                      onChange={(v) => updateStratum(s.id, { phi: v })} />
+                  </td>
+                  {/* gammaSat */}
+                  <td style={{ padding: '2px 1px' }}>
+                    <CadNumericInput className="stratum-input" value={s.gammaSat} step={0.5}
+                      onChange={(v) => updateStratum(s.id, { gammaSat: v })} />
+                  </td>
+                  {/* Delete */}
+                  <td style={{ padding: '2px 2px', textAlign: 'center', width: 20 }}>
+                    {strata.length > 1 && (
+                      <button
+                        onClick={() => removeStratum(s.id)}
+                        style={{
+                          background: 'none', border: 'none',
+                          color: 'var(--text-muted)', cursor: 'pointer',
+                          padding: 2, display: 'flex', borderRadius: 'var(--radius-sm)',
+                          transition: 'color var(--transition-fast)',
+                        }}
+                        title="Eliminar estrato"
+                        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add button */}
       <button
-        className="cad-btn"
         onClick={addStratum}
-        style={{ width: '100%', marginTop: 6, fontSize: 10, padding: '3px 0' }}
+        style={{
+          width: '100%',
+          marginTop: 8,
+          padding: '6px 0',
+          background: 'var(--bg-surface-2)',
+          border: '1px dashed var(--border-active)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--text-secondary)',
+          fontSize: 11,
+          fontWeight: 500,
+          fontFamily: 'var(--font-sans)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          transition: 'all var(--transition-fast)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.color = 'var(--accent)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border-active)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
+        }}
       >
-        + Agregar estrato
+        <Plus size={14} /> Agregar estrato
       </button>
     </Section>
   );
@@ -271,11 +387,12 @@ function Section({ title, open, onToggle, children }: {
     <div>
       <div className="section-header" onClick={onToggle}>
         <span style={{
-          fontSize: 8,
-          transition: 'transform 0.15s',
-          transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
-          display: 'inline-block',
-        }}>▶</span>
+          display: 'flex', alignItems: 'center',
+          transition: 'transform var(--transition-fast)',
+          color: 'var(--text-muted)',
+        }}>
+          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
         {title}
       </div>
       {open && <div className="section-content">{children}</div>}
@@ -290,9 +407,9 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
       display: 'flex',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 4,
+      marginBottom: 5,
     }}>
-      <span style={{ fontSize: 11, color: '#aaa', minWidth: 110, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 110, flexShrink: 0 }}>{label}</span>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );

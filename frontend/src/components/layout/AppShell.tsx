@@ -1,29 +1,36 @@
 /**
  * AppShell — Main layout container: Toolbar + Panels + Workspace + StatusBar.
- * Revit/AutoCAD style layout.
+ * Supports dark (Photoshop grays) and light (cream) themes.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Toolbar from './Toolbar';
 import StatusBar from './StatusBar';
 import CollapsiblePanel from './CollapsiblePanel';
 import PropertiesPanel from '../panels/PropertiesPanel';
 import OutputPanel from '../panels/OutputPanel';
 import Workspace from '../workspace/Workspace';
-import type { TabType } from '../workspace/Workspace';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { TabType } from '../../store/workspaceStore';
 
 export default function AppShell() {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'split'>('single');
+  const [lightMode, setLightMode] = useState(() => {
+    return localStorage.getItem('ca-theme') === 'light';
+  });
+
+  const addTab = useWorkspaceStore((s) => s.addTab);
 
   const handleOpenTab = useCallback((type: string) => {
-    // Access workspace tab management via the global bridge
-    const addTab = (window as unknown as Record<string, unknown>).__workspaceAddTab as
-      ((type: TabType, slot?: 'left' | 'right') => void) | undefined;
-    if (addTab) {
-      addTab(type as TabType);
-    }
-  }, []);
+    addTab?.(type as TabType);
+  }, [addTab]);
+
+  // Apply theme class to root element
+  useEffect(() => {
+    document.documentElement.classList.toggle('light-mode', lightMode);
+    localStorage.setItem('ca-theme', lightMode ? 'light' : 'dark');
+  }, [lightMode]);
 
   return (
     <div style={{
@@ -31,7 +38,7 @@ export default function AppShell() {
       flexDirection: 'column',
       height: '100vh',
       overflow: 'hidden',
-      background: '#2d2d2d',
+      background: 'var(--bg-base)',
     }}>
       {/* Toolbar */}
       <Toolbar
@@ -42,6 +49,8 @@ export default function AppShell() {
         viewMode={viewMode}
         onSetViewMode={setViewMode}
         onOpenTab={handleOpenTab}
+        lightMode={lightMode}
+        onToggleTheme={() => setLightMode(!lightMode)}
       />
 
       {/* Main area: Left panel + Workspace + Right panel */}

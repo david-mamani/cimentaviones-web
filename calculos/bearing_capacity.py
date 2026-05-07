@@ -104,12 +104,23 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     conditions = input_data["conditions"]
     method = input_data["method"]
 
+    # ── Guards defensivos ──
+    if not strata:
+        raise ValueError("Se requiere al menos un estrato de suelo.")
+
     f_type = foundation["type"]
     B = foundation["B"]
     L = foundation["L"]
     Df = foundation["Df"]
     FS = foundation["FS"]
     beta = foundation["beta"]
+
+    if B <= 0:
+        raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
+    if L <= 0:
+        raise ValueError(f"La longitud L ({L}) debe ser mayor a 0.")
+    if FS <= 0:
+        raise ValueError(f"El factor de seguridad FS ({FS}) debe ser mayor a 0.")
 
     has_water_table = conditions["hasWaterTable"]
     Dw = conditions["waterTableDepth"]

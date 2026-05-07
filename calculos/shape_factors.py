@@ -24,8 +24,10 @@ def get_shape_factors(foundation_type: str, B: float, L: float = None) -> dict:
     Returns:
         dict con claves sc, sq, sgamma
     """
-    if L is None:
+    if L is None or L <= 0:
         L = B
+    if B <= 0:
+        return {"sc": 1.0, "sq": 1.0, "sgamma": 1.0}
 
     if foundation_type in ("cuadrada", "circular"):
         return {"sc": 1.3, "sq": 1.0, "sgamma": 0.8}

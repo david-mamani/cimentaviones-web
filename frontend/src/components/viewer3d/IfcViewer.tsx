@@ -20,6 +20,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import * as WebIFC from 'web-ifc';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import ViewerSettingsPanel from './ViewerSettingsPanel';
 
 const API_BASE = '';
@@ -165,7 +166,7 @@ export default function IfcViewer() {
 
     // Init web-ifc
     const ifcApi = new WebIFC.IfcAPI();
-    ifcApi.SetWasmPath('https://unpkg.com/web-ifc@0.0.77/');
+    ifcApi.SetWasmPath('/wasm/');
     ifcApi.Init().then(() => {
       ifcApiRef.current = ifcApi;
       setReady(true);
@@ -234,9 +235,32 @@ export default function IfcViewer() {
     });
   }, [settings]);
 
-  // ── Expose global capture function for PDF export ──
+  // ── Sync 3D bg with theme toggle ──
   useEffect(() => {
-    (window as any).__captureView3D = (): string | null => {
+    const root = document.documentElement;
+    const updateBg = () => {
+      const isLight = root.classList.contains('light-mode');
+      const newBg = isLight ? '#f7f3ed' : '#1e1e1e'; // match --bg-viewport
+      if (sceneRef.current) {
+        sceneRef.current.background = new THREE.Color(newBg);
+      }
+      settings.set('bgColor', newBg);
+    };
+    // Initial sync
+    updateBg();
+    // Watch for class changes
+    const observer = new MutationObserver(updateBg);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Register capture function in workspace store for PDF export ──
+  const registerCapture = useWorkspaceStore((s) => s.registerCaptureView3D);
+  const unregisterCapture = useWorkspaceStore((s) => s.unregisterCaptureView3D);
+
+  useEffect(() => {
+    const captureFn = (): string | null => {
       const scene = sceneRef.current;
       const renderer = rendererRef.current;
       const camera = cameraRef.current;
@@ -305,10 +329,9 @@ export default function IfcViewer() {
       return dataUrl;
     };
 
-    return () => {
-      delete (window as any).__captureView3D;
-    };
-  }, [settings]);
+    registerCapture(captureFn);
+    return () => unregisterCapture();
+  }, [settings, registerCapture, unregisterCapture]);
 
   // ── Load IFC model ──
   const loadModel = useCallback(async () => {
@@ -631,7 +654,7 @@ export default function IfcViewer() {
   }, []);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#1a1a2e' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'var(--bg-viewport)' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
       {/* Toolbar */}
@@ -643,21 +666,23 @@ export default function IfcViewer() {
           onClick={handleExportIFC}
           style={{
             padding: '4px 10px', height: 28,
-            background: '#2d6a4f', border: '1px solid #52796f',
-            color: '#d8f3dc', cursor: 'pointer', fontSize: 11,
-            borderRadius: 3, display: 'flex', alignItems: 'center', gap: 4,
+            background: 'var(--accent)', border: 'none',
+            color: 'var(--bg-base)', cursor: 'pointer', fontSize: 11,
+            fontFamily: 'var(--font-sans)', fontWeight: 500,
+            borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4,
+            transition: 'all var(--transition-fast)',
           }}
           title="Exportar IFC (Revit, ArchiCAD, BlenderBIM)"
         >
-          📁 Exportar IFC
+          Exportar IFC
         </button>
         <button
           onClick={() => loadModel()}
           style={{
             width: 28, height: 28,
-            background: '#3c3c3c', border: '1px solid #505050',
-            color: '#ccc', cursor: 'pointer', fontSize: 13,
-            borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13,
+            borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           title="Recargar modelo"
         >
@@ -667,9 +692,9 @@ export default function IfcViewer() {
           onClick={handleResetCamera}
           style={{
             width: 28, height: 28,
-            background: '#3c3c3c', border: '1px solid #505050',
-            color: '#ccc', cursor: 'pointer', fontSize: 14,
-            borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14,
+            borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           title="Vista inicial"
         >
@@ -679,11 +704,11 @@ export default function IfcViewer() {
           onClick={() => setShowSettings(!showSettings)}
           style={{
             width: 28, height: 28,
-            background: showSettings ? '#c0392b' : '#3c3c3c',
-            border: `1px solid ${showSettings ? '#e74c3c' : '#505050'}`,
-            color: showSettings ? '#fff' : '#ccc',
+            background: showSettings ? 'var(--accent)' : 'var(--bg-surface-2)',
+            border: `1px solid ${showSettings ? 'var(--accent)' : 'var(--border)'}`,
+            color: showSettings ? 'var(--bg-base)' : 'var(--text-secondary)',
             cursor: 'pointer', fontSize: 13,
-            borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           title="Configuración de visualización"
         >
@@ -706,7 +731,7 @@ export default function IfcViewer() {
           <div style={{ textAlign: 'center' }}>
             <div style={{
               width: 32, height: 32, margin: '0 auto 8px',
-              border: '3px solid #555', borderTopColor: '#c0392b',
+              border: '3px solid var(--bg-surface-3)', borderTopColor: 'var(--accent)',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }} />
@@ -719,8 +744,8 @@ export default function IfcViewer() {
       {error && (
         <div style={{
           position: 'absolute', bottom: 8, left: 8, right: 8,
-          padding: '8px 12px', background: '#c0392b',
-          color: '#fff', fontSize: 12, borderRadius: 4,
+          padding: '8px 12px', background: 'var(--accent)',
+          color: 'var(--bg-base)', fontSize: 12, borderRadius: 'var(--radius-md)',
         }}>
           ⚠ {error}
         </div>
@@ -729,7 +754,7 @@ export default function IfcViewer() {
       {/* Help text */}
       <div style={{
         position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)',
-        fontSize: 10, color: '#555', pointerEvents: 'none',
+        fontSize: 10, color: 'var(--text-muted)', pointerEvents: 'none',
       }}>
         Izq: rotar · Der: mover · Scroll: zoom
       </div>

@@ -2,6 +2,7 @@
  * CollapsiblePanel — Side panel with resize handle and collapse toggle.
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CollapsiblePanelProps {
   side: 'left' | 'right';
@@ -63,19 +64,21 @@ export default function CollapsiblePanel({
         onClick={onToggle}
         style={{
           width: 28,
-          background: '#3c3c3c',
-          borderLeft: side === 'right' ? '1px solid #505050' : undefined,
-          borderRight: side === 'left' ? '1px solid #505050' : undefined,
+          background: 'var(--bg-surface-1)',
+          borderLeft: side === 'right' ? '1px solid var(--border)' : undefined,
+          borderRight: side === 'left' ? '1px solid var(--border)' : undefined,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           writingMode: 'vertical-lr',
           fontSize: 10,
-          color: '#999',
+          fontWeight: 500,
+          color: 'var(--text-secondary)',
           letterSpacing: 1,
           textTransform: 'uppercase',
           flexShrink: 0,
+          transition: 'background var(--transition-fast)',
         }}
       >
         {title}
@@ -86,9 +89,9 @@ export default function CollapsiblePanel({
   return (
     <div style={{
       width,
-      background: '#3c3c3c',
-      borderLeft: side === 'right' ? '1px solid #505050' : undefined,
-      borderRight: side === 'left' ? '1px solid #505050' : undefined,
+      background: 'var(--bg-surface-1)',
+      borderLeft: side === 'right' ? '1px solid var(--border)' : undefined,
+      borderRight: side === 'left' ? '1px solid var(--border)' : undefined,
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
@@ -97,21 +100,21 @@ export default function CollapsiblePanel({
     }}>
       {/* Header */}
       <div style={{
-        height: 26,
-        background: '#2a2a2a',
-        borderBottom: '1px solid #505050',
+        height: 28,
+        background: 'var(--bg-surface-1)',
+        borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 8px',
+        padding: '0 10px',
         gap: 6,
         flexShrink: 0,
       }}>
         <span style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 600,
-          color: '#999',
+          color: 'var(--text-secondary)',
           textTransform: 'uppercase',
-          letterSpacing: 0.5,
+          letterSpacing: 0.8,
           flex: 1,
         }}>
           {title}
@@ -121,15 +124,19 @@ export default function CollapsiblePanel({
           style={{
             background: 'none',
             border: 'none',
-            color: '#777',
+            color: 'var(--text-muted)',
             cursor: 'pointer',
-            fontSize: 14,
-            padding: '0 2px',
-            lineHeight: 1,
+            padding: 2,
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: 'var(--radius-sm)',
+            transition: 'color var(--transition-fast)',
           }}
           title={`Colapsar ${title}`}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
         >
-          {side === 'left' ? '◁' : '▷'}
+          {side === 'left' ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>
       </div>
 

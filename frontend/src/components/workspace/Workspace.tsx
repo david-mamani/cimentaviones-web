@@ -5,13 +5,13 @@
  * IMPORTANT: Tab contents are kept mounted (display:none) to preserve
  * state (3D model, iteration results) when switching tabs.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import ResultsPanel from '../visualization/ResultsPanel';
 import ParametricIterations from '../iterations/ParametricIterations';
 import IfcViewer from '../viewer3d/IfcViewer';
 import Viewer2D from '../viewer2d/Viewer2D';
-
-export type TabType = '2d' | '3d' | 'charts' | 'results';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { TabType } from '../../store/workspaceStore';
 
 interface TabInfo {
   id: string;
@@ -34,10 +34,10 @@ let tabCounter = 0;
 
 export default function Workspace({ splitMode }: WorkspaceProps) {
   const [leftTabs, setLeftTabs] = useState<TabInfo[]>([
-    { id: `tab-${++tabCounter}`, type: '3d', label: TAB_LABELS['3d'] },
+    { id: `tab-${++tabCounter}`, type: '2d', label: TAB_LABELS['2d'] },
   ]);
   const [rightTabs, setRightTabs] = useState<TabInfo[]>([
-    { id: `tab-${++tabCounter}`, type: '2d', label: TAB_LABELS['2d'] },
+    { id: `tab-${++tabCounter}`, type: '3d', label: TAB_LABELS['3d'] },
   ]);
   const [activeLeft, setActiveLeft] = useState(leftTabs[0]?.id || '');
   const [activeRight, setActiveRight] = useState(rightTabs[0]?.id || '');
@@ -82,24 +82,49 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
     }
   }, [activeLeft, activeRight]);
 
-  // Expose addTab to parent via window for toolbar
-  (window as unknown as Record<string, unknown>).__workspaceAddTab = addTab;
+  // Register addTab in workspace store for Toolbar/AppShell to consume
+  const registerAddTab = useWorkspaceStore((s) => s.registerAddTab);
+  const unregisterAddTab = useWorkspaceStore((s) => s.unregisterAddTab);
+  useEffect(() => {
+    registerAddTab(addTab);
+    return () => unregisterAddTab();
+  }, [addTab, registerAddTab, unregisterAddTab]);
 
   const setSlot = useCallback((slot: 'left' | 'right') => {
     activeSlotRef.current = slot;
     setActiveSlot(slot);
   }, []);
 
+  const [leftFraction, setLeftFraction] = useState(0.5);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const handleDividerDown = useCallback((e: React.PointerEvent) => {
+    isDragging.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const handleDividerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const fraction = (e.clientX - rect.left) / rect.width;
+    setLeftFraction(Math.max(0.2, Math.min(0.8, fraction)));
+  }, []);
+
+  const handleDividerUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       flex: 1,
       display: 'flex',
-      background: '#252525',
+      background: 'var(--bg-viewport)',
       overflow: 'hidden',
     }}>
       {/* Left slot */}
       <div
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
+        style={{ flex: splitMode ? leftFraction : 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
         onPointerDownCapture={() => setSlot('left')}
       >
         <TabSlot
@@ -114,9 +139,23 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
       {/* Right slot (only in split mode) */}
       {splitMode && (
         <>
-          <div style={{ width: 3, background: '#505050', cursor: 'col-resize', flexShrink: 0 }} />
+          {/* Draggable divider */}
           <div
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
+            onPointerDown={handleDividerDown}
+            onPointerMove={handleDividerMove}
+            onPointerUp={handleDividerUp}
+            style={{
+              width: 5,
+              background: 'var(--border)',
+              cursor: 'col-resize',
+              flexShrink: 0,
+              transition: isDragging.current ? 'none' : 'background var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent)'; }}
+            onMouseLeave={(e) => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)'; }}
+          />
+          <div
+            style={{ flex: 1 - leftFraction, display: 'flex', flexDirection: 'column', minWidth: 0 }}
             onPointerDownCapture={() => setSlot('right')}
           >
             <TabSlot
@@ -144,7 +183,7 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
     <>
       {/* Tab bar */}
       <div className="tab-bar" style={{
-        borderBottom: isActiveSlot ? '2px solid #c0392b' : '1px solid #505050',
+        borderBottom: isActiveSlot ? '2px solid var(--accent)' : '1px solid var(--border)',
       }}>
         {tabs.map(tab => (
           <div
@@ -170,7 +209,7 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
         {tabs.length === 0 ? (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            height: '100%', color: '#555', fontSize: 13,
+            height: '100%', color: 'var(--text-muted)', fontSize: 13,
           }}>
             No hay pestañas abiertas
           </div>

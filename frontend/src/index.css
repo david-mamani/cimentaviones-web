@@ -1,32 +1,85 @@
+/* ═══════════════════════════════════════════════════════════
+   CimentAviones Web — Design System
+   Photoshop-gray dark mode + Cream light mode
+   ═══════════════════════════════════════════════════════════ */
 
-
-/* ─── Revit-style Engineering Theme ─── */
+/* ─── Dark Mode (default) — Photoshop Grays ─── */
 :root {
-  --bg: #2d2d2d;
-  --bg-panel: #3c3c3c;
-  --bg-panel-header: #2a2a2a;
-  --bg-toolbar: #333333;
-  --bg-input: #353535;
-  --bg-workspace: #252525;
-  --bg-tab: #383838;
-  --bg-tab-active: #2d2d2d;
-  --bg-hover: #454545;
-  --border: #505050;
-  --border-light: #5a5a5a;
-  --border-focus: #c0392b;
-  --text: #e0e0e0;
-  --text-secondary: #999999;
-  --text-muted: #707070;
-  --accent: #c0392b;
-  --accent-hover: #e74c3c;
-  --accent-dark: #a93226;
-  --accent-bg: rgba(192, 57, 43, 0.15);
-  --success: #27ae60;
-  --warning: #f39c12;
-  --error: #e74c3c;
-  --info: #2980b9;
+  --bg-base: #2b2b2b;
+  --bg-surface-1: #333333;
+  --bg-surface-2: #3a3a3a;
+  --bg-surface-3: #444444;
+  --bg-elevated: #4d4d4d;
+  --bg-viewport: #1e1e1e;
+
+  --accent: #d4c9b8;
+  --accent-hover: #e8dfd2;
+  --accent-dark: #b8ad9c;
+  --accent-bg: rgba(212, 201, 184, 0.10);
+  --accent-glow: rgba(212, 201, 184, 0.20);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.15);
+  --border-accent: rgba(212, 201, 184, 0.3);
+
+  --text-primary: #e8e8e8;
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-muted: rgba(255, 255, 255, 0.30);
+
+  --success: #7a9e7e;
+  --warning: #c4a35a;
+  --error: #b07070;
+  --info: #7a9eb8;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  color-scheme: dark;
 }
 
+/* ─── Light Mode — Cream ─── */
+.light-mode {
+  --bg-base: #f0ebe3;
+  --bg-surface-1: #e8e3db;
+  --bg-surface-2: #dfd9d0;
+  --bg-surface-3: #d5cfc6;
+  --bg-elevated: #ccc6bd;
+  --bg-viewport: #f7f3ed;
+
+  --accent: #4a4540;
+  --accent-hover: #5c5650;
+  --accent-dark: #3a3530;
+  --accent-bg: rgba(74, 69, 64, 0.06);
+  --accent-glow: rgba(74, 69, 64, 0.12);
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-active: rgba(0, 0, 0, 0.15);
+  --border-accent: rgba(74, 69, 64, 0.2);
+
+  --text-primary: #2b2b2b;
+  --text-secondary: rgba(0, 0, 0, 0.55);
+  --text-muted: rgba(0, 0, 0, 0.30);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.15);
+
+  color-scheme: light;
+}
+
+/* ─── Reset ─── */
 * {
   margin: 0;
   padding: 0;
@@ -39,10 +92,10 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Segoe UI', 'Roboto', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--text-primary);
+  background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -50,23 +103,28 @@ body {
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #777; }
+::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ─── Selection ─── */
-::selection { background: rgba(192, 57, 43, 0.4); color: white; }
+::selection { background: var(--accent-glow); color: var(--text-primary); }
 
-/* ─── Inputs — CAD style ─── */
+/* ═══════════════════════════════════════════════════════════
+   Inputs
+   ═══════════════════════════════════════════════════════════ */
+
 .cad-input {
   width: 100%;
-  padding: 3px 6px;
-  background: var(--bg-input);
+  padding: 5px 8px;
+  background: var(--bg-surface-3);
   border: 1px solid var(--border);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 11px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   -moz-appearance: textfield;
 }
 
@@ -78,32 +136,38 @@ body {
 
 .cad-input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .cad-input:hover:not(:focus) {
-  border-color: var(--border-light);
+  border-color: var(--border-active);
 }
 
-/* ─── Buttons ─── */
+/* ═══════════════════════════════════════════════════════════
+   Buttons
+   ═══════════════════════════════════════════════════════════ */
+
 .cad-btn {
-  padding: 4px 10px;
-  background: var(--bg-panel);
+  padding: 5px 12px;
+  background: var(--bg-surface-2);
   border: 1px solid var(--border);
-  color: var(--text);
-  font-family: inherit;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
   font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
   user-select: none;
 }
 
 .cad-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-light);
+  background: var(--bg-surface-3);
+  border-color: var(--border-active);
 }
 
 .cad-btn:active {
-  background: var(--bg-panel-header);
+  background: var(--bg-surface-1);
 }
 
 .cad-btn-accent {
@@ -121,38 +185,69 @@ body {
   background: var(--accent-dark);
 }
 
-/* ─── Section headers ─── */
+/* ═══════════════════════════════════════════════════════════
+   Cards
+   ═══════════════════════════════════════════════════════════ */
+
+.card {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.card:hover {
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-sm);
+}
+
+.card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Section Headers
+   ═══════════════════════════════════════════════════════════ */
+
 .section-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  background: var(--bg-panel-header);
+  padding: 6px 10px;
+  background: var(--bg-surface-1);
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   cursor: pointer;
   user-select: none;
+  transition: color var(--transition-fast);
 }
 
 .section-header:hover {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
-/* ─── Collapsible section content ─── */
 .section-content {
-  padding: 8px;
+  padding: 10px;
 }
 
-/* ─── Toggle / Checkbox ─── */
+/* ═══════════════════════════════════════════════════════════
+   Checkbox
+   ═══════════════════════════════════════════════════════════ */
+
 .cad-checkbox {
   accent-color: var(--accent);
+  cursor: pointer;
 }
 
-/* ─── Resize handle ─── */
+/* ═══════════════════════════════════════════════════════════
+   Resize Handles
+   ═══════════════════════════════════════════════════════════ */
+
 .resize-handle {
   position: absolute;
   top: 0;
@@ -160,7 +255,7 @@ body {
   width: 4px;
   cursor: col-resize;
   z-index: 10;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
 }
 
 .resize-handle:hover,
@@ -171,38 +266,43 @@ body {
 .resize-handle-right { right: -2px; }
 .resize-handle-left { left: -2px; }
 
-/* ─── Tab bar ─── */
+/* ═══════════════════════════════════════════════════════════
+   Tab Bar
+   ═══════════════════════════════════════════════════════════ */
+
 .tab-bar {
   display: flex;
-  background: var(--bg-panel-header);
+  background: var(--bg-surface-1);
   border-bottom: 1px solid var(--border);
-  min-height: 28px;
+  min-height: 32px;
   overflow-x: auto;
+  gap: 1px;
 }
 
 .tab-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 12px;
-  height: 28px;
+  gap: 6px;
+  padding: 0 14px;
+  height: 32px;
   border-right: 1px solid var(--border);
   font-size: 11px;
+  font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
 }
 
 .tab-item:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
 }
 
 .tab-item.active {
-  background: var(--bg-workspace);
-  color: var(--text);
+  background: var(--bg-viewport);
+  color: var(--text-primary);
   border-bottom: 2px solid var(--accent);
 }
 
@@ -212,29 +312,36 @@ body {
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   line-height: 1;
   color: var(--text-muted);
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
 .tab-close:hover {
-  background: rgba(231, 76, 60, 0.3);
+  background: rgba(231, 76, 60, 0.2);
   color: var(--error);
 }
 
-/* ─── Stratum input table ─── */
+/* ═══════════════════════════════════════════════════════════
+   Stratum Input Table
+   ═══════════════════════════════════════════════════════════ */
+
 .stratum-input {
   width: 100%;
-  padding: 2px 4px;
-  background: var(--bg-input);
+  padding: 4px 4px;
+  background: var(--bg-surface-3);
   border: 1px solid var(--border);
-  color: var(--text);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
   font-size: 11px;
-  font-family: 'Consolas', monospace;
+  font-family: var(--font-mono);
+  font-weight: 500;
   outline: none;
   text-align: center;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   -moz-appearance: textfield;
 }
 
@@ -246,4 +353,43 @@ body {
 
 .stratum-input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Utility Classes
+   ═══════════════════════════════════════════════════════════ */
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in {
+  animation: fadeIn var(--transition-base) ease forwards;
 }

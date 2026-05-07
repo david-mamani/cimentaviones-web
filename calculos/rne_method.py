@@ -70,6 +70,11 @@ def calculate_qu_rne(
     Returns:
         dict con qu y factors
     """
+    if B <= 0:
+        raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
+    if L <= 0:
+        raise ValueError(f"La longitud L ({L}) debe ser mayor a 0.")
+
     bf = get_rne_bearing_factors(phi)
 
     # Factores de forma
@@ -116,6 +121,9 @@ def calculate_rne_consideration(
     Suelo cohesivo (φ < 20°): Solo el término de cohesión con Nc = 5.14
     Suelo friccionante (φ ≥ 20°): Términos 2 y 3 (sin cohesión)
     """
+    if B <= 0 or L <= 0:
+        raise ValueError("B y L deben ser mayores a 0 para la consideración RNE.")
+
     Sc = 1 + 0.2 * (B / L)
     Sgamma = 1 - 0.2 * (B / L)
     ic = (1 - beta / 90) ** 2 if beta > 0 else 1

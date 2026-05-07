@@ -35,7 +35,12 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
 
     Returns:
         dict con bValues, dfValues, matrix, annotations
+
+    Raises:
+        ValueError: si la cantidad de puntos excede el límite (500)
     """
+    MAX_POINTS = 500
+
     # Generar rangos de B y Df
     b_values = (
         _generate_range(config["bStart"], config["bEnd"], config["bStep"])
@@ -47,6 +52,14 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
         if config["varyDf"]
         else [base_input["foundation"]["Df"]]
     )
+
+    total_points = len(b_values) * len(df_values)
+    if total_points > MAX_POINTS:
+        raise ValueError(
+            f"La iteración generaría {total_points} puntos, "
+            f"el máximo permitido es {MAX_POINTS}. "
+            f"Reduce los rangos o aumenta el paso."
+        )
 
     matrix = []
     annotations = []
@@ -93,10 +106,11 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
                     f"B = {b:.3f} m, Df = {df:.3f} m → "
                     f"q_adm = {result['qa']:.3f} kPa, Q_max = {Qmax:.3f} kN"
                 )
-            except Exception:
+            except Exception as e:
+                error_msg = str(e) if str(e) else "Error desconocido"
                 annotations.append(
                     f"Cálculo {iteration:02d}: "
-                    f"B = {b:.3f} m, Df = {df:.3f} m → ERROR"
+                    f"B = {b:.3f} m, Df = {df:.3f} m → ERROR: {error_msg}"
                 )
 
             iteration += 1

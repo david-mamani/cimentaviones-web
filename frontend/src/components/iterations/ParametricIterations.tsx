@@ -1,9 +1,9 @@
 /**
  * ParametricIterations — Iteration controls + Plotly.js interactive chart.
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
-import type { IterationConfig, IterationResult } from '../../lib/terzaghi/parametricIterations';
+import type { IterationConfig, IterationResult } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 // @ts-ignore — plotly.js-basic-dist-min has no types
 import Plotly from 'plotly.js-basic-dist-min';
@@ -27,6 +27,19 @@ export default function ParametricIterations() {
   const strata = useFoundationStore((s) => s.strata);
   const conditions = useFoundationStore((s) => s.conditions);
   const method = useFoundationStore((s) => s.method);
+
+  // Theme detection for chart colors
+  const [isLight, setIsLight] = useState(() =>
+    document.documentElement.classList.contains('light-mode')
+  );
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsLight(root.classList.contains('light-mode'));
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const [config, setConfig] = useState<IterationConfig>({
     varyB: true,
@@ -126,40 +139,54 @@ export default function ParametricIterations() {
     });
   };
 
+  // Theme-aware chart colors (only bg, text, grid — NOT chart data)
+  const chartText = isLight ? '#4a4540' : '#ccc';
+  const chartAxisLabel = isLight ? '#6b6358' : '#aaa';
+  const chartAxisLine = isLight ? '#c4bdb3' : '#555';
+  const chartGrid = isLight ? '#e8e3db' : '#2a2a2a';
+  const chartMinorGrid = isLight ? '#f0ebe3' : '#1e1e1e';
+  const chartTick = isLight ? '#8a8279' : '#999';
+  const chartAxisText = isLight ? '#8a8279' : '#888';
+  const chartPlotBg = isLight ? '#f7f3ed' : '#141414';
+  const chartPaperBg = isLight ? '#f0ebe3' : '#111111';
+  const chartLegendBg = isLight ? 'rgba(240,235,227,0.95)' : 'rgba(20,20,20,0.9)';
+  const chartLegendBorder = isLight ? '#c4bdb3' : '#444';
+  const chartLegendText = isLight ? '#6b6358' : '#bbb';
+
   const layout: Partial<Plotly.Layout> = {
     xaxis: {
-      title: { text: 'B (m)', font: { size: 11, color: '#aaa' } },
-      color: '#888',
-      gridcolor: '#2a2a2a',
+      title: { text: 'B (m)', font: { size: 11, color: chartAxisLabel } },
+      color: chartAxisText,
+      gridcolor: chartGrid,
       gridwidth: 0.5,
-      linecolor: '#555',
+      linecolor: chartAxisLine,
       linewidth: 1,
       zeroline: false,
-      tickfont: { size: 10, color: '#999' },
-      minor: { gridcolor: '#1e1e1e', gridwidth: 0.3 },
+      tickfont: { size: 10, color: chartTick },
+      minor: { gridcolor: chartMinorGrid, gridwidth: 0.3 },
     },
     yaxis: {
       title: {
         text: chartMetric === 'qa' ? 'q<sub>adm</sub> (kPa)' : 'Q<sub>max</sub> (kN)',
-        font: { size: 11, color: '#aaa' },
+        font: { size: 11, color: chartAxisLabel },
       },
-      color: '#888',
-      gridcolor: '#2a2a2a',
+      color: chartAxisText,
+      gridcolor: chartGrid,
       gridwidth: 0.5,
-      linecolor: '#555',
+      linecolor: chartAxisLine,
       linewidth: 1,
       zeroline: false,
-      tickfont: { size: 10, color: '#999' },
-      minor: { gridcolor: '#1e1e1e', gridwidth: 0.3 },
+      tickfont: { size: 10, color: chartTick },
+      minor: { gridcolor: chartMinorGrid, gridwidth: 0.3 },
     },
-    plot_bgcolor: '#141414',
-    paper_bgcolor: '#111111',
-    font: { color: '#ccc', size: 10 },
+    plot_bgcolor: chartPlotBg,
+    paper_bgcolor: chartPaperBg,
+    font: { color: chartText, size: 10 },
     legend: {
-      bgcolor: 'rgba(20,20,20,0.9)',
-      bordercolor: '#444',
+      bgcolor: chartLegendBg,
+      bordercolor: chartLegendBorder,
       borderwidth: 1,
-      font: { size: 10, color: '#bbb' },
+      font: { size: 10, color: chartLegendText },
       x: 0.01,
       y: 0.99,
     },
@@ -185,8 +212,8 @@ export default function ParametricIterations() {
   return (
     <div>
       {/* Config */}
-      <div style={{ padding: 12, borderBottom: '1px solid #505050' }}>
-        <p style={{ fontSize: 11, fontWeight: 600, color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }}>
           Configuración de Iteraciones
         </p>
 
@@ -208,7 +235,7 @@ export default function ParametricIterations() {
           <div style={{
             marginBottom: 8, marginLeft: 20, padding: '5px 8px',
             background: 'rgba(192, 57, 43, 0.08)', border: '1px solid rgba(192, 57, 43, 0.2)',
-            borderRadius: 4, fontSize: 10, color: '#bbb',
+            borderRadius: 'var(--radius-sm)', fontSize: 10, color: 'var(--text-secondary)',
           }}>
             {lbLocked
               ? `📐 L = ${lbRatio} × B (L varía automáticamente con B)`
@@ -278,28 +305,28 @@ export default function ParametricIterations() {
             style={{
               height: 7, cursor: 'ns-resize', marginBottom: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: '#1a1a1a',
+              background: 'var(--bg-viewport)',
             }}
           >
-            <div style={{ width: 36, height: 3, borderRadius: 2, background: '#444' }} />
+            <div style={{ width: 36, height: 3, borderRadius: 2, background: 'var(--bg-elevated)' }} />
           </div>
 
           {/* Annotations */}
           <div style={{
             maxHeight: 200, overflowY: 'auto',
-            background: '#2a2a2a', border: '1px solid #505050', padding: 8,
+            background: 'var(--bg-surface-1)', border: '1px solid var(--border)', padding: 8,
           }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#888', marginBottom: 4 }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
               Anotaciones ({iterResult.annotations.length} cálculos)
             </p>
             {iterResult.annotations.map((ann, i) => (
-              <p key={i} style={{ fontSize: 10, fontFamily: 'Consolas, monospace', color: '#aaa', marginBottom: 1 }}>{ann}</p>
+              <p key={i} style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginBottom: 1 }}>{ann}</p>
             ))}
           </div>
 
           {/* Export buttons */}
           <div style={{ marginTop: 10 }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 }}>
               Exportar Iteraciones
             </p>
             <div style={{ display: 'flex', gap: 4 }}>
@@ -326,7 +353,7 @@ export default function ParametricIterations() {
 function IterField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div style={{ flex: 1 }}>
-      <span style={{ fontSize: 9, color: '#777', display: 'block', marginBottom: 2 }}>{label}</span>
+      <span style={{ fontSize: 9, color: 'var(--text-muted)', display: 'block', marginBottom: 2 }}>{label}</span>
       <CadNumericInput className="cad-input" value={value} step={0.1} min={0}
         style={{ fontSize: 10 }}
         onChange={onChange} />

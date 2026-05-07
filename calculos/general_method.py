@@ -73,6 +73,11 @@ def calculate_qu_general(
     Returns:
         dict con qu y factors (todos los factores intermedios)
     """
+    if B <= 0:
+        raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
+    if L <= 0:
+        raise ValueError(f"La longitud L ({L}) debe ser mayor a 0.")
+
     bf = get_general_bearing_factors(phi)
     phi_rad = math.radians(phi)
 
@@ -141,6 +146,9 @@ def calculate_general_rne_consideration(
     is_cohesive: bool,
 ) -> dict:
     """Consideración RNE para la Ecuación General."""
+    if B <= 0 or L <= 0:
+        raise ValueError("B y L deben ser mayores a 0 para la consideración RNE.")
+
     phi_rad = math.radians(phi)
     Fci = (1 - beta / 90) ** 2 if beta > 0 else 1
     Fqi = Fci

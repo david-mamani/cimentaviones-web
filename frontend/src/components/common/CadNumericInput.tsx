@@ -44,17 +44,20 @@ export default function CadNumericInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    setText(raw);
 
-    if (raw === '' || raw === '-') {
+    // Sanitize: only allow digits, dot, minus, comma
+    const sanitized = raw.replace(/[^0-9.\-,]/g, '').replace(',', '.');
+    setText(sanitized);
+
+    if (sanitized === '' || sanitized === '-') {
       setCleared(true);
       onChange(0);
       return;
     }
 
     setCleared(false);
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed)) {
+    const parsed = parseFloat(sanitized);
+    if (!isNaN(parsed) && isFinite(parsed)) {
       const clamped = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, parsed));
       onChange(clamped);
     }
@@ -98,7 +101,7 @@ export default function CadNumericInput({
       disabled={disabled}
       style={{
         ...style,
-        color: showDash ? '#555' : undefined,
+        color: showDash ? 'var(--text-muted)' : undefined,
         fontStyle: showDash ? 'italic' : undefined,
         opacity: disabled ? 0.5 : undefined,
         cursor: disabled ? 'not-allowed' : undefined,

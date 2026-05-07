@@ -1,6 +1,6 @@
 /**
  * ResultsPanel — Full results view for workspace tab display.
- * CAD-styled engineering results table.
+ * Uses CSS variables for theme support.
  */
 import { useFoundationStore } from '../../store/foundationStore';
 
@@ -22,8 +22,8 @@ export default function ResultsPanel() {
   const result = useFoundationStore((s) => s.result);
   if (!result) {
     return (
-      <div style={{ padding: 20, color: '#666', fontSize: 12, textAlign: 'center' }}>
-        No hay resultados. Presiona <strong style={{ color: '#c0392b' }}>Calcular</strong> en la barra de herramientas.
+      <div style={{ padding: 24, color: 'var(--text-muted)', fontSize: 12, textAlign: 'center' }}>
+        No hay resultados. Presiona <strong style={{ color: 'var(--accent)' }}>Calcular</strong> en la barra de herramientas.
       </div>
     );
   }
@@ -32,17 +32,17 @@ export default function ResultsPanel() {
   const bf = result.bearingFactors;
 
   return (
-    <div style={{ fontFamily: "'Segoe UI', sans-serif" }}>
+    <div style={{ fontFamily: 'var(--font-sans)' }}>
       {/* Title */}
       <div style={{
         padding: '8px 12px',
-        background: '#2a2a2a',
-        borderBottom: '1px solid #505050',
+        background: 'var(--bg-surface-1)',
+        borderBottom: '1px solid var(--border)',
         fontSize: 12,
         fontWeight: 600,
-        color: '#c0392b',
+        color: 'var(--accent)',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
       }}>
         Resultados del Análisis — {METHOD_LABELS[result.method]}
       </div>
@@ -84,7 +84,7 @@ export default function ResultsPanel() {
         <Row label="qneta (cap. neta última)" value={`${result.qnet.toFixed(2)} kPa`} mono />
         <Row label="qa (cap. admisible)" value={`${result.qa.toFixed(2)} kPa`} accent mono />
         <Row label="qa_neta (cap. neta admisible)" value={`${result.qaNet.toFixed(2)} kPa`} mono />
-        <div style={{ borderTop: '1px solid #505050', margin: '4px 0' }} />
+        <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
         <Row label="Q_max (carga máxima)" value={`${result.Qmax.toFixed(2)} kN`} accent mono />
       </ResultSection>
 
@@ -104,19 +104,19 @@ function ResultSection({ title, highlight, children }: {
   title: string; highlight?: boolean; children: React.ReactNode;
 }) {
   return (
-    <div style={{ borderBottom: '1px solid #505050' }}>
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
       <div style={{
-        padding: '4px 12px',
-        background: highlight ? 'rgba(192, 57, 43, 0.08)' : '#333',
+        padding: '6px 12px',
+        background: highlight ? 'var(--accent-bg)' : 'var(--bg-surface-1)',
         fontSize: 10,
         fontWeight: 600,
-        color: highlight ? '#c0392b' : '#888',
+        color: highlight ? 'var(--accent)' : 'var(--text-secondary)',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
       }}>
         {title}
       </div>
-      <div style={{ padding: '4px 12px' }}>{children}</div>
+      <div style={{ padding: '6px 12px' }}>{children}</div>
     </div>
   );
 }
@@ -129,14 +129,14 @@ function Row({ label, value, accent, mono }: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '2px 0',
+      padding: '3px 0',
       fontSize: 11,
     }}>
-      <span style={{ color: '#999' }}>{label}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span style={{
-        fontFamily: mono ? "'Consolas', monospace" : 'inherit',
-        color: accent ? '#c0392b' : '#e0e0e0',
-        fontWeight: accent ? 700 : 400,
+        fontFamily: mono ? 'var(--font-mono)' : 'inherit',
+        color: accent ? 'var(--accent)' : 'var(--text-primary)',
+        fontWeight: accent ? 700 : 500,
       }}>
         {value}
       </span>

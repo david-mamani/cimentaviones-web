@@ -47,9 +47,14 @@ def calculate(input_data: CalculationInput):
     Recibe los parámetros de cimentación, estratos, condiciones
     especiales y método de cálculo. Retorna todos los resultados.
     """
-    raw = input_data.model_dump()
-    result = calculate_bearing_capacity(raw)
-    return result
+    try:
+        raw = input_data.model_dump()
+        result = calculate_bearing_capacity(raw)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en el cálculo: {str(e)}")
 
 
 @app.post("/api/iterate")
@@ -59,11 +64,15 @@ def iterate(input_data: IterationInput):
 
     Varía B y/o Df en un rango y retorna una matriz de resultados.
     """
-    base = input_data.base.model_dump()
-    config = input_data.config.model_dump()
-
-    result = run_parametric_iterations(base, config)
-    return result
+    try:
+        base = input_data.base.model_dump()
+        config = input_data.config.model_dump()
+        result = run_parametric_iterations(base, config)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en iteraciones: {str(e)}")
 
 
 @app.post("/api/export-ifc")
@@ -137,5 +146,10 @@ def export_pdf(input_data: PDFExportInput):
 @app.get("/api/health")
 def health():
     """Health check."""
-    return {"status": "ok", "engine": "CimentAviones v1.1"}
+    return {
+        "status": "ok",
+        "engine": "CimentAviones v1.1",
+        "methods": ["terzaghi", "general", "rne"],
+        "limits": {"max_iteration_points": 500, "phi_range": [0, 50]},
+    }
 

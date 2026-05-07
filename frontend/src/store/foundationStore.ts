@@ -11,6 +11,7 @@ import type {
   FoundationParams,
   SpecialConditions,
   CalculationResult,
+  IterationResult,
 } from '../types/geotechnical';
 
 /** Genera un ID único para cada estrato */
@@ -47,8 +48,10 @@ interface FoundationState {
   lbRatio: number;     // k value (default 2.0)
 
   // Iteration results (for PDF export)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  iterationResults: any | null;
+  iterationResults: IterationResult | null;
+
+  // Loading state
+  isCalculating: boolean;
 
   // Acciones - Selección
   toggleSelection: (id: string, multi: boolean) => void;
@@ -80,8 +83,7 @@ interface FoundationState {
   reset: () => void;
 
   // Acciones - Iterations
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setIterationResults: (data: any) => void;
+  setIterationResults: (data: IterationResult) => void;
   clearIterationResults: () => void;
 
   // Acciones - Proyecto
@@ -136,6 +138,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   lbLocked: false,
   lbRatio: 2.0,
   iterationResults: null,
+  isCalculating: false,
 
   toggleSelection: (id, multi) => {
     set((state) => {
@@ -240,6 +243,8 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   },
 
   calculate: async () => {
+    if (get().isCalculating) return; // Prevent double-click
+    set({ isCalculating: true, errors: [] });
     const state = get();
     try {
       const response = await fetch('/api/calculate', {
@@ -257,10 +262,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
         throw new Error(err.detail || `Error ${response.status}`);
       }
       const result = await response.json();
-      set({ result, errors: [] });
+      set({ result, errors: [], isCalculating: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido en el cálculo';
-      set({ errors: [message], result: null });
+      set({ errors: [message], result: null, isCalculating: false });
     }
   },
 
@@ -282,6 +287,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       lbLocked: false,
       lbRatio: 2.0,
       iterationResults: null,
+      isCalculating: false,
     });
   },
 

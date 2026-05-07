@@ -13,6 +13,48 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
 
+/* SVG colors — theme-aware. SVG attributes can't use CSS vars,
+   so we read the current theme and return matching constants. */
+function useSvgColors() {
+  const [isLight, setIsLight] = useState(() =>
+    document.documentElement.classList.contains('light-mode')
+  );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsLight(root.classList.contains('light-mode'));
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  if (isLight) {
+    return {
+      DIM: '#6b6358',       DIMSEL: '#4a4540',
+      SURFACE: '#b8b0a5',   GRID: '#c4bdb3',
+      LABEL: '#8a8279',     STRATA_TEXT: '#4a4540',
+      TABLE_BG: '#e8e3db',  TABLE_CELL: '#f0ebe3',
+      TABLE_SEL: '#d5cfc6', TABLE_BORDER: '#c4bdb3',
+      TABLE_TEXT: '#6b6358', TABLE_TEXT_SEL: '#2b2b2b',
+      FOUNDATION: '#7f8c8d', FOUNDATION_SEL: '#4a4540',
+      COL_DEFAULT: '#95a5a6', COL_SELECTED: '#4a4540',
+      WATER: '#6a8fa8',     STROKE: '#c4bdb3',
+    };
+  }
+  return {
+    DIM: '#b8ad9c',       DIMSEL: '#d4c9b8',
+    SURFACE: '#666',      GRID: '#555',
+    LABEL: '#999',        STRATA_TEXT: '#ccc',
+    TABLE_BG: '#3a3a3a',  TABLE_CELL: '#2a2a2a',
+    TABLE_SEL: '#3d3528', TABLE_BORDER: '#555',
+    TABLE_TEXT: '#aaa',   TABLE_TEXT_SEL: '#e0e0e0',
+    FOUNDATION: '#7f8c8d', FOUNDATION_SEL: '#b8ad9c',
+    COL_DEFAULT: '#95a5a6', COL_SELECTED: '#d4c9b8',
+    WATER: '#7a9eb8',     STROKE: '#444',
+  };
+}
+
 export default function Viewer2D() {
   const strata = useFoundationStore((s) => s.strata);
   const foundation = useFoundationStore((s) => s.foundation);
@@ -21,6 +63,7 @@ export default function Viewer2D() {
   const toggleSelection = useFoundationStore((s) => s.toggleSelection);
   const clearSelection = useFoundationStore((s) => s.clearSelection);
   const strataColors = useViewerSettings((s) => s.strataColors);
+  const c = useSvgColors();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 12, h: 10 });
@@ -52,12 +95,20 @@ export default function Viewer2D() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pan — right-click only
+  // Pan — left, middle, or right click
+  const panScaleRef = useRef({ sx: 1, sy: 1 });
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 2) {
-      e.preventDefault();
+    // Right-click or middle-click or left-click (when not on a clickable element)
+    if (e.button === 2 || e.button === 1 || e.button === 0) {
+      if (e.button === 2) e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
+      // Store scale at pan start so it doesn't change during drag
+      panScaleRef.current = {
+        sx: viewBox.w / rect.width,
+        sy: viewBox.h / rect.height,
+      };
       setIsPanning(true);
       setPanStart({
         x: e.clientX, y: e.clientY,
@@ -67,12 +118,9 @@ export default function Viewer2D() {
   }, [viewBox]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isPanning || !containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const scaleX = viewBox.w / rect.width;
-    const scaleY = viewBox.h / rect.height;
-    const dx = (e.clientX - panStart.x) * scaleX;
-    const dy = (e.clientY - panStart.y) * scaleY;
+    if (!isPanning) return;
+    const dx = (e.clientX - panStart.x) * panScaleRef.current.sx;
+    const dy = (e.clientY - panStart.y) * panScaleRef.current.sy;
     setViewBox(v => ({
       ...v,
       x: panStart.vx - dx,
@@ -98,7 +146,7 @@ export default function Viewer2D() {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', background: '#1a1a1a', cursor: isPanning ? 'grabbing' : 'default' }}
+      style={{ width: '100%', height: '100%', background: 'var(--bg-viewport)', cursor: isPanning ? 'grabbing' : 'default' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -126,13 +174,13 @@ export default function Viewer2D() {
         </defs>
 
         {/* ─── Surface line ─── */}
-        <line x1={-halfW - 3} y1={0} x2={halfW + 3} y2={0} stroke="#666" strokeWidth="0.05" strokeDasharray="0.2 0.1" />
-        <text x={halfW + 0.5} y={-0.15} fontSize="0.35" fill="#999" fontFamily="Consolas, monospace">NTN 0.00</text>
+        <line x1={-halfW - 3} y1={0} x2={halfW + 3} y2={0} stroke={c.SURFACE} strokeWidth="0.05" strokeDasharray="0.2 0.1" />
+        <text x={halfW + 0.5} y={-0.15} fontSize="0.35" fill={c.LABEL} fontFamily="Consolas, monospace">NTN 0.00</text>
 
         {/* ─── Ground surface hatching ─── */}
         {Array.from({ length: Math.ceil(soilW / 0.4) + 6 }).map((_, i) => {
           const x = -halfW - 1 + i * 0.4;
-          return <line key={`gs-${i}`} x1={x} y1={0} x2={x - 0.3} y2={-0.3} stroke="#555" strokeWidth="0.03" />;
+          return <line key={`gs-${i}`} x1={x} y1={0} x2={x - 0.3} y2={-0.3} stroke={c.GRID} strokeWidth="0.03" />;
         })}
 
         {/* ─── Strata layers ─── */}
@@ -154,7 +202,7 @@ export default function Viewer2D() {
                 {/* Fill */}
                 <rect x={-halfW} y={y} width={soilW} height={s.thickness}
                   fill={color} opacity={isSelected ? 0.5 : 0.25}
-                  stroke={isSelected ? '#c0392b' : '#555'}
+                  stroke={isSelected ? c.DIMSEL : c.GRID}
                   strokeWidth={isSelected ? 0.08 : 0.03}
                 />
                 {/* Hatch */}
@@ -163,15 +211,15 @@ export default function Viewer2D() {
                 />
                 {/* Layer boundary */}
                 <line x1={-halfW} y1={yOff} x2={halfW} y2={yOff}
-                  stroke="#555" strokeWidth="0.03" strokeDasharray="0.15 0.08" />
+                  stroke={c.GRID} strokeWidth="0.03" strokeDasharray="0.15 0.08" />
 
                 {/* Right-side level label */}
-                <text x={halfW + 0.5} y={yOff - 0.15} fontSize="0.3" fill="#888" fontFamily="Consolas, monospace">
+                <text x={halfW + 0.5} y={yOff - 0.15} fontSize="0.3" fill={c.LABEL} fontFamily="Consolas, monospace">
                   -{yOff.toFixed(2)}m
                 </text>
 
                 {/* Stratum center label */}
-                <text x={-halfW + 0.3} y={y + s.thickness / 2 + 0.12} fontSize="0.28" fill="#ccc" fontFamily="Segoe UI, sans-serif" fontWeight="600">
+                <text x={-halfW + 0.3} y={y + s.thickness / 2 + 0.12} fontSize="0.28" fill={c.STRATA_TEXT} fontFamily="Segoe UI, sans-serif" fontWeight="600">
                   E{i + 1}
                 </text>
               </g>
@@ -189,7 +237,7 @@ export default function Viewer2D() {
           const colEndY = fTop - padH;
           const colH = colEndY - colStartY;
           const isSelected = selectedIds.includes('foundation');
-          const fColor = isSelected ? '#e74c3c' : '#7f8c8d';
+          const fColor = isSelected ? c.FOUNDATION_SEL : c.FOUNDATION;
 
           return (
             <g
@@ -202,20 +250,20 @@ export default function Viewer2D() {
               {/* Column — from basement level to pad */}
               {colH > 0 && (
                 <rect x={-colW / 2} y={colStartY} width={colW} height={colH}
-                  fill={isSelected ? '#e74c3c' : '#95a5a6'} stroke="#333" strokeWidth="0.04" />
+                  fill={isSelected ? c.COL_SELECTED : c.COL_DEFAULT} stroke={c.STROKE} strokeWidth="0.04" />
               )}
               {/* Pad */}
               <rect x={-foundation.B / 2} y={fTop - padH} width={foundation.B} height={padH}
-                fill={fColor} stroke="#333" strokeWidth="0.04" />
+                fill={fColor} stroke={c.STROKE} strokeWidth="0.04" />
 
               {/* Df dimension — measured from basement level */}
               <line x1={-foundation.B / 2 - 0.6} y1={basementDepth} x2={-foundation.B / 2 - 0.6} y2={fTop}
-                stroke="#c0392b" strokeWidth="0.03" />
+                stroke={c.DIM} strokeWidth="0.03" />
               <line x1={-foundation.B / 2 - 0.7} y1={basementDepth} x2={-foundation.B / 2 - 0.5} y2={basementDepth}
-                stroke="#c0392b" strokeWidth="0.03" />
+                stroke={c.DIM} strokeWidth="0.03" />
               <line x1={-foundation.B / 2 - 0.7} y1={fTop} x2={-foundation.B / 2 - 0.5} y2={fTop}
-                stroke="#c0392b" strokeWidth="0.03" />
-              <text x={-foundation.B / 2 - 1.2} y={(basementDepth + fTop) / 2 + 0.12} fontSize="0.28" fill="#c0392b" fontFamily="Consolas, monospace" textAnchor="middle"
+                stroke={c.DIM} strokeWidth="0.03" />
+              <text x={-foundation.B / 2 - 1.2} y={(basementDepth + fTop) / 2 + 0.12} fontSize="0.28" fill={c.DIM} fontFamily="Consolas, monospace" textAnchor="middle"
                 transform={`rotate(-90, ${-foundation.B / 2 - 1.2}, ${(basementDepth + fTop) / 2})`}
               >
                 Df={foundation.Df}m
@@ -223,12 +271,12 @@ export default function Viewer2D() {
 
               {/* B dimension */}
               <line x1={-foundation.B / 2} y1={fTop + 0.4} x2={foundation.B / 2} y2={fTop + 0.4}
-                stroke="#c0392b" strokeWidth="0.03" />
+                stroke={c.DIM} strokeWidth="0.03" />
               <line x1={-foundation.B / 2} y1={fTop + 0.3} x2={-foundation.B / 2} y2={fTop + 0.5}
-                stroke="#c0392b" strokeWidth="0.03" />
+                stroke={c.DIM} strokeWidth="0.03" />
               <line x1={foundation.B / 2} y1={fTop + 0.3} x2={foundation.B / 2} y2={fTop + 0.5}
-                stroke="#c0392b" strokeWidth="0.03" />
-              <text x={0} y={fTop + 0.75} fontSize="0.28" fill="#c0392b" fontFamily="Consolas, monospace" textAnchor="middle">
+                stroke={c.DIM} strokeWidth="0.03" />
+              <text x={0} y={fTop + 0.75} fontSize="0.28" fill={c.DIM} fontFamily="Consolas, monospace" textAnchor="middle">
                 B={foundation.B}m
               </text>
             </g>
@@ -239,8 +287,8 @@ export default function Viewer2D() {
         {basementDepth > 0 && (
           <>
             <line x1={-halfW} y1={basementDepth} x2={halfW} y2={basementDepth}
-              stroke="#c0392b" strokeWidth="0.05" strokeDasharray="0.3 0.15" />
-            <text x={halfW + 0.5} y={basementDepth - 0.15} fontSize="0.3" fill="#c0392b" fontFamily="Consolas, monospace">
+              stroke={c.DIM} strokeWidth="0.05" strokeDasharray="0.3 0.15" />
+            <text x={halfW + 0.5} y={basementDepth - 0.15} fontSize="0.3" fill={c.DIM} fontFamily="Consolas, monospace">
               -{basementDepth.toFixed(2)}m (sótano)
             </text>
           </>
@@ -250,15 +298,15 @@ export default function Viewer2D() {
         {conditions.hasWaterTable && (
           <g pointerEvents="none">
             <line x1={-halfW - 1} y1={conditions.waterTableDepth} x2={halfW + 1} y2={conditions.waterTableDepth}
-              stroke="#3498db" strokeWidth="0.06" strokeDasharray="0.4 0.2" />
-            <text x={halfW + 0.5} y={conditions.waterTableDepth - 0.15} fontSize="0.3" fill="#3498db" fontFamily="Consolas, monospace">
+              stroke={c.WATER} strokeWidth="0.06" strokeDasharray="0.4 0.2" />
+            <text x={halfW + 0.5} y={conditions.waterTableDepth - 0.15} fontSize="0.3" fill={c.WATER} fontFamily="Consolas, monospace">
               NF -{conditions.waterTableDepth.toFixed(2)}m
             </text>
             {/* Water fill below NF */}
             <rect x={-halfW} y={conditions.waterTableDepth}
               width={soilW}
               height={Math.max(0, totalH - conditions.waterTableDepth)}
-              fill="#3498db" opacity={0.06}
+              fill={c.WATER} opacity={0.06}
             />
           </g>
         )}
@@ -274,13 +322,13 @@ export default function Viewer2D() {
 
           return (
             <g>
-              <text x={tableX} y={headerY - 0.25} fontSize="0.3" fill="#999" fontFamily="Segoe UI" fontWeight="700">
+              <text x={tableX} y={headerY - 0.25} fontSize="0.3" fill={c.LABEL} fontFamily="Segoe UI" fontWeight="700">
                 PROPIEDADES
               </text>
 
               {/* Header row background */}
               <rect x={tableX} y={headerY - 0.05} width={totalTableW} height={rowH}
-                fill="#3a3a3a" stroke="#555" strokeWidth="0.02" />
+                fill={c.TABLE_BG} stroke={c.TABLE_BORDER} strokeWidth="0.02" />
 
               {/* Header cells */}
               {(() => {
@@ -290,8 +338,8 @@ export default function Viewer2D() {
                   cx += colWidths[ci];
                   return (
                     <g key={`hdr-${ci}`}>
-                      {ci > 0 && <line x1={x} y1={headerY - 0.05} x2={x} y2={headerY - 0.05 + rowH} stroke="#555" strokeWidth="0.02" />}
-                      <text x={x + colWidths[ci] / 2} y={headerY + 0.22} fontSize="0.2" fill="#999" fontFamily="Consolas" textAnchor="middle">{label}</text>
+                      {ci > 0 && <line x1={x} y1={headerY - 0.05} x2={x} y2={headerY - 0.05 + rowH} stroke={c.TABLE_BORDER} strokeWidth="0.02" />}
+                      <text x={x + colWidths[ci] / 2} y={headerY + 0.22} fontSize="0.2" fill={c.LABEL} fontFamily="Consolas" textAnchor="middle">{label}</text>
                     </g>
                   );
                 });
@@ -310,8 +358,8 @@ export default function Viewer2D() {
                   >
                     {/* Row background */}
                     <rect x={tableX} y={ry} width={totalTableW} height={rowH}
-                      fill={isSelected ? '#4a2020' : '#2a2a2a'}
-                      stroke={isSelected ? '#c0392b' : '#444'} strokeWidth="0.02" />
+                      fill={isSelected ? c.TABLE_SEL : c.TABLE_CELL}
+                      stroke={isSelected ? c.DIMSEL : c.STROKE} strokeWidth="0.02" />
 
                     {/* Color swatch in first cell */}
                     <rect x={tableX + 0.05} y={ry + 0.08} width={0.2} height={0.22}
@@ -325,9 +373,9 @@ export default function Viewer2D() {
                         cx += colWidths[ci];
                         return (
                           <g key={`cell-${ci}`}>
-                            {ci > 0 && <line x1={x} y1={ry} x2={x} y2={ry + rowH} stroke="#444" strokeWidth="0.02" />}
+                            {ci > 0 && <line x1={x} y1={ry} x2={x} y2={ry + rowH} stroke={c.STROKE} strokeWidth="0.02" />}
                             <text x={x + colWidths[ci] / 2} y={ry + 0.26}
-                              fontSize="0.2" fill={isSelected ? '#e0e0e0' : '#aaa'}
+                              fontSize="0.2" fill={isSelected ? c.TABLE_TEXT_SEL : c.TABLE_TEXT}
                               fontFamily="Consolas" textAnchor="middle">
                               {ci === 0 ? '' : val}
                             </text>

@@ -3,6 +3,14 @@
  */
 import { useState, useCallback } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import type {
+  FoundationParams,
+  Stratum,
+  SpecialConditions,
+  CalculationResult,
+  CalculationMethod,
+} from '../../types/geotechnical';
 
 const API_BASE = '';
 
@@ -25,15 +33,15 @@ export default function OutputPanel() {
       {/* Errors */}
       {errors.length > 0 && (
         <div style={{
-          padding: 8,
-          background: 'rgba(231, 76, 60, 0.1)',
-          borderBottom: '1px solid #505050',
+          padding: 10,
+          background: 'var(--accent-bg)',
+          borderBottom: '1px solid var(--border)',
         }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: '#e74c3c', marginBottom: 4 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--error)', marginBottom: 4 }}>
             ⚠ Errores de validación
           </p>
           {errors.map((e, i) => (
-            <p key={i} style={{ fontSize: 10, color: '#e74c3c', marginBottom: 2 }}>• {e}</p>
+            <p key={i} style={{ fontSize: 10, color: 'var(--error)', marginBottom: 2 }}>• {e}</p>
           ))}
         </div>
       )}
@@ -66,11 +74,11 @@ export default function OutputPanel() {
  * ═══════════════════════════════════════════════ */
 
 function ExportSection({ foundation, strata, conditions, method, result }: {
-  foundation: any;
-  strata: any;
-  conditions: any;
-  method: string;
-  result: any;
+  foundation: FoundationParams;
+  strata: Stratum[];
+  conditions: SpecialConditions;
+  method: CalculationMethod;
+  result: CalculationResult;
 }) {
   const iterationResults = useFoundationStore((s) => s.iterationResults);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -182,10 +190,10 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         }
       }
 
-      // ── 3D: Use global __captureView3D (white bg, 0.15 strata, no grid) ──
+      // ── 3D: Use workspace store captureView3D (white bg, 0.15 strata, no grid) ──
       if (pdfOptions.include_3d) {
         try {
-          const capture = (window as any).__captureView3D;
+          const capture = useWorkspaceStore.getState().captureView3D;
           if (typeof capture === 'function') {
             const dataUrl = capture();
             // Validate: must be > 5KB to be a real image
@@ -354,20 +362,20 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   }, [foundation, result]);
 
   return (
-    <div style={{ borderTop: '1px solid #505050' }}>
+    <div style={{ borderTop: '1px solid var(--border)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Exportar
       </div>
 
       {/* PDF Options */}
-      <div style={{ padding: '8px 8px 4px' }}>
+      <div style={{ padding: '10px 10px 6px' }}>
         <p style={{
-          fontSize: 9, fontWeight: 600, color: '#666',
-          textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
+          fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
+          textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6,
         }}>
           Opciones del PDF
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {[
             { key: 'include_calculations', label: 'Ecuaciones y cálculos' },
             { key: 'include_strata', label: 'Datos de estratos' },
@@ -378,13 +386,13 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           ].map(({ key, label }) => (
             <label key={key} style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 11, color: '#bbb', cursor: 'pointer',
+              fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer',
             }}>
               <input
                 type="checkbox"
+                className="cad-checkbox"
                 checked={pdfOptions[key as keyof typeof pdfOptions]}
                 onChange={() => toggleOption(key)}
-                style={{ accentColor: '#c0392b' }}
               />
               {label}
             </label>
@@ -393,16 +401,20 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       </div>
 
       {/* Export buttons */}
-      <div style={{ padding: '6px 8px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ padding: '8px 10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <button
           onClick={handleExportPDF}
           disabled={pdfLoading}
           style={{
-            width: '100%', padding: '7px 0', fontSize: 11, fontWeight: 600,
-            background: pdfLoading ? '#555' : '#c0392b',
-            border: '1px solid ' + (pdfLoading ? '#666' : '#a93226'),
-            color: '#fff', borderRadius: 3, cursor: pdfLoading ? 'wait' : 'pointer',
+            width: '100%', padding: '8px 0', fontSize: 11, fontWeight: 600,
+            background: pdfLoading ? 'var(--bg-surface-3)' : 'var(--accent)',
+            border: 'none',
+            color: 'var(--bg-base)', borderRadius: 20, cursor: pdfLoading ? 'wait' : 'pointer',
+            fontFamily: 'var(--font-sans)',
+            transition: 'all var(--transition-fast)',
           }}
+          onMouseEnter={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--accent-hover)'; }}
+          onMouseLeave={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--accent)'; }}
         >
           {pdfLoading ? '⏳ Generando PDF...' : '📄 Exportar PDF'}
         </button>
@@ -422,13 +434,16 @@ function ExportBtn({ icon, label, onClick }: { icon: string; label: string; onCl
     <button
       onClick={onClick}
       style={{
-        padding: '5px 0', fontSize: 10,
-        background: '#3a3a3a', border: '1px solid #505050',
-        color: '#ccc', borderRadius: 3, cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+        padding: '6px 0', fontSize: 10, fontWeight: 500,
+        background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)',
+        color: 'var(--text-secondary)', cursor: 'pointer',
+        fontFamily: 'var(--font-sans)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+        transition: 'all var(--transition-fast)',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = '#454545'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = '#3a3a3a'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-3)'; e.currentTarget.style.borderColor = 'var(--border-active)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-2)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
     >
       {icon} {label}
     </button>
@@ -441,41 +456,51 @@ function ExportBtn({ icon, label, onClick }: { icon: string; label: string; onCl
 
 function QuickResultSection({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
   return (
-    <div style={{ borderBottom: '1px solid #505050' }}>
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Resultados — {METHOD_LABELS[result.method]}
       </div>
-      <div style={{ padding: 8 }}>
+      <div style={{ padding: 10 }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
         }}>
           <span style={{
-            fontSize: 9, fontWeight: 700, padding: '2px 6px',
-            background: result.soilType === 'Coh' ? 'rgba(41, 128, 185, 0.2)' : 'rgba(192, 57, 43, 0.15)',
-            color: result.soilType === 'Coh' ? '#5dade2' : '#e74c3c',
-            border: `1px solid ${result.soilType === 'Coh' ? 'rgba(41, 128, 185, 0.3)' : 'rgba(192, 57, 43, 0.3)'}`,
+            fontSize: 9, fontWeight: 700, padding: '3px 8px',
+            background: result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.12)' : 'var(--accent-bg)',
+            color: result.soilType === 'Coh' ? 'var(--info)' : 'var(--accent)',
+            border: `1px solid ${result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.25)' : 'var(--border-accent)'}`,
+            borderRadius: 'var(--radius-sm)',
             textTransform: 'uppercase',
+            letterSpacing: 0.5,
           }}>
             {result.soilType === 'Coh' ? 'Cohesivo' : 'Friccionante'}
           </span>
-          <span style={{ fontSize: 10, color: '#888' }}>
+          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
             Estrato {result.designStratumIndex + 1}
           </span>
         </div>
 
+        {/* Hero result */}
+        <div style={{ textAlign: 'center', padding: '8px 0 12px' }}>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Capacidad admisible</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+            {result.qa.toFixed(2)}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>kPa</div>
+        </div>
+
         <ResultRow label="qu" value={result.qu} unit="kPa" />
         <ResultRow label="qneta" value={result.qnet} unit="kPa" />
-        <ResultRow label="qa" value={result.qa} unit="kPa" accent />
         <ResultRow label="qa_neta" value={result.qaNet} unit="kPa" />
-        <div style={{ borderTop: '1px solid #404040', margin: '4px 0' }} />
+        <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
         <ResultRow label="Q_max" value={result.Qmax} unit="kN" accent />
 
-        <div style={{ borderTop: '1px solid #404040', margin: '6px 0' }} />
-        <p style={{ fontSize: 10, color: '#777', marginBottom: 4 }}>Términos</p>
-        <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'Consolas, monospace' }}>
-          <span style={{ color: '#ccc' }}>F1={result.F1.toFixed(2)}</span>
-          <span style={{ color: '#ccc' }}>F2={result.F2.toFixed(2)}</span>
-          <span style={{ color: '#ccc' }}>F3={result.F3.toFixed(2)}</span>
+        <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+        <p style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Términos</p>
+        <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>F1={result.F1.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>F2={result.F2.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>F3={result.F3.toFixed(2)}</span>
         </div>
       </div>
     </div>
@@ -485,17 +510,17 @@ function QuickResultSection({ result }: { result: NonNullable<ReturnType<typeof 
 function FactorsSection({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
   const bf = result.bearingFactors;
   return (
-    <div style={{ borderBottom: '1px solid #505050' }}>
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Factores
       </div>
-      <div style={{ padding: 8 }}>
-        <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'Consolas, monospace' }}>
-          <span style={{ color: '#ccc' }}>Nc={bf.Nc.toFixed(2)}</span>
-          <span style={{ color: '#ccc' }}>Nq={bf.Nq.toFixed(2)}</span>
-          <span style={{ color: '#ccc' }}>Nγ={bf.Ngamma.toFixed(2)}</span>
+      <div style={{ padding: 10 }}>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: 'var(--text-primary)' }}>Nc={bf.Nc.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>Nq={bf.Nq.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>Nγ={bf.Ngamma.toFixed(2)}</span>
         </div>
-        <div style={{ marginTop: 4, fontSize: 10, color: '#888' }}>
+        <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
           q = {result.q.toFixed(2)} kPa · γeff = {result.gammaEffective.toFixed(2)} kN/m³
         </div>
       </div>
@@ -507,11 +532,11 @@ function RNESection({ result }: { result: NonNullable<ReturnType<typeof useFound
   if (!result.rneConsideration) return null;
   const rne = result.rneConsideration;
   return (
-    <div style={{ borderBottom: '1px solid #505050' }}>
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Consideración RNE
       </div>
-      <div style={{ padding: 8 }}>
+      <div style={{ padding: 10 }}>
         <ResultRow label="qu RNE" value={rne.qultRNE} unit="kPa" />
         <ResultRow label="qa RNE" value={rne.qadmRNE} unit="kPa" />
         <ResultRow label="qu RNE corr." value={rne.qultRNECorrected} unit="kPa" />
@@ -528,16 +553,16 @@ function ResultRow({ label, value, unit, accent }: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '2px 0',
+      padding: '3px 0',
       fontSize: 11,
     }}>
-      <span style={{ color: '#999' }}>{label}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span style={{
-        fontFamily: 'Consolas, monospace',
-        color: accent ? '#e74c3c' : '#e0e0e0',
-        fontWeight: accent ? 700 : 400,
+        fontFamily: 'var(--font-mono)',
+        color: accent ? 'var(--accent)' : 'var(--text-primary)',
+        fontWeight: accent ? 700 : 500,
       }}>
-        {value.toFixed(2)} <span style={{ fontSize: 9, color: '#777' }}>{unit}</span>
+        {value.toFixed(2)} <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{unit}</span>
       </span>
     </div>
   );

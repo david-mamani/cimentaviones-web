@@ -119,3 +119,31 @@ export interface CalculationInput {
   conditions: SpecialConditions;
   method: CalculationMethod;
 }
+
+/** Configuración de iteraciones paramétricas */
+export interface IterationConfig {
+  varyB: boolean;
+  bStart: number;
+  bEnd: number;
+  bStep: number;
+  varyDf: boolean;
+  dfStart: number;
+  dfEnd: number;
+  dfStep: number;
+}
+
+/** Punto individual de una iteración */
+export interface IterationPoint {
+  B: number;
+  Df: number;
+  result: CalculationResult;
+  Qmax: number;
+}
+
+/** Resultado completo de iteraciones paramétricas */
+export interface IterationResult {
+  bValues: number[];
+  dfValues: number[];
+  matrix: IterationPoint[][];
+  annotations: string[];
+}

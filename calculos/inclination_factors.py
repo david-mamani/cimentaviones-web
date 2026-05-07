@@ -28,7 +28,13 @@ def get_inclination_factors(beta: float, phi: float) -> dict:
     ic_iq = (1 - beta / 90) ** 2
 
     # Si φ = 0, Nγ = 0, así que iγ no importa → usar 1.0
-    igamma = (1 - beta / phi) ** 2 if phi > 0 else 1.0
+    # Si β ≥ φ, el factor se anula (geotécnicamente, sin capacidad por fricción)
+    if phi <= 0:
+        igamma = 1.0
+    elif beta >= phi:
+        igamma = 0.0
+    else:
+        igamma = (1 - beta / phi) ** 2
 
     return {
         "ic": ic_iq,

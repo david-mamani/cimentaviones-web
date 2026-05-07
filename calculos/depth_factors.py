@@ -23,6 +23,8 @@ def get_depth_factors(phi: float, Df: float, B: float) -> dict:
     Returns:
         dict con claves dc, dq, dgamma
     """
+    if B <= 0:
+        return {"dc": 1.0, "dq": 1.0, "dgamma": 1.0}
     ratio = Df / B
     dc = 1 + 0.4 * ratio
 

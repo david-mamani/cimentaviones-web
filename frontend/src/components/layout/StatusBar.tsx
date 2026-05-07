@@ -17,34 +17,35 @@ export default function StatusBar() {
 
   return (
     <div style={{
-      height: 24,
-      background: '#2a2a2a',
-      borderTop: '1px solid #505050',
+      height: 26,
+      background: 'var(--bg-surface-1)',
+      borderTop: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',
       padding: '0 12px',
       gap: 16,
-      fontSize: 10,
-      color: '#999',
+      fontSize: 11,
+      fontFamily: 'var(--font-mono)',
+      color: 'var(--text-secondary)',
       flexShrink: 0,
     }}>
-      <span>Método: <strong style={{ color: '#e0e0e0' }}>{METHOD_LABELS[method]}</strong></span>
-      <span>FS: <strong style={{ color: '#e0e0e0' }}>{foundation.FS}</strong></span>
-      <span>B: <strong style={{ color: '#e0e0e0' }}>{foundation.B}m</strong></span>
-      <span>Df: <strong style={{ color: '#e0e0e0' }}>{foundation.Df}m</strong></span>
+      <span>Método: <strong style={{ color: 'var(--text-primary)' }}>{METHOD_LABELS[method]}</strong></span>
+      <span>FS: <strong style={{ color: 'var(--text-primary)' }}>{foundation.FS}</strong></span>
+      <span>B: <strong style={{ color: 'var(--text-primary)' }}>{foundation.B}m</strong></span>
+      <span>Df: <strong style={{ color: 'var(--text-primary)' }}>{foundation.Df}m</strong></span>
       {result && (
         <>
-          <span style={{ color: '#27ae60' }}>
+          <span style={{ color: 'var(--success)' }}>
             qa = {result.qa.toFixed(2)} kPa
           </span>
           <span>Estrato: {result.designStratumIndex + 1} ({result.soilType})</span>
         </>
       )}
       {errors.length > 0 && (
-        <span style={{ color: '#e74c3c' }}>⚠ {errors.length} error(es)</span>
+        <span style={{ color: 'var(--error)' }}>⚠ {errors.length} error(es)</span>
       )}
       <div style={{ flex: 1 }} />
-      <span>UCSM - Ingeniería de cimentaciones - 2026 - David Mamani</span>
+      <span style={{ color: 'var(--text-muted)' }}>UCSM — Ingeniería de cimentaciones — 2026</span>
     </div>
   );
 }
