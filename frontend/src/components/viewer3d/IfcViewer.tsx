@@ -25,11 +25,11 @@ import ViewerSettingsPanel from './ViewerSettingsPanel';
 
 const API_BASE = '';
 
-// IFC type IDs for identifying elements
-const IFCSLAB = 1529196076;
-const IFCFOOTING = 900683007;
-const IFCCOLUMN = 3495092785;
-const IFCBUILDINGELEMENTPROXY = 1095909175;
+// IFC type IDs — imported from web-ifc (never hardcode these!)
+const IFCSLAB = WebIFC.IFCSLAB;
+const IFCFOOTING = WebIFC.IFCFOOTING;
+const IFCCOLUMN = WebIFC.IFCCOLUMN;
+const IFCBUILDINGELEMENTPROXY = WebIFC.IFCBUILDINGELEMENTPROXY;
 
 export default function IfcViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
