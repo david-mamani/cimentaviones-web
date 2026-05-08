@@ -45,7 +45,26 @@ export default function ResultsPanel() {
       {/* Resolución Paso a Paso */}
       {result.resolution_md && (
         <div style={{ marginTop: 12, padding: '0 12px 24px 12px' }}>
-          <div className="markdown-body" style={{ fontSize: 14, lineHeight: 1.6, overflowX: 'auto', background: 'transparent', color: 'var(--text-primary)' }}>
+          <style>{`
+            .centered-markdown {
+              text-align: center;
+            }
+            .centered-markdown h1,
+            .centered-markdown h2,
+            .centered-markdown h3,
+            .centered-markdown h4 {
+              text-align: center;
+              border-bottom: none;
+            }
+            .centered-markdown table {
+              margin-left: auto;
+              margin-right: auto;
+            }
+            .centered-markdown p {
+              text-align: center;
+            }
+          `}</style>
+          <div className="markdown-body centered-markdown" style={{ fontSize: 14, lineHeight: 1.6, overflowX: 'auto', background: 'transparent', color: 'var(--text-primary)' }}>
             <ReactMarkdown 
               remarkPlugins={[remarkMath, remarkGfm]} 
               rehypePlugins={[rehypeKatex]}
