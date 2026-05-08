@@ -56,9 +56,9 @@ const METRIC_LABELS: UnitLabels = {
 const FACTOR = 9.81; // 1 t/m³ = 9.81 kN/m³
 
 export const useUnitStore = create<UnitState>((set, get) => ({
-  unitSystem: 'SI',
-  displayFactor: 1,
-  labels: SI_LABELS,
+  unitSystem: 'metric',
+  displayFactor: FACTOR,
+  labels: METRIC_LABELS,
 
   toggleUnitSystem: () => {
     const current = get().unitSystem;

@@ -3,6 +3,7 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
+import { useUnitStore } from '../../store/unitStore';
 import type { IterationConfig, IterationResult } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 // @ts-ignore — plotly.js-basic-dist-min has no types
@@ -116,6 +117,8 @@ export default function ParametricIterations() {
     }
   };
 
+  const { toDisplay, labels } = useUnitStore();
+
   // Build Plotly traces
   const getTraces = (): Partial<Plotly.Data>[] => {
     if (!iterResult) return [];
@@ -123,7 +126,7 @@ export default function ParametricIterations() {
       const row = iterResult.matrix[di];
       return {
         x: row.map((c) => c.B),
-        y: row.map((c) => chartMetric === 'qa' ? c.result.qa : c.Qmax),
+        y: row.map((c) => toDisplay(chartMetric === 'qa' ? c.result.qa : c.Qmax)),
         type: 'scatter' as const,
         mode: 'lines+markers' as const,
         name: `D_f = ${df.toFixed(2)} m`,
@@ -138,7 +141,7 @@ export default function ParametricIterations() {
           `<b>B = %{x:.2f} m</b><br>` +
           `D<sub>f</sub> = ${df.toFixed(2)} m<br>` +
           `${chartMetric === 'qa' ? 'q<sub>adm</sub>' : 'Q<sub>max</sub>'} = %{y:.2f} ` +
-          `${chartMetric === 'qa' ? 'kPa' : 'kN'}` +
+          `${chartMetric === 'qa' ? labels.pressure : labels.force}` +
           `<extra></extra>`,
       };
     });
@@ -172,7 +175,7 @@ export default function ParametricIterations() {
     },
     yaxis: {
       title: {
-        text: chartMetric === 'qa' ? 'q<sub>adm</sub> (kPa)' : 'Q<sub>max</sub> (kN)',
+        text: chartMetric === 'qa' ? `q<sub>adm</sub> (${labels.pressure})` : `Q<sub>max</sub> (${labels.force})`,
         font: { size: 11, color: chartAxisLabel },
       },
       color: chartAxisText,
@@ -282,14 +285,14 @@ export default function ParametricIterations() {
               onClick={() => setChartMetric('qa')}
               style={{ flex: 1, fontSize: 10 }}
             >
-              q_adm (kPa)
+              q_adm ({labels.pressure})
             </button>
             <button
               className={chartMetric === 'Qmax' ? 'cad-btn cad-btn-accent' : 'cad-btn'}
               onClick={() => setChartMetric('Qmax')}
               style={{ flex: 1, fontSize: 10 }}
             >
-              Q_max (kN)
+              Q_max ({labels.force})
             </button>
           </div>
 
