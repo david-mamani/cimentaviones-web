@@ -1,89 +1,228 @@
 /**
- * unitStore — Sistema de unidades (SI ↔ Métrico).
+ * unitStore — Sistema de unidades dual (Input / Output).
  *
- * Internamente, todos los valores se almacenan en SI (kN/m³, kPa).
- * Cuando el usuario selecciona "metric", los valores se muestran
- * divididos por 9.81 (t/m³, t/m²) y se multiplican al guardar.
+ * Soporta 5 categorías de unidades configurables independientemente
+ * para entrada (inputs del usuario) y salida (resultados/exports):
  *
- * Factor de conversión: 1 t/m² = 9.81 kPa, 1 t/m³ = 9.81 kN/m³
+ *   - Longitud   : m | cm | ft
+ *   - Ángulos    : ° (solo grados)
+ *   - Fuerza     : kN | t | kgf
+ *   - Presión    : kPa | t/m² | kg/cm²
+ *   - Peso unit. : kN/m³ | t/m³
+ *
+ * Internamente el backend siempre opera en SI (m, kN, kPa, kN/m³).
+ * Las funciones de conversión transforman:
+ *   - inputToSI()  : valor en unidades de input → SI (para enviar al backend)
+ *   - siToOutput() : valor en SI → unidades de output (para mostrar resultados)
  */
 import { create } from 'zustand';
 
-export type UnitSystem = 'SI' | 'metric';
+/* ══════════════════════════════════════
+ * TYPES
+ * ══════════════════════════════════════ */
 
-interface UnitLabels {
-  gamma: string;      // kN/m³ | t/m³
-  c: string;          // kPa   | t/m²
-  pressure: string;   // kPa   | t/m²
-  force: string;      // kN    | t
-  forcePerArea: string; // kPa | t/m²
+export type LengthUnit = 'm' | 'cm' | 'ft';
+export type AngleUnit = '°';
+export type ForceUnit = 'kN' | 't' | 'kgf';
+export type PressureUnit = 'kPa' | 't/m²' | 'kg/cm²';
+export type UnitWeightUnit = 'kN/m³' | 't/m³';
+
+export type UnitCategory = 'length' | 'angle' | 'force' | 'pressure' | 'unitWeight';
+
+export interface UnitConfig {
+  length: LengthUnit;
+  angle: AngleUnit;
+  force: ForceUnit;
+  pressure: PressureUnit;
+  unitWeight: UnitWeightUnit;
 }
+
+export type UnitPreset = 'metric' | 'SI';
+
+/* ══════════════════════════════════════
+ * CONVERSION FACTORS → SI
+ *
+ * Multiply by factor to get SI value.
+ * Divide by factor to get display value.
+ * ══════════════════════════════════════ */
+
+const LENGTH_TO_SI: Record<LengthUnit, number> = {
+  'm': 1,
+  'cm': 0.01,
+  'ft': 0.3048,
+};
+
+const FORCE_TO_SI: Record<ForceUnit, number> = {
+  'kN': 1,
+  't': 9.80665,
+  'kgf': 0.00980665,
+};
+
+const PRESSURE_TO_SI: Record<PressureUnit, number> = {
+  'kPa': 1,
+  't/m²': 9.80665,
+  'kg/cm²': 98.0665,
+};
+
+const UNIT_WEIGHT_TO_SI: Record<UnitWeightUnit, number> = {
+  'kN/m³': 1,
+  't/m³': 9.80665,
+};
+
+/* ══════════════════════════════════════
+ * PRESETS
+ * ══════════════════════════════════════ */
+
+const METRIC_CONFIG: UnitConfig = {
+  length: 'm',
+  angle: '°',
+  force: 't',
+  pressure: 't/m²',
+  unitWeight: 't/m³',
+};
+
+const SI_CONFIG: UnitConfig = {
+  length: 'm',
+  angle: '°',
+  force: 'kN',
+  pressure: 'kPa',
+  unitWeight: 'kN/m³',
+};
+
+export const PRESETS: Record<UnitPreset, UnitConfig> = {
+  metric: METRIC_CONFIG,
+  SI: SI_CONFIG,
+};
+
+/* ══════════════════════════════════════
+ * HELPERS
+ * ══════════════════════════════════════ */
+
+/** Returns the SI conversion factor for a given unit config + category */
+function getFactor(config: UnitConfig, category: UnitCategory): number {
+  switch (category) {
+    case 'length': return LENGTH_TO_SI[config.length];
+    case 'angle': return 1; // always degrees
+    case 'force': return FORCE_TO_SI[config.force];
+    case 'pressure': return PRESSURE_TO_SI[config.pressure];
+    case 'unitWeight': return UNIT_WEIGHT_TO_SI[config.unitWeight];
+  }
+}
+
+/** Returns the label string for a category in a given config */
+function getLabel(config: UnitConfig, category: UnitCategory): string {
+  switch (category) {
+    case 'length': return config.length;
+    case 'angle': return config.angle;
+    case 'force': return config.force;
+    case 'pressure': return config.pressure;
+    case 'unitWeight': return config.unitWeight;
+  }
+}
+
+/** Detects which preset (if any) matches a config */
+export function detectPreset(config: UnitConfig): UnitPreset | null {
+  for (const [key, preset] of Object.entries(PRESETS) as [UnitPreset, UnitConfig][]) {
+    if (
+      config.length === preset.length &&
+      config.force === preset.force &&
+      config.pressure === preset.pressure &&
+      config.unitWeight === preset.unitWeight
+    ) {
+      return key;
+    }
+  }
+  return null;
+}
+
+/* ══════════════════════════════════════
+ * STORE
+ * ══════════════════════════════════════ */
 
 interface UnitState {
-  unitSystem: UnitSystem;
-  toggleUnitSystem: () => void;
-  setUnitSystem: (system: UnitSystem) => void;
+  /** Unidades de entrada (lo que el usuario escribe) */
+  input: UnitConfig;
+  /** Unidades de salida (lo que se muestra en resultados/exports) */
+  output: UnitConfig;
+  /** Controla visibilidad del modal de configuración */
+  showModal: boolean;
 
-  /** Factor para convertir de SI a display: valor_display = valor_SI / factor */
-  displayFactor: number;
+  // ── Setters ──
+  setInput: (config: Partial<UnitConfig>) => void;
+  setOutput: (config: Partial<UnitConfig>) => void;
+  setInputPreset: (preset: UnitPreset) => void;
+  setOutputPreset: (preset: UnitPreset) => void;
+  toggleModal: () => void;
 
-  /** Labels actuales según el sistema */
-  labels: UnitLabels;
+  // ── Conversión ──
+  /** Convierte un valor de unidades de input → SI */
+  inputToSI: (value: number, category: UnitCategory) => number;
+  /** Convierte un valor de SI → unidades de output */
+  siToOutput: (value: number, category: UnitCategory) => number;
 
-  /** Convierte un valor de SI a unidades de display */
-  toDisplay: (siValue: number) => number;
+  // ── Labels ──
+  /** Label de la unidad de input para una categoría */
+  inputLabel: (category: UnitCategory) => string;
+  /** Label de la unidad de output para una categoría */
+  outputLabel: (category: UnitCategory) => string;
 
-  /** Convierte un valor de display a SI */
-  toSI: (displayValue: number) => number;
+  // ── Shorthand labels object (for components that need all at once) ──
+  inputLabels: () => Record<UnitCategory, string>;
+  outputLabels: () => Record<UnitCategory, string>;
 }
 
-const SI_LABELS: UnitLabels = {
-  gamma: 'kN/m³',
-  c: 'kPa',
-  pressure: 'kPa',
-  force: 'kN',
-  forcePerArea: 'kPa',
-};
-
-const METRIC_LABELS: UnitLabels = {
-  gamma: 't/m³',
-  c: 't/m²',
-  pressure: 't/m²',
-  force: 't',
-  forcePerArea: 't/m²',
-};
-
-const FACTOR = 9.81; // 1 t/m³ = 9.81 kN/m³
-
 export const useUnitStore = create<UnitState>((set, get) => ({
-  unitSystem: 'metric',
-  displayFactor: FACTOR,
-  labels: METRIC_LABELS,
+  input: { ...METRIC_CONFIG },
+  output: { ...METRIC_CONFIG },
+  showModal: false,
 
-  toggleUnitSystem: () => {
-    const current = get().unitSystem;
-    const next: UnitSystem = current === 'SI' ? 'metric' : 'SI';
-    set({
-      unitSystem: next,
-      displayFactor: next === 'SI' ? 1 : FACTOR,
-      labels: next === 'SI' ? SI_LABELS : METRIC_LABELS,
-    });
+  setInput: (partial) =>
+    set((state) => ({ input: { ...state.input, ...partial } })),
+
+  setOutput: (partial) =>
+    set((state) => ({ output: { ...state.output, ...partial } })),
+
+  setInputPreset: (preset) =>
+    set({ input: { ...PRESETS[preset] } }),
+
+  setOutputPreset: (preset) =>
+    set({ output: { ...PRESETS[preset] } }),
+
+  toggleModal: () =>
+    set((state) => ({ showModal: !state.showModal })),
+
+  inputToSI: (value, category) => {
+    const factor = getFactor(get().input, category);
+    return value * factor;
   },
 
-  setUnitSystem: (system) =>
-    set({
-      unitSystem: system,
-      displayFactor: system === 'SI' ? 1 : FACTOR,
-      labels: system === 'SI' ? SI_LABELS : METRIC_LABELS,
-    }),
-
-  toDisplay: (siValue) => {
-    const factor = get().displayFactor;
-    return factor === 1 ? siValue : siValue / factor;
+  siToOutput: (value, category) => {
+    const factor = getFactor(get().output, category);
+    return value / factor;
   },
 
-  toSI: (displayValue) => {
-    const factor = get().displayFactor;
-    return factor === 1 ? displayValue : displayValue * factor;
+  inputLabel: (category) => getLabel(get().input, category),
+  outputLabel: (category) => getLabel(get().output, category),
+
+  inputLabels: () => {
+    const cfg = get().input;
+    return {
+      length: getLabel(cfg, 'length'),
+      angle: getLabel(cfg, 'angle'),
+      force: getLabel(cfg, 'force'),
+      pressure: getLabel(cfg, 'pressure'),
+      unitWeight: getLabel(cfg, 'unitWeight'),
+    };
+  },
+
+  outputLabels: () => {
+    const cfg = get().output;
+    return {
+      length: getLabel(cfg, 'length'),
+      angle: getLabel(cfg, 'angle'),
+      force: getLabel(cfg, 'force'),
+      pressure: getLabel(cfg, 'pressure'),
+      unitWeight: getLabel(cfg, 'unitWeight'),
+    };
   },
 }));

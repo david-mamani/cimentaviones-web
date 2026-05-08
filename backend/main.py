@@ -88,6 +88,7 @@ def generate_ifc_endpoint(input_data: IFCExportInput):
         strata=raw["strata"],
         foundation=raw["foundation"],
         conditions=raw["conditions"],
+        unit_config=raw.get("unit_config"),
     )
     return Response(
         content=ifc_bytes,
@@ -122,6 +123,7 @@ def export_pdf(input_data: PDFExportInput):
             options=options,
             images=images,
             iteration_results=raw.get("iteration_results"),
+            unit_config=raw.get("unit_config"),
         )
 
         pdf_bytes = compile_latex_to_pdf(

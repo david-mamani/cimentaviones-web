@@ -200,6 +200,7 @@ def generate_ifc(
     strata: list,
     foundation: dict,
     conditions: dict,
+    unit_config: dict = None,
 ) -> bytes:
     """
     Genera un archivo IFC con el modelo geotécnico completo.
@@ -208,10 +209,21 @@ def generate_ifc(
         strata: Lista de estratos [{id, thickness, gamma, c, phi, gammaSat}]
         foundation: {type, B, L, Df, FS, beta}
         conditions: {hasWaterTable, waterTableDepth, hasBasement, basementDepth}
+        unit_config: {input: {length, force, pressure, unitWeight}, output: {...}}
 
     Returns:
         bytes del archivo IFC listo para descargar/visualizar
     """
+    # Unit labels for IFC properties (use input units since data comes from user input)
+    if unit_config and unit_config.get('input'):
+        uc = unit_config['input']
+        u_len = uc.get('length', 'm')
+        u_prs = uc.get('pressure', 'kPa')
+        u_wgt = uc.get('unitWeight', 'kN/m³')
+    else:
+        u_len = 'm'
+        u_prs = 'kPa'
+        u_wgt = 'kN/m³'
     # ── Crear archivo IFC ──
     ifc_file = ifcopenshell.file(schema="IFC2X3")
     owner_history = _create_owner_history(ifc_file)
@@ -324,13 +336,13 @@ def generate_ifc(
 
         # Propiedades geotécnicas
         _add_property_set(ifc_file, owner_history, slab, "Pset_GeotechnicalProperties", {
-            "Espesor (m)": (h, "real"),
-            "Peso Unitario γ (kN/m³)": (stratum["gamma"], "real"),
-            "Cohesión c (kPa)": (stratum["c"], "real"),
-            "Ángulo de Fricción φ (°)": (stratum["phi"], "real"),
-            "Peso Unitario Sat. γsat (kN/m³)": (stratum["gammaSat"], "real"),
-            "Profundidad Techo (m)": (z_offset, "real"),
-            "Profundidad Base (m)": (z_offset + h, "real"),
+            f"Espesor ({u_len})": (h, "real"),
+            f"Peso Unitario γ ({u_wgt})": (stratum["gamma"], "real"),
+            f"Cohesión c ({u_prs})": (stratum["c"], "real"),
+            f"Ángulo de Fricción φ (°)": (stratum["phi"], "real"),
+            f"Peso Unitario Sat. γsat ({u_wgt})": (stratum["gammaSat"], "real"),
+            f"Profundidad Techo ({u_len})": (z_offset, "real"),
+            f"Profundidad Base ({u_len})": (z_offset + h, "real"),
         })
 
         products.append(slab)

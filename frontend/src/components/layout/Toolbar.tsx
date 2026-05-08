@@ -1,7 +1,7 @@
 /**
  * Toolbar — Minimalist top bar with Lucide icons.
  * All tools visible as icons. No dropdown.
- * Groups: Logo | Project | Calculate | Views | Info | Theme | Panels
+ * Groups: Logo | Project | Calculate | Views | UnitSettings | Info | Theme | Panels
  */
 import { useState, useRef } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
@@ -9,6 +9,7 @@ import type { ProjectData } from '../../store/foundationStore';
 import { useUnitStore } from '../../store/unitStore';
 import { foundationSchema, stratumSchema, conditionsSchema, validateCalculationInput } from '../../lib/validation';
 import CreditsModal from './CreditsModal';
+import UnitSettingsModal from './UnitSettingsModal';
 import {
   Save, FolderOpen, Play, RotateCcw,
   Square, Box, SplitSquareHorizontal,
@@ -47,8 +48,9 @@ export default function Toolbar({
 
   const [showCredits, setShowCredits] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const unitSystem = useUnitStore((s) => s.unitSystem);
-  const toggleUnits = useUnitStore((s) => s.toggleUnitSystem);
+  const outputConfig = useUnitStore((s) => s.output);
+  const showUnitModal = useUnitStore((s) => s.showModal);
+  const toggleUnitModal = useUnitStore((s) => s.toggleModal);
 
   const handleCalculate = () => {
     const fResult = foundationSchema.safeParse(foundation);
@@ -180,21 +182,17 @@ export default function Toolbar({
 
         <Sep />
 
-        <ToolBtn icon={<Info size={15} />} title="Créditos" onClick={() => setShowCredits(true)} />
-
-        <Sep />
-
-        {/* Unit toggle */}
+        {/* Unit settings */}
         <button
-          onClick={toggleUnits}
-          title={unitSystem === 'SI' ? 'Cambiar a t/m² (métrico)' : 'Cambiar a kN/kPa (SI)'}
+          onClick={toggleUnitModal}
+          title="Configuración de unidades"
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px',
-            background: 'var(--bg-surface-2)',
-            border: '1px solid var(--border-active)',
+            background: showUnitModal ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
+            border: `1px solid ${showUnitModal ? 'var(--accent)' : 'var(--border-active)'}`,
             borderRadius: 12,
-            color: 'var(--text-primary)',
+            color: showUnitModal ? 'var(--accent)' : 'var(--text-primary)',
             fontSize: 10,
             fontWeight: 700,
             fontFamily: 'var(--font-mono)',
@@ -203,16 +201,22 @@ export default function Toolbar({
             letterSpacing: 0.5,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent)';
-            e.currentTarget.style.color = 'var(--accent)';
+            if (!showUnitModal) {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.color = 'var(--accent)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-active)';
-            e.currentTarget.style.color = 'var(--text-primary)';
+            if (!showUnitModal) {
+              e.currentTarget.style.borderColor = 'var(--border-active)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }
           }}
         >
-          {unitSystem === 'SI' ? 'kN · kPa' : 't · t/m²'}
+          {outputConfig.force} · {outputConfig.pressure}
         </button>
+
+        <ToolBtn icon={<Info size={15} />} title="Créditos" onClick={() => setShowCredits(true)} />
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
@@ -257,6 +261,7 @@ export default function Toolbar({
 
       {/* Credits modal */}
       {showCredits && <CreditsModal onClose={() => setShowCredits(false)} />}
+      {showUnitModal && <UnitSettingsModal onClose={toggleUnitModal} />}
     </>
   );
 }

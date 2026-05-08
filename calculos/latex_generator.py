@@ -79,6 +79,7 @@ def generate_latex(
     options: dict = None,
     images: dict = None,
     iteration_results: dict = None,
+    unit_config: dict = None,
 ) -> str:
     """
     Genera el contenido de un archivo .tex completo.
@@ -88,6 +89,46 @@ def generate_latex(
         options = {}
     if images is None:
         images = {}
+
+    # ── Unit labels ──
+    # Defaults to SI if no unit_config provided
+    if unit_config:
+        inp = unit_config.get('input', {})
+        out = unit_config.get('output', {})
+    else:
+        inp = {}
+        out = {}
+
+    # Input unit labels (for data entry sections)
+    iu_length = inp.get('length', 'm')
+    iu_pressure = inp.get('pressure', 'kPa')
+    iu_weight = inp.get('unitWeight', r'kN/m\textsuperscript{3}')
+    iu_force = inp.get('force', 'kN')
+
+    # Output unit labels (for results sections)
+    ou_length = out.get('length', 'm')
+    ou_pressure = out.get('pressure', 'kPa')
+    ou_weight = out.get('unitWeight', r'kN/m\textsuperscript{3}')
+    ou_force = out.get('force', 'kN')
+
+    # LaTeX-safe weight unit (superscript for m3)
+    def _tex_unit(unit_str):
+        """Convert unit strings to LaTeX-safe versions."""
+        return (unit_str
+                .replace('kN/m\u00b3', r'kN/m\textsuperscript{3}')
+                .replace('t/m\u00b3', r't/m\textsuperscript{3}')
+                .replace('t/m²', r't/m\textsuperscript{2}')
+                .replace('kg/cm²', r'kg/cm\textsuperscript{2}'))
+
+    iu_weight_tex = _tex_unit(iu_weight)
+    iu_pressure_tex = _tex_unit(iu_pressure)
+    ou_weight_tex = _tex_unit(ou_weight)
+    ou_pressure_tex = _tex_unit(ou_pressure)
+    ou_force_tex = _tex_unit(ou_force)
+
+    # Check if input != output (for conversion appendix)
+    units_differ = (iu_pressure != ou_pressure or iu_force != ou_force
+                    or iu_weight != ou_weight or iu_length != ou_length)
 
     include_calculations = options.get('include_calculations', True)
     include_strata = options.get('include_strata', True)
@@ -227,7 +268,7 @@ def generate_latex(
         tex.append(r"\centering" + "\n")
         tex.append(r"\begin{tabular}{c c c c c c}" + "\n")
         tex.append(r"\toprule" + "\n")
-        tex.append(r"\textbf{Estrato} & \textbf{Espesor (m)} & \textbf{$\gamma$ (kN/m\textsuperscript{3})} & \textbf{$c$ (kPa)} & \textbf{$\phi$ ($^{\circ}$)} & \textbf{$\gamma_{sat}$ (kN/m\textsuperscript{3})} \\" + "\n")
+        tex.append(f"\\textbf{{Estrato}} & \\textbf{{Espesor ({iu_length})}} & \\textbf{{$\\gamma$ ({iu_weight_tex})}} & \\textbf{{$c$ ({iu_pressure_tex})}} & \\textbf{{$\\phi$ ($^{{\\circ}}$)}} & \\textbf{{$\\gamma_{{sat}}$ ({iu_weight_tex})}} \\\\\n")
         tex.append(r"\midrule" + "\n")
 
         for i, s in enumerate(strata):
@@ -253,8 +294,8 @@ def generate_latex(
 
         tex.append(r"\subsection{Estrato de Dise\~no}" + "\n")
         tex.append(f"El estrato de dise\\~no es el \\textbf{{Estrato {ds_idx + 1}}} ")
-        tex.append(f"con $\\phi = {_fmt(ds.get('phi', 0))}^{{\\circ}}$, $c = {_fmt(ds.get('c', 0))}$ kPa, ")
-        tex.append(f"$\\gamma = {_fmt(ds.get('gamma', 0))}$ kN/m\\textsuperscript{{3}}.\n\n")
+        tex.append(f"con $\\phi = {_fmt(ds.get('phi', 0))}^{{\\circ}}$, $c = {_fmt(ds.get('c', 0))}$ {iu_pressure_tex}, ")
+        tex.append(f"$\\gamma = {_fmt(ds.get('gamma', 0))}$ {iu_weight_tex}.\n\n")
 
         soil_type = result.get('soilType', 'Fri')
         tex.append(f"Tipo de suelo: \\textbf{{{_escape_latex('Cohesivo' if soil_type == 'Coh' else 'Friccionante')}}}.\n\n")
@@ -295,8 +336,8 @@ def generate_latex(
         F2 = _safe_float(result.get('F2', 0))
         F3 = _safe_float(result.get('F3', 0))
 
-        tex.append(f"Sobrecarga efectiva: $q = {_fmt(q_val)}$ kPa\n\n")
-        tex.append(f"Peso unitario efectivo: $\\gamma_{{eff}} = {_fmt(gamma_eff)}$ kN/m\\textsuperscript{{3}}\n\n")
+        tex.append(f"Sobrecarga efectiva: $q = {_fmt(q_val)}$ {ou_pressure_tex}\n\n")
+        tex.append(f"Peso unitario efectivo: $\\gamma_{{eff}} = {_fmt(gamma_eff)}$ {ou_weight_tex}\n\n")
 
         if method == 'terzaghi':
             tex.append(r"Ecuaci\'on de Terzaghi:" + "\n")
@@ -311,9 +352,9 @@ def generate_latex(
 
         tex.append(r"T\'erminos individuales:" + "\n")
         tex.append(r"\begin{align*}" + "\n")
-        tex.append(f"F_1 &= {_fmt(F1)} \\text{{ kPa}} \\\\\n")
-        tex.append(f"F_2 &= {_fmt(F2)} \\text{{ kPa}} \\\\\n")
-        tex.append(f"F_3 &= {_fmt(F3)} \\text{{ kPa}}\n")
+        tex.append(f"F_1 &= {_fmt(F1)} \\text{{ {ou_pressure_tex}}} \\\\\n")
+        tex.append(f"F_2 &= {_fmt(F2)} \\text{{ {ou_pressure_tex}}} \\\\\n")
+        tex.append(f"F_3 &= {_fmt(F3)} \\text{{ {ou_pressure_tex}}}\n")
         tex.append(r"\end{align*}" + "\n\n")
 
     # ══════════════════════════════════════
@@ -327,12 +368,12 @@ def generate_latex(
         tex.append(r"\toprule" + "\n")
         tex.append(r"\textbf{Resultado} & \textbf{Valor} & \textbf{Unidad} \\" + "\n")
         tex.append(r"\midrule" + "\n")
-        tex.append(f"Capacidad portante \'ultima $q_u$ & {_fmt(result.get('qu', 0))} & kPa \\\\\n")
-        tex.append(f"Capacidad portante neta $q_{{neta}}$ & {_fmt(result.get('qnet', 0))} & kPa \\\\\n")
-        tex.append(f"\\textbf{{Capacidad admisible}} $q_a$ & \\textbf{{{_fmt(result.get('qa', 0))}}} & \\textbf{{kPa}} \\\\\n")
-        tex.append(f"Capacidad admisible neta $q_{{a,neta}}$ & {_fmt(result.get('qaNet', 0))} & kPa \\\\\n")
+        tex.append(f"Capacidad portante \\'ultima $q_u$ & {_fmt(result.get('qu', 0))} & {ou_pressure_tex} \\\\\n")
+        tex.append(f"Capacidad portante neta $q_{{neta}}$ & {_fmt(result.get('qnet', 0))} & {ou_pressure_tex} \\\\\n")
+        tex.append(f"\\textbf{{Capacidad admisible}} $q_a$ & \\textbf{{{_fmt(result.get('qa', 0))}}} & \\textbf{{{ou_pressure_tex}}} \\\\\n")
+        tex.append(f"Capacidad admisible neta $q_{{a,neta}}$ & {_fmt(result.get('qaNet', 0))} & {ou_pressure_tex} \\\\\n")
         tex.append(r"\midrule" + "\n")
-        tex.append(f"\\textbf{{Carga m\\'axima}} $Q_{{max}}$ & \\textbf{{{_fmt(result.get('Qmax', 0))}}} & \\textbf{{kN}} \\\\\n")
+        tex.append(f"\\textbf{{Carga m\\'axima}} $Q_{{max}}$ & \\textbf{{{_fmt(result.get('Qmax', 0))}}} & \\textbf{{{ou_force_tex}}} \\\\\n")
         tex.append(r"\bottomrule" + "\n")
         tex.append(r"\end{tabular}" + "\n")
         tex.append(r"\caption{Resultados del an\'alisis de capacidad portante}" + "\n")
@@ -348,9 +389,9 @@ def generate_latex(
             tex.append(r"\toprule" + "\n")
             tex.append(r"\textbf{Par\'ametro RNE} & \textbf{Valor} & \textbf{Unidad} \\" + "\n")
             tex.append(r"\midrule" + "\n")
-            tex.append(f"$q_u$ RNE & {_fmt(rne.get('qultRNE', 0))} & kPa \\\\\n")
-            tex.append(f"$q_a$ RNE & {_fmt(rne.get('qadmRNE', 0))} & kPa \\\\\n")
-            tex.append(f"$q_u$ RNE corregido & {_fmt(rne.get('qultRNECorrected', 0))} & kPa \\\\\n")
+            tex.append(f"$q_u$ RNE & {_fmt(rne.get('qultRNE', 0))} & {ou_pressure_tex} \\\\\n")
+            tex.append(f"$q_a$ RNE & {_fmt(rne.get('qadmRNE', 0))} & {ou_pressure_tex} \\\\\n")
+            tex.append(f"$q_u$ RNE corregido & {_fmt(rne.get('qultRNECorrected', 0))} & {ou_pressure_tex} \\\\\n")
             tex.append(r"\bottomrule" + "\n")
             tex.append(r"\end{tabular}" + "\n")
             tex.append(r"\caption{Resultados seg\'un la Norma RNE E.050}" + "\n")
@@ -390,9 +431,9 @@ def generate_latex(
                     r"\textbf{$N_c$} & \textbf{$N_q$} & \textbf{$N_\gamma$} \\" + "\n"
                 )
                 tex.append(
-                    r" & \textbf{(m)} & \textbf{(m)} & \textbf{(m)} & "
-                    r"\textbf{(kPa)} & \textbf{(kPa)} & \textbf{(kPa)} & "
-                    r"\textbf{(kN)} & & & \\" + "\n"
+                    f" & \\textbf{{({ou_length})}} & \\textbf{{({ou_length})}} & \\textbf{{({ou_length})}} & "
+                    f"\\textbf{{({ou_pressure_tex})}} & \\textbf{{({ou_pressure_tex})}} & \\textbf{{({ou_pressure_tex})}} & "
+                    f"\\textbf{{({ou_force_tex})}} & & & \\\\" + "\n"
                 )
                 tex.append(r"\midrule" + "\n")
 

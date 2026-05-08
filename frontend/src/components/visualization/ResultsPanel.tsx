@@ -1,8 +1,10 @@
 /**
  * ResultsPanel — Full results view for workspace tab display.
  * Uses CSS variables for theme support.
+ * Uses unitStore for dynamic unit labels and conversions.
  */
 import { useFoundationStore } from '../../store/foundationStore';
+import { useUnitStore } from '../../store/unitStore';
 
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi Clásico',
@@ -20,6 +22,10 @@ const WATER_CASE_LABELS: Record<number, string> = {
 
 export default function ResultsPanel() {
   const result = useFoundationStore((s) => s.result);
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const outputLabel = useUnitStore((s) => s.outputLabel);
+  const inputLabel = useUnitStore((s) => s.inputLabel);
+
   if (!result) {
     return (
       <div style={{ padding: 24, color: 'var(--text-muted)', fontSize: 12, textAlign: 'center' }}>
@@ -30,6 +36,14 @@ export default function ResultsPanel() {
 
   const ds = result.designStratum;
   const bf = result.bearingFactors;
+
+  // Output unit labels
+  const pu = outputLabel('pressure');
+  const fu = outputLabel('force');
+  const wu = outputLabel('unitWeight');
+  // Input unit labels (for design stratum data, since those are input values)
+  const iwu = inputLabel('unitWeight');
+  const ipu = inputLabel('pressure');
 
   return (
     <div style={{ fontFamily: 'var(--font-sans)' }}>
@@ -47,53 +61,53 @@ export default function ResultsPanel() {
         Resultados del Análisis — {METHOD_LABELS[result.method]}
       </div>
 
-      {/* Design stratum */}
+      {/* Design stratum — shows INPUT units since these are user-entered values */}
       <ResultSection title="Estrato de Diseño">
         <Row label="Estrato" value={`N° ${result.designStratumIndex + 1}`} />
         <Row label="Tipo de suelo" value={result.soilType === 'Coh' ? 'Cohesivo' : 'Friccionante'} accent />
         <Row label="φ" value={`${ds.phi}°`} />
-        <Row label="c" value={`${ds.c} kPa`} />
-        <Row label="γ" value={`${ds.gamma} kN/m³`} />
-        <Row label="γsat" value={`${ds.gammaSat} kN/m³`} />
+        <Row label="c" value={`${ds.c} ${ipu}`} />
+        <Row label="γ" value={`${ds.gamma} ${iwu}`} />
+        <Row label="γsat" value={`${ds.gammaSat} ${iwu}`} />
       </ResultSection>
 
-      {/* Bearing factors */}
+      {/* Bearing factors — dimensionless */}
       <ResultSection title="Factores de Capacidad Portante">
         <Row label="Nc" value={bf.Nc.toFixed(2)} mono />
         <Row label="Nq" value={bf.Nq.toFixed(2)} mono />
         <Row label="Nγ" value={bf.Ngamma.toFixed(2)} mono />
       </ResultSection>
 
-      {/* Overburden */}
+      {/* Overburden — OUTPUT units */}
       <ResultSection title="Sobrecarga y Correcciones">
-        <Row label="q (sobrecarga)" value={`${result.q.toFixed(2)} kPa`} mono />
-        <Row label="γ efectivo" value={`${result.gammaEffective.toFixed(2)} kN/m³`} mono />
+        <Row label="q (sobrecarga)" value={`${siToOutput(result.q, 'pressure').toFixed(2)} ${pu}`} mono />
+        <Row label="γ efectivo" value={`${siToOutput(result.gammaEffective, 'unitWeight').toFixed(2)} ${wu}`} mono />
         <Row label="Caso NF" value={WATER_CASE_LABELS[result.waterTableCase]} />
       </ResultSection>
 
-      {/* Individual terms */}
+      {/* Individual terms — OUTPUT units */}
       <ResultSection title="Términos Individuales">
-        <Row label="Término 1 (F1)" value={result.F1.toFixed(2)} mono />
-        <Row label="Término 2 (F2)" value={result.F2.toFixed(2)} mono />
-        <Row label="Término 3 (F3)" value={result.F3.toFixed(2)} mono />
+        <Row label="Término 1 (F1)" value={`${siToOutput(result.F1, 'pressure').toFixed(2)} ${pu}`} mono />
+        <Row label="Término 2 (F2)" value={`${siToOutput(result.F2, 'pressure').toFixed(2)} ${pu}`} mono />
+        <Row label="Término 3 (F3)" value={`${siToOutput(result.F3, 'pressure').toFixed(2)} ${pu}`} mono />
       </ResultSection>
 
-      {/* Final results */}
+      {/* Final results — OUTPUT units */}
       <ResultSection title="Capacidades Portantes" highlight>
-        <Row label="qu (cap. última)" value={`${result.qu.toFixed(2)} kPa`} accent mono />
-        <Row label="qneta (cap. neta última)" value={`${result.qnet.toFixed(2)} kPa`} mono />
-        <Row label="qa (cap. admisible)" value={`${result.qa.toFixed(2)} kPa`} accent mono />
-        <Row label="qa_neta (cap. neta admisible)" value={`${result.qaNet.toFixed(2)} kPa`} mono />
+        <Row label="qu (cap. última)" value={`${siToOutput(result.qu, 'pressure').toFixed(2)} ${pu}`} accent mono />
+        <Row label="qneta (cap. neta última)" value={`${siToOutput(result.qnet, 'pressure').toFixed(2)} ${pu}`} mono />
+        <Row label="qa (cap. admisible)" value={`${siToOutput(result.qa, 'pressure').toFixed(2)} ${pu}`} accent mono />
+        <Row label="qa_neta (cap. neta admisible)" value={`${siToOutput(result.qaNet, 'pressure').toFixed(2)} ${pu}`} mono />
         <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-        <Row label="Q_max (carga máxima)" value={`${result.Qmax.toFixed(2)} kN`} accent mono />
+        <Row label="Q_max (carga máxima)" value={`${siToOutput(result.Qmax, 'force').toFixed(2)} ${fu}`} accent mono />
       </ResultSection>
 
-      {/* RNE Consideration */}
+      {/* RNE Consideration — OUTPUT units */}
       {result.rneConsideration && (
         <ResultSection title="Consideración RNE">
-          <Row label="qu RNE" value={`${result.rneConsideration.qultRNE.toFixed(2)} kPa`} mono />
-          <Row label="qa RNE" value={`${result.rneConsideration.qadmRNE.toFixed(2)} kPa`} mono />
-          <Row label="qu RNE corregido" value={`${result.rneConsideration.qultRNECorrected.toFixed(2)} kPa`} mono />
+          <Row label="qu RNE" value={`${siToOutput(result.rneConsideration.qultRNE, 'pressure').toFixed(2)} ${pu}`} mono />
+          <Row label="qa RNE" value={`${siToOutput(result.rneConsideration.qadmRNE, 'pressure').toFixed(2)} ${pu}`} mono />
+          <Row label="qu RNE corregido" value={`${siToOutput(result.rneConsideration.qultRNECorrected, 'pressure').toFixed(2)} ${pu}`} mono />
         </ResultSection>
       )}
     </div>

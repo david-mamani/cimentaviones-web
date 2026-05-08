@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { useUnitStore } from './unitStore';
 import type {
   FoundationType,
   CalculationMethod,
@@ -120,10 +121,10 @@ function createDefaultStratum(): Stratum {
   return {
     id: generateId(),
     thickness: 1.0,
-    gamma: 18.0,
+    gamma: 1.8,       // t/m³ (default métrico)
     c: 0,
     phi: 30,
-    gammaSat: 20.0,
+    gammaSat: 2.0,    // t/m³ (default métrico)
   };
 }
 
@@ -246,14 +247,40 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     if (get().isCalculating) return; // Prevent double-click
     set({ isCalculating: true, errors: [] });
     const state = get();
+
+    // Convert input values to SI for the API
+    const { inputToSI } = useUnitStore.getState();
+    const strataForAPI = state.strata.map((s) => ({
+      ...s,
+      thickness: inputToSI(s.thickness, 'length'),
+      gamma: inputToSI(s.gamma, 'unitWeight'),
+      c: inputToSI(s.c, 'pressure'),
+      gammaSat: inputToSI(s.gammaSat, 'unitWeight'),
+    }));
+
+    // Convert foundation dimensions to SI
+    const foundationForAPI = {
+      ...state.foundation,
+      B: inputToSI(state.foundation.B, 'length'),
+      L: inputToSI(state.foundation.L, 'length'),
+      Df: inputToSI(state.foundation.Df, 'length'),
+    };
+
+    // Convert conditions to SI
+    const conditionsForAPI = {
+      ...state.conditions,
+      waterTableDepth: inputToSI(state.conditions.waterTableDepth, 'length'),
+      basementDepth: inputToSI(state.conditions.basementDepth, 'length'),
+    };
+
     try {
       const response = await fetch('/api/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          foundation: state.foundation,
-          strata: state.strata,
-          conditions: state.conditions,
+          foundation: foundationForAPI,
+          strata: strataForAPI,
+          conditions: conditionsForAPI,
           method: state.method,
         }),
       });

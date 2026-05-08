@@ -316,18 +316,22 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   }, [foundation, strata, conditions]);
 
   const handleExportCSV = useCallback(() => {
+    const { siToOutput, outputLabel } = useUnitStore.getState();
+    const lu = outputLabel('length');
+    const pu = outputLabel('pressure');
+    const fu = outputLabel('force');
     const rows = [
       ['Parámetro', 'Valor', 'Unidad'],
       ['Tipo', foundation.type, ''],
-      ['B', foundation.B, 'm'],
-      ['L', foundation.L, 'm'],
-      ['Df', foundation.Df, 'm'],
+      ['B', foundation.B, lu],
+      ['L', foundation.L, lu],
+      ['Df', foundation.Df, lu],
       ['FS', foundation.FS, ''],
-      ['qu', result.qu.toFixed(2), 'kPa'],
-      ['qnet', result.qnet.toFixed(2), 'kPa'],
-      ['qa', result.qa.toFixed(2), 'kPa'],
-      ['qaNet', result.qaNet.toFixed(2), 'kPa'],
-      ['Qmax', result.Qmax.toFixed(2), 'kN'],
+      ['qu', siToOutput(result.qu, 'pressure').toFixed(2), pu],
+      ['qnet', siToOutput(result.qnet, 'pressure').toFixed(2), pu],
+      ['qa', siToOutput(result.qa, 'pressure').toFixed(2), pu],
+      ['qaNet', siToOutput(result.qaNet, 'pressure').toFixed(2), pu],
+      ['Qmax', siToOutput(result.Qmax, 'force').toFixed(2), fu],
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -340,21 +344,25 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   }, [foundation, result]);
 
   const handleExportTXT = useCallback(() => {
+    const { siToOutput, outputLabel, inputLabel } = useUnitStore.getState();
+    const lu = inputLabel('length');
+    const pu = outputLabel('pressure');
+    const fu = outputLabel('force');
     const lines = [
       '═══════════════════════════════════════',
       '  Cimentaciones WEB — Reporte',
       '═══════════════════════════════════════',
       '',
       `Tipo: ${foundation.type}`,
-      `B = ${foundation.B} m, L = ${foundation.L} m, Df = ${foundation.Df} m`,
+      `B = ${foundation.B} ${lu}, L = ${foundation.L} ${lu}, Df = ${foundation.Df} ${lu}`,
       `FS = ${foundation.FS}, β = ${foundation.beta}°`,
       '',
       '── Resultados ──',
-      `qu = ${result.qu.toFixed(2)} kPa`,
-      `qneta = ${result.qnet.toFixed(2)} kPa`,
-      `qa = ${result.qa.toFixed(2)} kPa`,
-      `qa_neta = ${result.qaNet.toFixed(2)} kPa`,
-      `Qmax = ${result.Qmax.toFixed(2)} kN`,
+      `qu = ${siToOutput(result.qu, 'pressure').toFixed(2)} ${pu}`,
+      `qneta = ${siToOutput(result.qnet, 'pressure').toFixed(2)} ${pu}`,
+      `qa = ${siToOutput(result.qa, 'pressure').toFixed(2)} ${pu}`,
+      `qa_neta = ${siToOutput(result.qaNet, 'pressure').toFixed(2)} ${pu}`,
+      `Qmax = ${siToOutput(result.Qmax, 'force').toFixed(2)} ${fu}`,
       '',
       '── Factores ──',
       `Nc = ${result.bearingFactors.Nc.toFixed(2)}`,
@@ -578,38 +586,41 @@ function ResultRow({ label, value, unit, accent }: {
 function ConvertedResultRow({ label, value, type, accent }: {
   label: string; value: number; type: 'pressure' | 'force'; accent?: boolean;
 }) {
-  const { toDisplay, labels } = useUnitStore();
-  const unit = type === 'pressure' ? labels.pressure : labels.force;
-  return <ResultRow label={label} value={toDisplay(value)} unit={unit} accent={accent} />;
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const outputLabel = useUnitStore((s) => s.outputLabel);
+  const unit = outputLabel(type);
+  return <ResultRow label={label} value={siToOutput(value, type)} unit={unit} accent={accent} />;
 }
 
 /** Hero qa value with unit conversion */
 function HeroResult({ value }: { value: number }) {
-  const { toDisplay, labels } = useUnitStore();
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const outputLabel = useUnitStore((s) => s.outputLabel);
   return (
     <>
       <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-        {toDisplay(value).toFixed(2)}
+        {siToOutput(value, 'pressure').toFixed(2)}
       </div>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{labels.pressure}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{outputLabel('pressure')}</div>
     </>
   );
 }
 
 /** Inline value with conversion (for F1, F2, F3) */
 function ConvertedValue({ label, value }: { label: string; value: number }) {
-  const { toDisplay } = useUnitStore();
+  const siToOutput = useUnitStore((s) => s.siToOutput);
   return (
-    <span style={{ color: 'var(--text-secondary)' }}>{label}={toDisplay(value).toFixed(2)}</span>
+    <span style={{ color: 'var(--text-secondary)' }}>{label}={siToOutput(value, 'pressure').toFixed(2)}</span>
   );
 }
 
 /** Factors detail row with converted q and gamma */
 function FactorsDetail({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
-  const { toDisplay, labels } = useUnitStore();
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const outputLabel = useUnitStore((s) => s.outputLabel);
   return (
     <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
-      q = {toDisplay(result.q).toFixed(2)} {labels.pressure} · γeff = {toDisplay(result.gammaEffective).toFixed(2)} {labels.gamma}
+      q = {siToOutput(result.q, 'pressure').toFixed(2)} {outputLabel('pressure')} · γeff = {siToOutput(result.gammaEffective, 'unitWeight').toFixed(2)} {outputLabel('unitWeight')}
     </div>
   );
 }

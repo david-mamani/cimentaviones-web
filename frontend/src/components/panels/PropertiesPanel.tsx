@@ -7,6 +7,7 @@ import { useFoundationStore } from '../../store/foundationStore';
 import type { CalculationMethod, FoundationType } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
+import { useUnitStore } from '../../store/unitStore';
 import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 
 const TYPES: { value: FoundationType; label: string }[] = [
@@ -100,16 +101,17 @@ function DimensionsSection() {
   const lbRatio = useFoundationStore((s) => s.lbRatio);
   const setLbLocked = useFoundationStore((s) => s.setLbLocked);
   const setLbRatio = useFoundationStore((s) => s.setLbRatio);
+  const inputLabel = useUnitStore((s) => s.inputLabel);
 
   return (
     <Section title="Dimensiones" open={open} onToggle={() => setOpen(!open)}>
-      <PropRow label="Lado B (m)">
+      <PropRow label={`Lado B (${inputLabel('length')})`}>
         <CadNumericInput value={f.B} step={0.1} min={0}
           onChange={(v) => setParam('B', v)} />
       </PropRow>
       {(f.type === 'rectangular') && (
         <>
-          <PropRow label="Lado L (m)">
+          <PropRow label={`Lado L (${inputLabel('length')})`}>
             <CadNumericInput value={f.L} step={0.1} min={0}
               onChange={(v) => setParam('L', v)}
               disabled={lbLocked} />
@@ -139,7 +141,7 @@ function DimensionsSection() {
           </div>
         </>
       )}
-      <PropRow label="Prof. desplante Df (m)">
+      <PropRow label={`Prof. desplante Df (${inputLabel('length')})`}>
         <CadNumericInput value={f.Df} step={0.1} min={0}
           onChange={(v) => setParam('Df', v)} />
       </PropRow>
@@ -201,6 +203,7 @@ function ConditionsSection() {
   const [open, setOpen] = useState(true);
   const cond = useFoundationStore((s) => s.conditions);
   const setCond = useFoundationStore((s) => s.setCondition);
+  const inputLabel = useUnitStore((s) => s.inputLabel);
 
   return (
     <Section title="Condiciones Especiales" open={open} onToggle={() => setOpen(!open)}>
@@ -211,7 +214,7 @@ function ConditionsSection() {
           Nivel freático
         </label>
         {cond.hasWaterTable && (
-          <PropRow label="Prof. NF Dw (m)">
+          <PropRow label={`Prof. NF Dw (${inputLabel('length')})`}>
             <CadNumericInput value={cond.waterTableDepth} step={0.1} min={0}
               onChange={(v) => setCond('waterTableDepth', v)} />
           </PropRow>
@@ -222,7 +225,7 @@ function ConditionsSection() {
           Sótano
         </label>
         {cond.hasBasement && (
-          <PropRow label="Prof. sótano Ds (m)">
+          <PropRow label={`Prof. sótano Ds (${inputLabel('length')})`}>
             <CadNumericInput value={cond.basementDepth} step={0.1} min={0}
               onChange={(v) => setCond('basementDepth', v)} />
           </PropRow>
@@ -241,6 +244,7 @@ function StrataSection() {
   const updateStratum = useFoundationStore((s) => s.updateStratum);
   const strataColors = useViewerSettings((s) => s.strataColors);
   const setStrataColor = useViewerSettings((s) => s.setStrataColor);
+  const inputLabel = useUnitStore((s) => s.inputLabel);
 
   return (
     <Section
@@ -258,7 +262,7 @@ function StrataSection() {
         }}>
           <thead>
             <tr>
-              {['', 'h(m)', 'γ(kN/m³)', 'c(kPa)', 'φ°', 'γsat(kN/m³)', ''].map((h, i) => (
+              {['', `h(${inputLabel('length')})`, `γ(${inputLabel('unitWeight')})`, `c(${inputLabel('pressure')})`, 'φ°', `γsat(${inputLabel('unitWeight')})`, ''].map((h, i) => (
                 <th key={i} style={{
                   padding: '4px 2px',
                   fontSize: 9,

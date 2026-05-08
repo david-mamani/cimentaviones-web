@@ -92,17 +92,48 @@ export default function ParametricIterations() {
     if (!config.varyB && !config.varyDf) return;
     setLoading(true);
     try {
-      const iterConfig: Record<string, unknown> = { ...config };
+      // Convert strata to SI for API
+      const { inputToSI } = useUnitStore.getState();
+      const strataForAPI = strata.map((s) => ({
+        ...s,
+        thickness: inputToSI(s.thickness, 'length'),
+        gamma: inputToSI(s.gamma, 'unitWeight'),
+        c: inputToSI(s.c, 'pressure'),
+        gammaSat: inputToSI(s.gammaSat, 'unitWeight'),
+      }));
+      // Convert foundation dimensions to SI
+      const foundationForAPI = {
+        ...foundation,
+        B: inputToSI(foundation.B, 'length'),
+        L: inputToSI(foundation.L, 'length'),
+        Df: inputToSI(foundation.Df, 'length'),
+      };
+      // Convert conditions to SI
+      const conditionsForAPI = {
+        ...conditions,
+        waterTableDepth: inputToSI(conditions.waterTableDepth, 'length'),
+        basementDepth: inputToSI(conditions.basementDepth, 'length'),
+      };
+      // Convert iteration config to SI
+      const configForAPI: Record<string, unknown> = {
+        ...config,
+        bStart: inputToSI(config.bStart, 'length'),
+        bEnd: inputToSI(config.bEnd, 'length'),
+        bStep: inputToSI(config.bStep, 'length'),
+        dfStart: inputToSI(config.dfStart, 'length'),
+        dfEnd: inputToSI(config.dfEnd, 'length'),
+        dfStep: inputToSI(config.dfStep, 'length'),
+      };
       // When lbLocked, pass ratio so backend computes L = k × B for each iteration
       if (lbLocked && foundation.type === 'rectangular') {
-        iterConfig.lbRatio = lbRatio;
+        configForAPI.lbRatio = lbRatio;
       }
       const response = await fetch('/api/iterate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          base: { foundation, strata, conditions, method },
-          config: iterConfig,
+          base: { foundation: foundationForAPI, strata: strataForAPI, conditions: conditionsForAPI, method },
+          config: configForAPI,
         }),
       });
       if (!response.ok) throw new Error(`Error ${response.status}`);
@@ -117,7 +148,7 @@ export default function ParametricIterations() {
     }
   };
 
-  const { toDisplay, labels } = useUnitStore();
+  const { siToOutput, outputLabel } = useUnitStore();
 
   // Build Plotly traces
   const getTraces = (): Partial<Plotly.Data>[] => {
@@ -126,10 +157,10 @@ export default function ParametricIterations() {
       const row = iterResult.matrix[di];
       return {
         x: row.map((c) => c.B),
-        y: row.map((c) => toDisplay(chartMetric === 'qa' ? c.result.qa : c.Qmax)),
+        y: row.map((c) => siToOutput(chartMetric === 'qa' ? c.result.qa : c.Qmax, chartMetric === 'qa' ? 'pressure' : 'force')),
         type: 'scatter' as const,
         mode: 'lines+markers' as const,
-        name: `D_f = ${df.toFixed(2)} m`,
+        name: `D_f = ${siToOutput(df, 'length').toFixed(2)} ${outputLabel('length')}`,
         line: { color: COLORS[di % COLORS.length], width: 2 },
         marker: {
           symbol: MARKERS[di % MARKERS.length],
@@ -141,7 +172,7 @@ export default function ParametricIterations() {
           `<b>B = %{x:.2f} m</b><br>` +
           `D<sub>f</sub> = ${df.toFixed(2)} m<br>` +
           `${chartMetric === 'qa' ? 'q<sub>adm</sub>' : 'Q<sub>max</sub>'} = %{y:.2f} ` +
-          `${chartMetric === 'qa' ? labels.pressure : labels.force}` +
+          `${chartMetric === 'qa' ? outputLabel('pressure') : outputLabel('force')}` +
           `<extra></extra>`,
       };
     });
@@ -163,7 +194,7 @@ export default function ParametricIterations() {
 
   const layout: Partial<Plotly.Layout> = {
     xaxis: {
-      title: { text: 'B (m)', font: { size: 11, color: chartAxisLabel } },
+      title: { text: `B (${outputLabel('length')})`, font: { size: 11, color: chartAxisLabel } },
       color: chartAxisText,
       gridcolor: chartGrid,
       gridwidth: 0.5,
@@ -175,7 +206,7 @@ export default function ParametricIterations() {
     },
     yaxis: {
       title: {
-        text: chartMetric === 'qa' ? `q<sub>adm</sub> (${labels.pressure})` : `Q<sub>max</sub> (${labels.force})`,
+        text: chartMetric === 'qa' ? `q<sub>adm</sub> (${outputLabel('pressure')})` : `Q<sub>max</sub> (${outputLabel('force')})`,
         font: { size: 11, color: chartAxisLabel },
       },
       color: chartAxisText,
@@ -285,14 +316,14 @@ export default function ParametricIterations() {
               onClick={() => setChartMetric('qa')}
               style={{ flex: 1, fontSize: 10 }}
             >
-              q_adm ({labels.pressure})
+              q_adm ({outputLabel('pressure')})
             </button>
             <button
               className={chartMetric === 'Qmax' ? 'cad-btn cad-btn-accent' : 'cad-btn'}
               onClick={() => setChartMetric('Qmax')}
               style={{ flex: 1, fontSize: 10 }}
             >
-              Q_max ({labels.force})
+              Q_max ({outputLabel('force')})
             </button>
           </div>
 
@@ -408,14 +439,18 @@ function exportJSON(
 }
 
 function exportCSV(iterResult: IterationResult) {
-  const header = 'N°,B (m),Df (m),qu (kPa),qa (kPa),qnet (kPa),Qmax (kN),Nc,Nq,Nγ\n';
+  const { siToOutput, outputLabel } = useUnitStore.getState();
+  const lu = outputLabel('length');
+  const pu = outputLabel('pressure');
+  const fu = outputLabel('force');
+  const header = `N°,B (${lu}),Df (${lu}),qu (${pu}),qa (${pu}),qnet (${pu}),Qmax (${fu}),Nc,Nq,Nγ\n`;
   let n = 1;
   const rows = iterResult.matrix.flatMap((row) =>
     row.map((cell) => {
       const r = cell.result;
       return [
-        n++, cell.B.toFixed(3), cell.Df.toFixed(3),
-        r.qu.toFixed(3), r.qa.toFixed(3), r.qnet.toFixed(3), cell.Qmax.toFixed(3),
+        n++, siToOutput(cell.B, 'length').toFixed(3), siToOutput(cell.Df, 'length').toFixed(3),
+        siToOutput(r.qu, 'pressure').toFixed(3), siToOutput(r.qa, 'pressure').toFixed(3), siToOutput(r.qnet, 'pressure').toFixed(3), siToOutput(cell.Qmax, 'force').toFixed(3),
         r.bearingFactors.Nc, r.bearingFactors.Nq, r.bearingFactors.Ngamma,
       ].join(',');
     })
@@ -428,6 +463,10 @@ function exportTXT(
   foundation: { type: string; B: number; L: number; Df: number; FS: number; beta: number },
   method: string,
 ) {
+  const { siToOutput, outputLabel } = useUnitStore.getState();
+  const lu = outputLabel('length');
+  const pu = outputLabel('pressure');
+  const fu = outputLabel('force');
   const lines: string[] = [];
   lines.push('═══════════════════════════════════════════════════════════════');
   lines.push('  Cimentaciones WEB — Reporte de Iteraciones Paramétricas');
@@ -442,11 +481,11 @@ function exportTXT(
     for (const cell of row) {
       const r = cell.result;
       lines.push(`  Cálculo ${String(n).padStart(2, '0')}:`);
-      lines.push(`    B  = ${cell.B.toFixed(3)} m    Df = ${cell.Df.toFixed(3)} m`);
-      lines.push(`    qu = ${r.qu.toFixed(3)} kPa`);
-      lines.push(`    qa = ${r.qa.toFixed(3)} kPa`);
-      lines.push(`    qnet = ${r.qnet.toFixed(3)} kPa`);
-      lines.push(`    Qmax = ${cell.Qmax.toFixed(3)} kN`);
+      lines.push(`    B  = ${siToOutput(cell.B, 'length').toFixed(3)} ${lu}    Df = ${siToOutput(cell.Df, 'length').toFixed(3)} ${lu}`);
+      lines.push(`    qu = ${siToOutput(r.qu, 'pressure').toFixed(3)} ${pu}`);
+      lines.push(`    qa = ${siToOutput(r.qa, 'pressure').toFixed(3)} ${pu}`);
+      lines.push(`    qnet = ${siToOutput(r.qnet, 'pressure').toFixed(3)} ${pu}`);
+      lines.push(`    Qmax = ${siToOutput(cell.Qmax, 'force').toFixed(3)} ${fu}`);
       lines.push(`    Nc = ${r.bearingFactors.Nc}  Nq = ${r.bearingFactors.Nq}  Nγ = ${r.bearingFactors.Ngamma}`);
       lines.push('');
       n++;

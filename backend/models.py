@@ -11,13 +11,13 @@ from typing import Literal, Optional, Any
 
 
 class Stratum(BaseModel):
-    """Estrato de suelo individual."""
+    """Estrato de suelo individual. Valores recibidos en SI."""
     id: str
     thickness: float = Field(gt=0, description="Espesor (m)")
-    gamma: float = Field(gt=0, description="Peso unitario natural γ (kN/m³)")
-    c: float = Field(ge=0, description="Cohesión c (kPa)")
+    gamma: float = Field(gt=0, description="Peso unitario natural γ (SI)")
+    c: float = Field(ge=0, description="Cohesión c (SI)")
     phi: float = Field(ge=0, le=50, description="Ángulo de fricción interna φ (°)")
-    gammaSat: float = Field(gt=0, description="Peso unitario saturado γsat (kN/m³)")
+    gammaSat: float = Field(gt=0, description="Peso unitario saturado γsat (SI)")
 
     @model_validator(mode="after")
     def validate_gammaSat_gte_gamma(self):
@@ -121,11 +121,19 @@ class IterationInput(BaseModel):
     config: IterationConfig
 
 
-class IFCExportInput(BaseModel):
-    """Input para exportación IFC — solo datos del modelo, sin método de cálculo."""
-    foundation: FoundationParams
-    strata: list[Stratum] = Field(min_length=1)
-    conditions: SpecialConditions
+class UnitConfigEntry(BaseModel):
+    """Configuración de una unidad individual."""
+    length: str = "m"
+    angle: str = "°"
+    force: str = "kN"
+    pressure: str = "kPa"
+    unitWeight: str = "kN/m³"
+
+
+class PDFUnitConfig(BaseModel):
+    """Configuración de unidades para el PDF (input/output)."""
+    input: UnitConfigEntry = UnitConfigEntry()
+    output: UnitConfigEntry = UnitConfigEntry()
 
 
 class PDFExportOptions(BaseModel):
@@ -148,3 +156,12 @@ class PDFExportInput(BaseModel):
     options: PDFExportOptions = PDFExportOptions()
     images: Optional[dict[str, str]] = None  # {chart_b64, view2d_b64, view3d_b64}
     iteration_results: Optional[dict[str, Any]] = None  # iteration matrix data
+    unit_config: Optional[PDFUnitConfig] = None  # unit system configuration
+
+
+class IFCExportInput(BaseModel):
+    """Input para exportación IFC — solo datos del modelo, sin método de cálculo."""
+    foundation: FoundationParams
+    strata: list[Stratum] = Field(min_length=1)
+    conditions: SpecialConditions
+    unit_config: Optional[PDFUnitConfig] = None  # reuse same config type
