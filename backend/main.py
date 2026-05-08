@@ -1,5 +1,5 @@
 """
-CimentAviones Backend — Servidor FastAPI.
+Cimentaciones Backend — Servidor FastAPI.
 
 Endpoints:
   POST /api/calculate  → Cálculo individual de capacidad portante
@@ -25,7 +25,7 @@ from calculos.ifc_generator import generate_ifc
 from calculos.latex_generator import generate_latex, compile_latex_to_pdf
 
 app = FastAPI(
-    title="CimentAviones API",
+    title="Cimentaciones API",
     description="Motor de cálculos geotécnicos — Capacidad portante",
     version="1.1.0",
 )
@@ -93,7 +93,7 @@ def generate_ifc_endpoint(input_data: IFCExportInput):
         content=ifc_bytes,
         media_type="application/octet-stream",
         headers={
-            "Content-Disposition": "attachment; filename=cimentaviones_model.ifc",
+            "Content-Disposition": "attachment; filename=Cimentaciones_model.ifc",
             "Access-Control-Expose-Headers": "Content-Disposition",
         },
     )
@@ -148,7 +148,7 @@ def health():
     """Health check."""
     return {
         "status": "ok",
-        "engine": "CimentAviones v1.1",
+        "engine": "Cimentaciones v1.1",
         "methods": ["terzaghi", "general", "rne"],
         "limits": {"max_iteration_points": 500, "phi_range": [0, 50]},
     }

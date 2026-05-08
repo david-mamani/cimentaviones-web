@@ -1,4 +1,4 @@
-# 🎨 Auditoría UI/UX — CimentAviones Web
+# 🎨 Auditoría UI/UX — Cimentaciones Web
 
 > Documento para reunión con equipo de diseño UI/UX  
 > Versión corregida y actualizada — 7 mayo 2026  

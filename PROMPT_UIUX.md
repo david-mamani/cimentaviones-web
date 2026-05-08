@@ -1,4 +1,4 @@
-# PROMPT PARA EQUIPO UI/UX — CimentAviones Web
+# PROMPT PARA EQUIPO UI/UX — Cimentaciones Web
 
 > **Instrucciones para el equipo:** Se les adjuntan 2 imágenes:
 > 1. **Imagen A**: Screenshot del estado actual de la app
@@ -10,7 +10,7 @@
 
 ## CONTEXTO DEL PROYECTO
 
-CimentAviones Web es una herramienta de ingeniería geotécnica para calcular la capacidad portante de cimentaciones superficiales. Es una app de escritorio (no mobile). El usuario típico es un ingeniero civil que ingresa datos de suelo y cimentación, ejecuta cálculos, y exporta reportes profesionales.
+Cimentaciones Web es una herramienta de ingeniería geotécnica para calcular la capacidad portante de cimentaciones superficiales. Es una app de escritorio (no mobile). El usuario típico es un ingeniero civil que ingresa datos de suelo y cimentación, ejecuta cálculos, y exporta reportes profesionales.
 
 **Stack técnico**: React + TypeScript + Vite (frontend) | FastAPI + Python (backend) | Docker  
 **Lenguaje de la UI**: Español
@@ -259,7 +259,7 @@ Muestra 3 elementos:
 - Se abre con backdrop blur oscuro
 - Contenido:
   - Logo "CA" en cuadrado rojo
-  - "CimentAviones Web" + "Versión 1.1"
+  - "Cimentaciones Web" + "Versión 1.1"
   - Sección "Desarrollado por" con nombre del autor
   - Sección "Universidad" con placeholder para logo + "Universidad Católica de Santa María, Arequipa, Perú"
   - Texto técnico: métodos soportados y tecnologías

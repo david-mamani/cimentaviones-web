@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useUnitStore } from '../../store/unitStore';
 import type {
   FoundationParams,
   Stratum,
@@ -306,7 +307,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'cimentaviones_model.ifc';
+      a.download = 'Cimentaciones_model.ifc';
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -341,7 +342,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   const handleExportTXT = useCallback(() => {
     const lines = [
       '═══════════════════════════════════════',
-      '  CIMENTAVIONES WEB — Reporte',
+      '  Cimentaciones WEB — Reporte',
       '═══════════════════════════════════════',
       '',
       `Tipo: ${foundation.type}`,
@@ -360,7 +361,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       `Nq = ${result.bearingFactors.Nq.toFixed(2)}`,
       `Nγ = ${result.bearingFactors.Ngamma.toFixed(2)}`,
       '',
-      `Generado por CimentAviones Web v1.1`,
+      `Generado por Cimentaciones Web v1.1`,
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -493,24 +494,21 @@ function QuickResultSection({ result }: { result: NonNullable<ReturnType<typeof 
         {/* Hero result */}
         <div style={{ textAlign: 'center', padding: '8px 0 12px' }}>
           <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Capacidad admisible</div>
-          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-            {result.qa.toFixed(2)}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>kPa</div>
+          <HeroResult value={result.qa} />
         </div>
 
-        <ResultRow label="qu" value={result.qu} unit="kPa" />
-        <ResultRow label="qneta" value={result.qnet} unit="kPa" />
-        <ResultRow label="qa_neta" value={result.qaNet} unit="kPa" />
+        <ConvertedResultRow label="qu" value={result.qu} type="pressure" />
+        <ConvertedResultRow label="qneta" value={result.qnet} type="pressure" />
+        <ConvertedResultRow label="qa_neta" value={result.qaNet} type="pressure" />
         <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
-        <ResultRow label="Q_max" value={result.Qmax} unit="kN" accent />
+        <ConvertedResultRow label="Q_max" value={result.Qmax} type="force" accent />
 
         <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
         <p style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Términos</p>
         <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>F1={result.F1.toFixed(2)}</span>
-          <span style={{ color: 'var(--text-secondary)' }}>F2={result.F2.toFixed(2)}</span>
-          <span style={{ color: 'var(--text-secondary)' }}>F3={result.F3.toFixed(2)}</span>
+          <ConvertedValue label="F1" value={result.F1} />
+          <ConvertedValue label="F2" value={result.F2} />
+          <ConvertedValue label="F3" value={result.F3} />
         </div>
       </div>
     </div>
@@ -530,9 +528,7 @@ function FactorsSection({ result }: { result: NonNullable<ReturnType<typeof useF
           <span style={{ color: 'var(--text-primary)' }}>Nq={bf.Nq.toFixed(2)}</span>
           <span style={{ color: 'var(--text-primary)' }}>Nγ={bf.Ngamma.toFixed(2)}</span>
         </div>
-        <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
-          q = {result.q.toFixed(2)} kPa · γeff = {result.gammaEffective.toFixed(2)} kN/m³
-        </div>
+        <FactorsDetail result={result} />
       </div>
     </div>
   );
@@ -547,9 +543,9 @@ function RNESection({ result }: { result: NonNullable<ReturnType<typeof useFound
         Consideración RNE
       </div>
       <div style={{ padding: 10 }}>
-        <ResultRow label="qu RNE" value={rne.qultRNE} unit="kPa" />
-        <ResultRow label="qa RNE" value={rne.qadmRNE} unit="kPa" />
-        <ResultRow label="qu RNE corr." value={rne.qultRNECorrected} unit="kPa" />
+        <ConvertedResultRow label="qu RNE" value={rne.qultRNE} type="pressure" />
+        <ConvertedResultRow label="qa RNE" value={rne.qadmRNE} type="pressure" />
+        <ConvertedResultRow label="qu RNE corr." value={rne.qultRNECorrected} type="pressure" />
       </div>
     </div>
   );
@@ -574,6 +570,46 @@ function ResultRow({ label, value, unit, accent }: {
       }}>
         {value.toFixed(2)} <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{unit}</span>
       </span>
+    </div>
+  );
+}
+
+/** Result row with automatic unit conversion */
+function ConvertedResultRow({ label, value, type, accent }: {
+  label: string; value: number; type: 'pressure' | 'force'; accent?: boolean;
+}) {
+  const { toDisplay, labels } = useUnitStore();
+  const unit = type === 'pressure' ? labels.pressure : labels.force;
+  return <ResultRow label={label} value={toDisplay(value)} unit={unit} accent={accent} />;
+}
+
+/** Hero qa value with unit conversion */
+function HeroResult({ value }: { value: number }) {
+  const { toDisplay, labels } = useUnitStore();
+  return (
+    <>
+      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+        {toDisplay(value).toFixed(2)}
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{labels.pressure}</div>
+    </>
+  );
+}
+
+/** Inline value with conversion (for F1, F2, F3) */
+function ConvertedValue({ label, value }: { label: string; value: number }) {
+  const { toDisplay } = useUnitStore();
+  return (
+    <span style={{ color: 'var(--text-secondary)' }}>{label}={toDisplay(value).toFixed(2)}</span>
+  );
+}
+
+/** Factors detail row with converted q and gamma */
+function FactorsDetail({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
+  const { toDisplay, labels } = useUnitStore();
+  return (
+    <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
+      q = {toDisplay(result.q).toFixed(2)} {labels.pressure} · γeff = {toDisplay(result.gammaEffective).toFixed(2)} {labels.gamma}
     </div>
   );
 }

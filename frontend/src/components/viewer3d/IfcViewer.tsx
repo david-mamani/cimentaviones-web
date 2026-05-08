@@ -678,7 +678,7 @@ export default function IfcViewer() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'cimentaviones_model.ifc';
+      a.download = 'Cimentaciones_model.ifc';
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

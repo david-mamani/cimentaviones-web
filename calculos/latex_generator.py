@@ -147,7 +147,7 @@ def generate_latex(
 % Header/Footer
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textcolor{gray}{CimentAviones Web v1.1}}
+\fancyhead[L]{\small\textcolor{gray}{Cimentaciones Web v1.1}}
 \fancyhead[R]{\small\textcolor{gray}{An\'alisis Geot\'ecnico}}
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
@@ -165,7 +165,7 @@ def generate_latex(
 \centering
 \vspace*{3cm}
 
-{\Huge\bfseries\textcolor{accent}{CimentAviones Web}}\\[0.5cm]
+{\Huge\bfseries\textcolor{accent}{Cimentaciones Web}}\\[0.5cm]
 {\Large An\'alisis de Capacidad Portante}\\[2cm]
 
 {\large\textbf{Reporte de Ingenier\'ia Geot\'ecnica}}\\[0.5cm]
@@ -176,7 +176,7 @@ def generate_latex(
 {\large\today}\\[3cm]
 
 \vfill
-{\small Generado autom\'aticamente por CimentAviones Web v1.1}\\
+{\small Generado autom\'aticamente por Cimentaciones Web v1.1}\\
 {\small Motor de An\'alisis Geot\'ecnico}
 \end{titlepage}
 """)
@@ -455,7 +455,7 @@ def generate_latex(
     # ── Footer ──
     tex.append(r"\vfill" + "\n")
     tex.append(r"\begin{center}" + "\n")
-    tex.append(r"{\small\textcolor{gray}{Generado por CimentAviones Web v1.1 --- Motor de An\'alisis Geot\'ecnico}}" + "\n")
+    tex.append(r"{\small\textcolor{gray}{Generado por Cimentaciones Web v1.1 --- Motor de An\'alisis Geot\'ecnico}}" + "\n")
     tex.append(r"\end{center}" + "\n\n")
 
     tex.append(r"\end{document}" + "\n")

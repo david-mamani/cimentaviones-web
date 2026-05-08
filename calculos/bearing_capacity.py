@@ -6,34 +6,34 @@ Soporta 3 métodos:
   2. "general"  — Ecuación general con factores analíticos (Das/Braja)
   3. "rne"      — Norma E.050 (RNE Perú)
 
-Pipeline de 6 pasos:
-  1. Encontrar estrato de diseño (el que está al nivel Df)
-  2. Corrección por nivel freático (4 casos)
-  3. Corrección por sótano
-  4. Calcular factores de forma, profundidad, inclinación
-  5. Calcular qu según el método elegido
-  6. Derivar qa, qnet, Qmax
+Pipeline de 5 pasos:
+  1. Encontrar estrato de diseño al nivel Ds+Df (sótano + desplante)
+  2. Corrección por NF + sobrecarga q desde Ds hasta Ds+Df
+  3. Calcular factores de forma, profundidad, inclinación
+  4. Calcular qu según el método elegido
+  5. Derivar qa, qnet, Qmax
 """
 
-from .bearing_factors import get_bearing_factors
-from .shape_factors import get_shape_factors
-from .depth_factors import get_depth_factors
-from .inclination_factors import get_inclination_factors
+from .factors import get_bearing_factors, get_shape_factors, get_depth_factors, get_inclination_factors
 from .water_table import apply_water_table_correction
-from .general_method import calculate_qu_general, calculate_general_rne_consideration
-from .rne_method import calculate_qu_rne, calculate_rne_consideration
+from .methods import calculate_qu_general, calculate_general_rne_consideration, calculate_qu_rne, calculate_rne_consideration
 
 
-def find_design_stratum(strata: list, Df: float) -> dict:
+def find_design_stratum(strata: list, effective_depth: float) -> dict:
     """
-    Determina el estrato de diseño (el que se encuentra al nivel Df).
+    Determina el estrato de diseño (el que se encuentra al nivel de la cimentación).
 
     Recorre los estratos de arriba hacia abajo. El primer estrato
-    cuya profundidad acumulada ≥ Df es el estrato de diseño.
+    cuya profundidad acumulada EXCEDE la profundidad efectiva es
+    el estrato de diseño (la zapata descansa sobre este estrato).
+
+    NOTA: Usa comparación estricta (>). Si la zapata queda exactamente
+    en el límite entre dos estratos, se toma el estrato inferior.
 
     Args:
         strata: Lista de estratos
-        Df: Profundidad de desplante (m)
+        effective_depth: Profundidad efectiva de la zapata desde la
+                        superficie (Ds + Df cuando hay sótano, solo Df sin sótano)
 
     Returns:
         dict con index y stratum
@@ -41,10 +41,10 @@ def find_design_stratum(strata: list, Df: float) -> dict:
     depth = 0.0
     for i, stratum in enumerate(strata):
         depth += stratum["thickness"]
-        if depth >= Df - 0.001:
+        if depth > effective_depth:
             return {"index": i, "stratum": stratum}
 
-    # Si Df es mayor que todos los estratos, usar el último
+    # Si la profundidad excede todos los estratos, usar el último
     return {"index": len(strata) - 1, "stratum": strata[-1]}
 
 
@@ -125,33 +125,36 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     has_water_table = conditions["hasWaterTable"]
     Dw = conditions["waterTableDepth"]
     has_basement = conditions["hasBasement"]
-    Ds = conditions["basementDepth"]
+    Ds = conditions["basementDepth"] if has_basement else 0.0
+
+    # Profundidad efectiva: Ds + Df cuando hay sótano
+    # Df se mide desde el piso del sótano (o desde la superficie si no hay sótano)
+    effective_depth = Ds + Df
 
     # ── Paso 1: Encontrar estrato de diseño ──
-    design = find_design_stratum(strata, Df)
+    # Se busca a la profundidad efectiva (Ds + Df) desde la superficie
+    design = find_design_stratum(strata, effective_depth)
     design_index = design["index"]
     design_stratum = design["stratum"]
     is_cohesive = design_stratum["phi"] < 20
     soil_type = "Coh" if is_cohesive else "Fri"
 
-    # ── Paso 2: Corrección por nivel freático ──
+    # ── Paso 2: Corrección por nivel freático + cálculo de sobrecarga ──
+    # La sobrecarga q se calcula desde Ds hasta Ds+Df (el suelo sobre
+    # el sótano ha sido excavado y no contribuye a la sobrecarga)
     water_result = apply_water_table_correction(
-        strata, Df, B, has_water_table, Dw, design_stratum
+        strata, Df, B, has_water_table, Dw, design_stratum, Ds=Ds
     )
 
-    # ── Paso 3: Corrección por sótano ──
     q = water_result["q"]
-    if has_basement and Ds > 0:
-        q = max(q - 24 * Ds, 0)  # γ concreto ≈ 24 kN/m³
-
     gamma_effective = water_result["gammaEffective"]
 
-    # ── Paso 4: Factores de forma, profundidad, inclinación ──
+    # ── Paso 3: Factores de forma, profundidad, inclinación ──
     shape_factors = get_shape_factors(f_type, B, L)
     depth_factors = get_depth_factors(design_stratum["phi"], Df, B)
     inclination_factors = get_inclination_factors(beta, design_stratum["phi"])
 
-    # ── Paso 5: Calcular qu según método elegido ──
+    # ── Paso 4: Calcular qu según método elegido ──
     if method == "terzaghi":
         bearing_factors = get_bearing_factors(design_stratum["phi"])
         t_result = _calculate_qu_terzaghi(
@@ -230,7 +233,7 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
             "qultRNECorrected": rne_c["qultRNECorrected"],
         }
 
-    # ── Paso 6: Valores derivados ──
+    # ── Paso 5: Valores derivados ──
     qnet = qu - q
     qa = qu / FS
     qa_net = qnet / FS

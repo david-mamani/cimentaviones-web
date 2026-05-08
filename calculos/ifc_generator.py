@@ -49,14 +49,14 @@ WATER_TABLE_THICKNESS = 0.02  # Water table reference plane thickness (m)
 def _create_owner_history(ifc_file):
     """Crea el OwnerHistory requerido por IFC."""
     person = ifc_file.createIfcPerson(
-        None, "CimentAviones", "User", None, None, None, None, None
+        None, "Cimentaciones", "User", None, None, None, None, None
     )
     org = ifc_file.createIfcOrganization(
-        None, "CimentAviones", "Ingeniería de Cimentaciones", None, None
+        None, "Cimentaciones", "Ingeniería de Cimentaciones", None, None
     )
     person_org = ifc_file.createIfcPersonAndOrganization(person, org, None)
     app = ifc_file.createIfcApplication(
-        org, "1.0", "CimentAviones Web", "CimentAviones"
+        org, "1.0", "Cimentaciones Web", "Cimentaciones"
     )
     return ifc_file.createIfcOwnerHistory(
         person_org, app, None, "NOCHANGE", None, None, None,
@@ -237,8 +237,8 @@ def generate_ifc(
     # ── Proyecto ──
     project = ifc_file.createIfcProject(
         ifcopenshell.guid.new(), owner_history,
-        "CimentAviones — Análisis de Capacidad Portante",
-        "Modelo geotécnico generado por CimentAviones Web",
+        "Cimentaciones — Análisis de Capacidad Portante",
+        "Modelo geotécnico generado por Cimentaciones Web",
         None, None, None, [context], unit_assignment
     )
 

@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">
             <p className="text-sm text-slate-400">
-              <span className="text-amber-400 font-semibold">CimentAviones Web</span>
+              <span className="text-amber-400 font-semibold">Cimentaciones Web</span>
               {' '}— Análisis de Capacidad Portante
             </p>
             <p className="text-xs text-slate-500 mt-1">

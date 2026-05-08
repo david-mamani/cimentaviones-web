@@ -1,6 +1,6 @@
 /**
  * Store global con Zustand.
- * Gestiona el estado completo de la aplicación CimentAviones.
+ * Gestiona el estado completo de la aplicación Cimentaciones.
  */
 
 import { create } from 'zustand';

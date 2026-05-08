@@ -51,7 +51,7 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
           fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
           marginBottom: 4, fontFamily: 'var(--font-sans)',
         }}>
-          CimentAviones Web
+          Cimentaciones Web
         </h2>
         <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>
           Versión 1.1 — Motor de Análisis Geotécnico

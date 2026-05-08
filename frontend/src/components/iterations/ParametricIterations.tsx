@@ -386,7 +386,7 @@ function exportJSON(
   const data = {
     metadata: {
       generado: new Date().toISOString(),
-      programa: 'CimentAviones Web',
+      programa: 'Cimentaciones Web',
       metodo: method,
       cimentacion: foundation,
     },
@@ -427,7 +427,7 @@ function exportTXT(
 ) {
   const lines: string[] = [];
   lines.push('═══════════════════════════════════════════════════════════════');
-  lines.push('  CIMENTAVIONES WEB — Reporte de Iteraciones Paramétricas');
+  lines.push('  Cimentaciones WEB — Reporte de Iteraciones Paramétricas');
   lines.push('═══════════════════════════════════════════════════════════════');
   lines.push(`  Fecha: ${new Date().toLocaleString()}`);
   lines.push(`  Método: ${method.toUpperCase()}`);
@@ -451,7 +451,7 @@ function exportTXT(
   }
   lines.push('═══════════════════════════════════════════════════════════════');
   lines.push(`  Total: ${n - 1} cálculos`);
-  lines.push('  Generado por CimentAviones Web — UCSM 2026');
+  lines.push('  Generado por Cimentaciones Web — UCSM 2026');
   lines.push('═══════════════════════════════════════════════════════════════');
   downloadFile(lines.join('\n'), `iteraciones_${method}.txt`, 'text/plain');
 }
