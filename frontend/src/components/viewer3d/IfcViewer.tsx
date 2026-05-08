@@ -130,11 +130,17 @@ export default function IfcViewer() {
     dir3.position.set(0, -10, 0);
     scene.add(dir3);
 
-    // Grid
+    // Grid — transparent, theme-aware opacity
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x333333);
     grid.position.y = 0.001;
     grid.visible = settings.showGrid;
     grid.userData.__permanent = true;  // Don't remove during model reload
+    // Set grid transparency
+    const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+    gridMaterials.forEach((m) => {
+      m.transparent = true;
+      m.opacity = 0.7; // default dark mode opacity
+    });
     scene.add(grid);
     gridRef.current = grid;
 
@@ -209,6 +215,7 @@ export default function IfcViewer() {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       mat.opacity = settings.strataOpacity;
       mat.transparent = settings.strataOpacity < 1.0;
+      mat.depthWrite = settings.strataOpacity >= 1.0;
       mat.wireframe = settings.strataWireframe;
       // Apply per-stratum color from settings
       const hexColor = settings.strataColors[i % settings.strataColors.length];
@@ -216,11 +223,12 @@ export default function IfcViewer() {
       mat.needsUpdate = true;
     });
 
-    // Foundation meshes — opacity, color
+    // Foundation meshes — opacity, color (zapata + columna)
     foundationMeshesRef.current.forEach((mesh) => {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       mat.opacity = settings.foundationOpacity;
       mat.transparent = settings.foundationOpacity < 1.0;
+      mat.depthWrite = settings.foundationOpacity >= 1.0;
       mat.color.set(settings.foundationColor);
       mat.needsUpdate = true;
     });
@@ -235,21 +243,30 @@ export default function IfcViewer() {
     });
   }, [settings]);
 
-  // ── Sync 3D bg with theme toggle ──
+  // ── Sync 3D bg + grid opacity with theme toggle ──
   useEffect(() => {
     const root = document.documentElement;
-    const updateBg = () => {
+    const updateTheme = () => {
       const isLight = root.classList.contains('light-mode');
       const newBg = isLight ? '#f7f3ed' : '#1e1e1e'; // match --bg-viewport
       if (sceneRef.current) {
         sceneRef.current.background = new THREE.Color(newBg);
       }
       settings.set('bgColor', newBg);
+      // Grid opacity: more transparent in light mode
+      if (gridRef.current) {
+        const gridMats = Array.isArray(gridRef.current.material)
+          ? gridRef.current.material
+          : [gridRef.current.material];
+        gridMats.forEach((m) => {
+          m.opacity = isLight ? 0.4 : 0.7;
+        });
+      }
     };
     // Initial sync
-    updateBg();
+    updateTheme();
     // Watch for class changes
-    const observer = new MutationObserver(updateBg);
+    const observer = new MutationObserver(updateTheme);
     observer.observe(root, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -423,11 +440,19 @@ export default function IfcViewer() {
 
         const placedGeometries = mesh.geometries;
 
-        // Determine IFC type
+        // Determine IFC type — with fallback name-based detection
         let ifcType = 0;
         try {
           const lineData = ifcApi.GetLine(modelID, expressID);
           ifcType = lineData?.type ?? 0;
+          // Fallback: if type is 0 but element has a known name, classify it
+          if (ifcType === 0 && lineData?.Name?.value) {
+            const name = (lineData.Name.value as string).toLowerCase();
+            if (name.includes('zapata') || name.includes('footing')) ifcType = IFCFOOTING;
+            else if (name.includes('pedestal') || name.includes('column')) ifcType = IFCCOLUMN;
+            else if (name.includes('estrato') || name.includes('stratum')) ifcType = IFCSLAB;
+            else if (name.includes('freático') || name.includes('water')) ifcType = IFCBUILDINGELEMENTPROXY;
+          }
         } catch { /* ignore */ }
 
         for (let i = 0; i < placedGeometries.size(); i++) {
@@ -495,6 +520,7 @@ export default function IfcViewer() {
             color: materialColor,
             opacity: opacity,
             transparent: opacity < 1.0,
+            depthWrite: opacity >= 1.0,
             side: THREE.DoubleSide,
             metalness: 0.1,
             roughness: 0.7,
@@ -508,13 +534,16 @@ export default function IfcViewer() {
           matrix.fromArray(placedGeom.flatTransformation);
           mesh3d.applyMatrix4(matrix);
 
-          // Track by type for settings reactivity
+          // Track by type for settings reactivity + render order
           if (ifcType === IFCSLAB) {
             strataMeshesRef.current.push(mesh3d);
+            mesh3d.renderOrder = 0;
           } else if (ifcType === IFCFOOTING || ifcType === IFCCOLUMN) {
             foundationMeshesRef.current.push(mesh3d);
+            mesh3d.renderOrder = 10; // render after strata for proper transparency
           } else if (ifcType === IFCBUILDINGELEMENTPROXY) {
             waterMeshesRef.current.push(mesh3d);
+            mesh3d.renderOrder = 20; // render last (always transparent)
           }
 
           scene.add(mesh3d);
