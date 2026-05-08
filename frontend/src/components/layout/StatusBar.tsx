@@ -18,6 +18,7 @@ export default function StatusBar() {
   const siToOutput = useUnitStore((s) => s.siToOutput);
   const outputLabel = useUnitStore((s) => s.outputLabel);
   const inputLabel = useUnitStore((s) => s.inputLabel);
+  const fmt = useUnitStore((s) => s.fmt);
 
   return (
     <div style={{
@@ -40,7 +41,7 @@ export default function StatusBar() {
       {result && (
         <>
           <span style={{ color: 'var(--success)' }}>
-            qa = {siToOutput(result.qa, 'pressure').toFixed(2)} {outputLabel('pressure')}
+            qa = {fmt(siToOutput(result.qa, 'pressure'))} {outputLabel('pressure')}
           </span>
           <span>Estrato: {result.designStratumIndex + 1} ({result.soilType})</span>
         </>

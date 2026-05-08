@@ -25,6 +25,7 @@ export default function ResultsPanel() {
   const siToOutput = useUnitStore((s) => s.siToOutput);
   const outputLabel = useUnitStore((s) => s.outputLabel);
   const inputLabel = useUnitStore((s) => s.inputLabel);
+  const fmt = useUnitStore((s) => s.fmt);
 
   if (!result) {
     return (
@@ -73,41 +74,41 @@ export default function ResultsPanel() {
 
       {/* Bearing factors — dimensionless */}
       <ResultSection title="Factores de Capacidad Portante">
-        <Row label="Nc" value={bf.Nc.toFixed(2)} mono />
-        <Row label="Nq" value={bf.Nq.toFixed(2)} mono />
-        <Row label="Nγ" value={bf.Ngamma.toFixed(2)} mono />
+        <Row label="Nc" value={fmt(bf.Nc)} mono />
+        <Row label="Nq" value={fmt(bf.Nq)} mono />
+        <Row label="Nγ" value={fmt(bf.Ngamma)} mono />
       </ResultSection>
 
       {/* Overburden — OUTPUT units */}
       <ResultSection title="Sobrecarga y Correcciones">
-        <Row label="q (sobrecarga)" value={`${siToOutput(result.q, 'pressure').toFixed(2)} ${pu}`} mono />
-        <Row label="γ efectivo" value={`${siToOutput(result.gammaEffective, 'unitWeight').toFixed(2)} ${wu}`} mono />
+        <Row label="q (sobrecarga)" value={`${fmt(siToOutput(result.q, 'pressure'))} ${pu}`} mono />
+        <Row label="γ efectivo" value={`${fmt(siToOutput(result.gammaEffective, 'unitWeight'))} ${wu}`} mono />
         <Row label="Caso NF" value={WATER_CASE_LABELS[result.waterTableCase]} />
       </ResultSection>
 
       {/* Individual terms — OUTPUT units */}
       <ResultSection title="Términos Individuales">
-        <Row label="Término 1 (F1)" value={`${siToOutput(result.F1, 'pressure').toFixed(2)} ${pu}`} mono />
-        <Row label="Término 2 (F2)" value={`${siToOutput(result.F2, 'pressure').toFixed(2)} ${pu}`} mono />
-        <Row label="Término 3 (F3)" value={`${siToOutput(result.F3, 'pressure').toFixed(2)} ${pu}`} mono />
+        <Row label="Término 1 (F1)" value={`${fmt(siToOutput(result.F1, 'pressure'))} ${pu}`} mono />
+        <Row label="Término 2 (F2)" value={`${fmt(siToOutput(result.F2, 'pressure'))} ${pu}`} mono />
+        <Row label="Término 3 (F3)" value={`${fmt(siToOutput(result.F3, 'pressure'))} ${pu}`} mono />
       </ResultSection>
 
       {/* Final results — OUTPUT units */}
       <ResultSection title="Capacidades Portantes" highlight>
-        <Row label="qu (cap. última)" value={`${siToOutput(result.qu, 'pressure').toFixed(2)} ${pu}`} accent mono />
-        <Row label="qneta (cap. neta última)" value={`${siToOutput(result.qnet, 'pressure').toFixed(2)} ${pu}`} mono />
-        <Row label="qa (cap. admisible)" value={`${siToOutput(result.qa, 'pressure').toFixed(2)} ${pu}`} accent mono />
-        <Row label="qa_neta (cap. neta admisible)" value={`${siToOutput(result.qaNet, 'pressure').toFixed(2)} ${pu}`} mono />
+        <Row label="qu (cap. última)" value={`${fmt(siToOutput(result.qu, 'pressure'))} ${pu}`} accent mono />
+        <Row label="qneta (cap. neta última)" value={`${fmt(siToOutput(result.qnet, 'pressure'))} ${pu}`} mono />
+        <Row label="qa (cap. admisible)" value={`${fmt(siToOutput(result.qa, 'pressure'))} ${pu}`} accent mono />
+        <Row label="qa_neta (cap. neta admisible)" value={`${fmt(siToOutput(result.qaNet, 'pressure'))} ${pu}`} mono />
         <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-        <Row label="Q_max (carga máxima)" value={`${siToOutput(result.Qmax, 'force').toFixed(2)} ${fu}`} accent mono />
+        <Row label="Q_max (carga máxima)" value={`${fmt(siToOutput(result.Qmax, 'force'))} ${fu}`} accent mono />
       </ResultSection>
 
       {/* RNE Consideration — OUTPUT units */}
       {result.rneConsideration && (
         <ResultSection title="Consideración RNE">
-          <Row label="qu RNE" value={`${siToOutput(result.rneConsideration.qultRNE, 'pressure').toFixed(2)} ${pu}`} mono />
-          <Row label="qa RNE" value={`${siToOutput(result.rneConsideration.qadmRNE, 'pressure').toFixed(2)} ${pu}`} mono />
-          <Row label="qu RNE corregido" value={`${siToOutput(result.rneConsideration.qultRNECorrected, 'pressure').toFixed(2)} ${pu}`} mono />
+          <Row label="qu RNE" value={`${fmt(siToOutput(result.rneConsideration.qultRNE, 'pressure'))} ${pu}`} mono />
+          <Row label="qa RNE" value={`${fmt(siToOutput(result.rneConsideration.qadmRNE, 'pressure'))} ${pu}`} mono />
+          <Row label="qu RNE corregido" value={`${fmt(siToOutput(result.rneConsideration.qultRNECorrected, 'pressure'))} ${pu}`} mono />
         </ResultSection>
       )}
     </div>

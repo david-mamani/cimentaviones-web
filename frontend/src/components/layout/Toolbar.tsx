@@ -13,9 +13,10 @@ import UnitSettingsModal from './UnitSettingsModal';
 import {
   Save, FolderOpen, Play, RotateCcw,
   Square, Box, SplitSquareHorizontal,
-  BarChart3, Table2, Info, Ruler,
+  BarChart3, Table2, Info, Ruler, Hash,
   PanelLeft, PanelRight,
   Sun, Moon, Loader2,
+  Minus, Plus,
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -47,9 +48,12 @@ export default function Toolbar({
   const isCalculating = useFoundationStore((s) => s.isCalculating);
 
   const [showCredits, setShowCredits] = useState(false);
+  const [showDecimalPopover, setShowDecimalPopover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const showUnitModal = useUnitStore((s) => s.showModal);
   const toggleUnitModal = useUnitStore((s) => s.toggleModal);
+  const displayDecimals = useUnitStore((s) => s.displayDecimals);
+  const setDisplayDecimals = useUnitStore((s) => s.setDisplayDecimals);
 
   const handleCalculate = () => {
     const fResult = foundationSchema.safeParse(foundation);
@@ -188,6 +192,78 @@ export default function Toolbar({
           active={showUnitModal}
           onClick={toggleUnitModal}
         />
+
+        {/* Decimal places */}
+        <div style={{ position: 'relative' }}>
+          <ToolBtn
+            icon={<Hash size={15} />}
+            title={`Decimales: ${displayDecimals}`}
+            active={showDecimalPopover}
+            onClick={() => setShowDecimalPopover(!showDecimalPopover)}
+          />
+          {showDecimalPopover && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginTop: 6,
+                background: 'var(--bg-surface-2)',
+                border: '1px solid var(--border-active)',
+                borderRadius: 'var(--radius-md)',
+                padding: '6px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                zIndex: 1000,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <button
+                onClick={() => setDisplayDecimals(displayDecimals - 1)}
+                disabled={displayDecimals <= 0}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 22, height: 22,
+                  background: 'var(--bg-surface-3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 4,
+                  color: displayDecimals <= 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                  cursor: displayDecimals <= 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Minus size={12} />
+              </button>
+              <span style={{
+                fontSize: 11,
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                minWidth: 14,
+                textAlign: 'center',
+              }}>
+                {displayDecimals}
+              </span>
+              <button
+                onClick={() => setDisplayDecimals(displayDecimals + 1)}
+                disabled={displayDecimals >= 8}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 22, height: 22,
+                  background: 'var(--bg-surface-3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 4,
+                  color: displayDecimals >= 8 ? 'var(--text-muted)' : 'var(--text-primary)',
+                  cursor: displayDecimals >= 8 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Plus size={12} />
+              </button>
+            </div>
+          )}
+        </div>
 
         <ToolBtn icon={<Info size={15} />} title="Créditos" onClick={() => setShowCredits(true)} />
 

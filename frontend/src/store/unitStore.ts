@@ -146,6 +146,8 @@ interface UnitState {
   output: UnitConfig;
   /** Controla visibilidad del modal de configuración */
   showModal: boolean;
+  /** Número de decimales para mostrar resultados */
+  displayDecimals: number;
 
   // ── Setters ──
   setInput: (config: Partial<UnitConfig>) => void;
@@ -153,6 +155,7 @@ interface UnitState {
   setInputPreset: (preset: UnitPreset) => void;
   setOutputPreset: (preset: UnitPreset) => void;
   toggleModal: () => void;
+  setDisplayDecimals: (n: number) => void;
 
   // ── Conversión ──
   /** Convierte un valor de unidades de input → SI */
@@ -166,6 +169,10 @@ interface UnitState {
   /** Label de la unidad de output para una categoría */
   outputLabel: (category: UnitCategory) => string;
 
+  // ── Formatting ──
+  /** Formatea un número al número de decimales configurado */
+  fmt: (value: number) => string;
+
   // ── Shorthand labels object (for components that need all at once) ──
   inputLabels: () => Record<UnitCategory, string>;
   outputLabels: () => Record<UnitCategory, string>;
@@ -175,6 +182,7 @@ export const useUnitStore = create<UnitState>((set, get) => ({
   input: { ...METRIC_CONFIG },
   output: { ...METRIC_CONFIG },
   showModal: false,
+  displayDecimals: 2,
 
   setInput: (partial) =>
     set((state) => ({ input: { ...state.input, ...partial } })),
@@ -191,6 +199,9 @@ export const useUnitStore = create<UnitState>((set, get) => ({
   toggleModal: () =>
     set((state) => ({ showModal: !state.showModal })),
 
+  setDisplayDecimals: (n) =>
+    set({ displayDecimals: Math.max(0, Math.min(8, n)) }),
+
   inputToSI: (value, category) => {
     const factor = getFactor(get().input, category);
     return value * factor;
@@ -203,6 +214,11 @@ export const useUnitStore = create<UnitState>((set, get) => ({
 
   inputLabel: (category) => getLabel(get().input, category),
   outputLabel: (category) => getLabel(get().output, category),
+
+  fmt: (value) => {
+    const d = get().displayDecimals;
+    return value.toFixed(d);
+  },
 
   inputLabels: () => {
     const cfg = get().input;
