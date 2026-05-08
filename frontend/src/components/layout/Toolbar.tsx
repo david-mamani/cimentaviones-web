@@ -115,17 +115,16 @@ export default function Toolbar({
         flexShrink: 0,
       }}>
         {/* Logo */}
-        <div style={{
-          width: 28, height: 28,
-          background: 'var(--accent)',
-          borderRadius: 'var(--radius-sm)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--bg-base)', fontWeight: 700, fontSize: 11,
-          fontFamily: 'var(--font-sans)',
-          flexShrink: 0,
-        }}>
-          CA
-        </div>
+        <img
+          src={lightMode ? '/assets/ucsm_logo_light.png' : '/assets/ucsm_logo_dark.png'}
+          alt="UCSM"
+          style={{
+            height: 24,
+            width: 'auto',
+            flexShrink: 0,
+            objectFit: 'contain',
+          }}
+        />
 
         <Sep />
 

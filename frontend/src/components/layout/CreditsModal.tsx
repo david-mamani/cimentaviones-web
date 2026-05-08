@@ -2,12 +2,25 @@
  * CreditsModal — Modal overlay showing app credits and author info.
  * Glassmorphism design.
  */
+import { useState, useEffect } from 'react';
 
 interface CreditsModalProps {
   onClose: () => void;
 }
 
 export default function CreditsModal({ onClose }: CreditsModalProps) {
+  const [isLight, setIsLight] = useState(() =>
+    document.documentElement.classList.contains('light-mode')
+  );
+  useEffect(() => {
+    const root = document.documentElement;
+    const obs = new MutationObserver(() => setIsLight(root.classList.contains('light-mode')));
+    obs.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+
+  const logoSrc = isLight ? '/assets/ucsm_logo_light.png' : '/assets/ucsm_logo_dark.png';
+
   return (
     <div
       onClick={onClose}
@@ -32,18 +45,18 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
           textAlign: 'center',
         }}
       >
-        {/* App icon */}
-        <div style={{
-          width: 52, height: 52,
-          background: 'var(--accent)',
-          borderRadius: 'var(--radius-md)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 16px',
-          fontSize: 22, fontWeight: 800, color: 'var(--text-primary)',
-          fontFamily: 'var(--font-sans)',
-        }}>
-          CA
-        </div>
+        {/* App logo */}
+        <img
+          src={logoSrc}
+          alt="UCSM"
+          style={{
+            height: 48,
+            width: 'auto',
+            objectFit: 'contain',
+            margin: '0 auto 16px',
+            display: 'block',
+          }}
+        />
 
         <h2 style={{
           fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
@@ -83,16 +96,17 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 600 }}>
             Universidad
           </p>
-          <div style={{
-            width: 60, height: 60,
-            background: 'var(--bg-surface-3)',
-            borderRadius: 'var(--radius-md)',
-            margin: '0 auto 8px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, color: 'var(--text-muted)',
-          }}>
-            LOGO
-          </div>
+          <img
+            src={logoSrc}
+            alt="Universidad Católica de Santa María"
+            style={{
+              height: 60,
+              width: 'auto',
+              objectFit: 'contain',
+              margin: '0 auto 8px',
+              display: 'block',
+            }}
+          />
           <p style={{ fontSize: 13, color: 'var(--text-primary)' }}>
             Universidad Católica de Santa María
           </p>
