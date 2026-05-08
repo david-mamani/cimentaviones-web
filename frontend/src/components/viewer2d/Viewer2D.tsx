@@ -96,7 +96,11 @@ export default function Viewer2D() {
   }, []);
 
   // Pan — left, middle, or right click
-  const panScaleRef = useRef({ sx: 1, sy: 1 });
+  // SVG viewBox uses preserveAspectRatio="xMidYMid meet" (default), which
+  // applies a single uniform scale. We must use the same uniform scale for
+  // both axes, otherwise the axis with the smaller viewBox/container ratio
+  // (typically Y) feels sluggish.
+  const panScaleRef = useRef(1);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Right-click or middle-click or left-click (when not on a clickable element)
@@ -104,11 +108,10 @@ export default function Viewer2D() {
       if (e.button === 2) e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      // Store scale at pan start so it doesn't change during drag
-      panScaleRef.current = {
-        sx: viewBox.w / rect.width,
-        sy: viewBox.h / rect.height,
-      };
+      // Uniform scale: SVG "meet" uses the larger ratio (the one that fits)
+      const scaleX = viewBox.w / rect.width;
+      const scaleY = viewBox.h / rect.height;
+      panScaleRef.current = Math.max(scaleX, scaleY);
       setIsPanning(true);
       setPanStart({
         x: e.clientX, y: e.clientY,
@@ -119,14 +122,15 @@ export default function Viewer2D() {
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isPanning) return;
-    const dx = (e.clientX - panStart.x) * panScaleRef.current.sx;
-    const dy = (e.clientY - panStart.y) * panScaleRef.current.sy;
+    const scale = panScaleRef.current;
+    const dx = (e.clientX - panStart.x) * scale;
+    const dy = (e.clientY - panStart.y) * scale;
     setViewBox(v => ({
       ...v,
       x: panStart.vx - dx,
       y: panStart.vy - dy,
     }));
-  }, [isPanning, panStart, viewBox.w, viewBox.h]);
+  }, [isPanning, panStart]);
 
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
