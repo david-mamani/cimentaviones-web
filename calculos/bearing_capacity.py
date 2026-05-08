@@ -22,7 +22,7 @@ NOTA sobre warnings:
 
 from .factors import get_bearing_factors, get_shape_factors, get_depth_factors, get_inclination_factors
 from .water_table import apply_water_table_correction
-from .methods import calculate_qu_general, calculate_general_rne_consideration, calculate_qu_rne, calculate_rne_consideration
+from .methods import calculate_qu_general, calculate_qu_rne, calculate_rne_consideration
 
 
 def find_design_stratum(strata: list, effective_depth: float) -> dict:
@@ -47,7 +47,7 @@ def find_design_stratum(strata: list, effective_depth: float) -> dict:
     depth = 0.0
     for i, stratum in enumerate(strata):
         depth += stratum["thickness"]
-        if depth > effective_depth:
+        if depth > effective_depth + 1e-6:
             return {"index": i, "stratum": stratum, "warning": None}
 
     # Bug 5: La profundidad excede todos los estratos — advertir
@@ -196,6 +196,14 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     is_cohesive = design_stratum["phi"] < 20
     soil_type = "Coh" if is_cohesive else "Fri"
 
+    # Validación física de pesos específicos
+    if design_stratum["gammaSat"] < design_stratum["gamma"]:
+        warnings.append(
+            f"El peso específico saturado ({design_stratum['gammaSat']}) es menor "
+            f"que el natural ({design_stratum['gamma']}). Físicamente, los vacíos llenos "
+            f"de agua pesan más que con aire. Revise sus datos."
+        )
+
     # Bug 8: Warning si el suelo no tiene ni cohesión ni fricción
     if design_stratum["c"] == 0 and design_stratum["phi"] == 0:
         warnings.append(
@@ -253,23 +261,6 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         # Terzaghi no usa factores de profundidad ni inclinación
         depth_factors = {"dc": 1.0, "dq": 1.0, "dgamma": 1.0}
         inclination_factors = {"ic": 1.0, "iq": 1.0, "igamma": 1.0}
-
-        # Consideración RNE para Terzaghi
-        if is_cohesive:
-            rne_qult = 1.3 * design_stratum["c"] * 5.7
-            rne_qult_c = rne_qult + q * 1
-            rne_consideration = {
-                "qultRNE": rne_qult,
-                "qadmRNE": rne_qult / FS,
-                "qultRNECorrected": rne_qult_c,
-            }
-        else:
-            rne_consideration = {
-                "qultRNE": F2 + F3,
-                "qadmRNE": (F2 + F3) / FS,
-                "qultRNECorrected": F2 + F3,
-            }
-
     elif method == "general":
         g_result = calculate_qu_general(
             design_stratum["c"], q, gamma_effective, B, L,
@@ -291,16 +282,6 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         depth_factors = {"dc": factors["Fcd"], "dq": factors["Fqd"], "dgamma": factors["Fgd"]}
         inclination_factors = {"ic": factors["Fci"], "iq": factors["Fqi"], "igamma": factors["Fgi"]}
 
-        rne_c = calculate_general_rne_consideration(
-            design_stratum["c"], q, gamma_effective, B, L,
-            design_stratum["phi"], beta, Df, is_cohesive,
-        )
-        rne_consideration = {
-            "qultRNE": rne_c["qultRNE"],
-            "qadmRNE": rne_c["qultRNE"] / FS,
-            "qultRNECorrected": rne_c["qultRNECorrected"],
-        }
-
     else:  # rne
         r_result = calculate_qu_rne(
             design_stratum["c"], q, gamma_effective, B, L,
@@ -321,22 +302,24 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         shape_factors = {"sc": factors["Sc"], "sq": 1.0, "sgamma": factors["Sgamma"]}
         depth_factors = {"dc": 1.0, "dq": 1.0, "dgamma": 1.0}  # RNE no usa profundidad
         inclination_factors = {"ic": factors["ic"], "iq": factors["iq"], "igamma": factors["igamma"]}
-
-        rne_c = calculate_rne_consideration(
-            design_stratum["c"], q, gamma_effective, B, L,
-            design_stratum["phi"], beta, is_cohesive,
-        )
-        rne_consideration = {
-            "qultRNE": rne_c["qultRNE"],
-            "qadmRNE": rne_c["qultRNE"] / FS,
-            "qultRNECorrected": rne_c["qultRNECorrected"],
-        }
+    # ── Consideración RNE Global ──
+    # Siempre calculamos el RNE real usando la función pura, para evitar
+    # falsificar resultados con factores empíricos de otros métodos.
+    rne_c = calculate_rne_consideration(
+        design_stratum["c"], q, gamma_effective, B, L,
+        design_stratum["phi"], beta, is_cohesive,
+    )
+    rne_consideration = {
+        "qultRNE": rne_c["qultRNE"],
+        "qadmRNE": rne_c["qultRNE"] / FS,
+        "qultRNECorrected": rne_c["qultRNECorrected"],
+    }
 
     # ── Paso 5: Valores derivados ──
     qnet = qu - q
     qa = qu / FS
     qa_net = qnet / FS
-    Qmax = qa * B * L
+    Qmax = qa_net * B * L  # Usar capacidad neta para cálculo de carga segura
 
     return {
         "designStratumIndex": design_index,

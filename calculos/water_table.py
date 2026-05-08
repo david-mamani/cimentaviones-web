@@ -79,26 +79,14 @@ def apply_water_table_correction(
         )
     gamma_prime = max(0.0, raw_gamma_prime)
 
-    # ── Bug 1: Columna de agua sin suelo cuando NF sobre el sótano ──
-    # Si Dw < Ds, hay agua (sin suelo) entre Dw y Ds que ejerce presión
-    water_column_q = 0.0
-    if Dw < Ds:
-        water_column_q = GAMMA_W * (Ds - Dw)
-        warnings.append(
-            f"NF ({Dw:.2f}m) sobre el sótano ({Ds:.2f}m): "
-            f"se añadió presión hidrostática de columna de agua "
-            f"γw×(Ds-Dw) = {water_column_q:.2f} kN/m²."
-        )
-
     # Caso 1: NF por encima de la cimentación (Dw < effective_depth)
     #   → La cimentación está sumergida total o parcialmente
-    #   → q usa γ natural arriba del NF y γsat debajo (presión TOTAL)
+    #   → q usa γ natural arriba del NF y γ' debajo (Esfuerzo EFECTIVO)
     #   → γ efectivo = γ' (sumergido) para el tercer término
     if Dw < effective_depth:
-        q = _calculate_overburden_total(
+        q = _calculate_overburden_effective(
             strata, start_depth=Ds, end_depth=effective_depth, Dw=Dw
         )
-        q += water_column_q  # Bug 1: añadir columna de agua
         return {"case": 1, "q": q, "gammaEffective": gamma_prime, "warnings": warnings}
 
     # Caso 2: NF en la base de la cimentación (Dw ≈ effective_depth)
@@ -107,7 +95,6 @@ def apply_water_table_correction(
     #   → γ' para el suelo debajo de la zapata
     if abs(Dw - effective_depth) < 0.001:
         q = _calculate_overburden(strata, start_depth=Ds, end_depth=effective_depth)
-        q += water_column_q  # poco probable pero consistente
         return {"case": 2, "q": q, "gammaEffective": gamma_prime, "warnings": warnings}
 
     # Caso 3: NF entre la base y base + B (parcialmente sumergido debajo)
@@ -177,21 +164,21 @@ def _calculate_overburden(
     return q
 
 
-def _calculate_overburden_total(
+def _calculate_overburden_effective(
     strata: list,
     start_depth: float,
     end_depth: float,
     Dw: float,
 ) -> float:
     """
-    Calcula la sobrecarga q con corrección por NF usando PRESIÓN TOTAL.
+    Calcula la sobrecarga efectiva q' con corrección por NF.
 
     Los segmentos sobre el NF usan γ natural (peso total del suelo).
-    Los segmentos bajo el NF usan γsat (peso total saturado, NO γ').
+    Los segmentos bajo el NF usan γ' = (γsat - γw) (peso efectivo).
 
-    IMPORTANTE: q es presión TOTAL, no efectiva. Bajo el NF se usa γsat
-    porque el peso del agua forma parte de la presión total sobre la zapata.
-    γ' = γsat - γw solo se usa para gammaEffective (tercer término).
+    IMPORTANTE: q' es presión EFECTIVA (Das, Ec. 6.25). No se debe usar 
+    presión total porque la subpresión de poros no contribuye a la 
+    resistencia friccional (Nq).
 
     Args:
         strata: Lista de estratos
@@ -200,7 +187,7 @@ def _calculate_overburden_total(
         Dw: Profundidad del nivel freático desde la superficie
 
     Returns:
-        Sobrecarga q (presión total) con corrección por NF
+        Sobrecarga efectiva q' con corrección por NF
     """
     if end_depth <= start_depth:
         return 0.0
@@ -223,17 +210,19 @@ def _calculate_overburden_total(
             depth = bottom
             continue
 
+        gamma_prime_stratum = max(0.0, stratum["gammaSat"] - GAMMA_W)
+
         if effective_bottom <= Dw:
             # Todo el segmento está sobre el NF → usar γ natural
             q += stratum["gamma"] * (effective_bottom - effective_top)
         elif effective_top >= Dw:
-            # Todo el segmento está bajo el NF → usar γsat (presión TOTAL)
-            q += stratum["gammaSat"] * (effective_bottom - effective_top)
+            # Todo el segmento está bajo el NF → usar γ' (presión EFECTIVA)
+            q += gamma_prime_stratum * (effective_bottom - effective_top)
         else:
             # El NF cruza este segmento
             dry_part = Dw - effective_top
             wet_part = effective_bottom - Dw
-            q += stratum["gamma"] * dry_part + stratum["gammaSat"] * wet_part
+            q += stratum["gamma"] * dry_part + gamma_prime_stratum * wet_part
 
         depth = bottom
 

@@ -130,44 +130,7 @@ def calculate_qu_general(
     }
 
 
-def calculate_general_rne_consideration(
-    c: float, q: float, gamma: float,
-    B: float, L: float, phi: float, beta: float, Df: float,
-    is_cohesive: bool,
-) -> dict:
-    """Consideración RNE para la Ecuación General."""
-    if B <= 0 or L <= 0:
-        raise ValueError("B y L deben ser mayores a 0 para la consideración RNE.")
 
-    phi_rad = math.radians(phi)
-    Fci = (1 - beta / 90) ** 2 if beta > 0 else 1
-    Fqi = Fci
-    Fgi = (1 - beta / phi) ** 2 if (beta > 0 and phi > 0) else 1
-    ratio = Df / B
-
-    if is_cohesive:
-        Fcs0 = 1 + (B / L) * (1 / 5.14)
-        Fcd0 = (
-            1 + 0.4 * ratio if ratio <= 1 else 1 + 0.4 * math.atan(ratio)
-        )
-        qult_rne = c * 5.14 * Fcs0 * Fcd0 * Fci
-        qult_rne_corrected = qult_rne + q * 1 * 1 * 1 * Fqi
-        return {"qultRNE": qult_rne, "qultRNECorrected": qult_rne_corrected}
-    else:
-        bf = get_general_bearing_factors(phi)
-        Fqs = 1 + (B / L) * math.tan(phi_rad)
-        Fgs = 1 - 0.4 * (B / L)
-        tan_phi = math.tan(phi_rad)
-        sin_phi = math.sin(phi_rad)
-        depth_term = 2 * tan_phi * (1 - sin_phi) ** 2
-        Fqd = (
-            1 + depth_term * ratio
-            if ratio <= 1
-            else 1 + depth_term * math.atan(ratio)
-        )
-        F2 = q * bf["Nq"] * Fqs * Fqd * Fqi
-        F3 = 0.5 * gamma * B * bf["Ngamma"] * Fgs * 1 * Fgi
-        return {"qultRNE": F2 + F3, "qultRNECorrected": F2 + F3}
 
 
 # ═══════════════════════════════════════════════════════════════
