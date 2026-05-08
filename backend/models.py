@@ -60,6 +60,7 @@ class CalculationInput(BaseModel):
     strata: list[Stratum] = Field(min_length=1, description="Al menos 1 estrato")
     conditions: SpecialConditions
     method: Literal["terzaghi", "general", "rne"]
+    unit_config: Optional[dict] = None
 
     @model_validator(mode="after")
     def validate_cross_field(self):

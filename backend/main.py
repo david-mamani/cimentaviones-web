@@ -52,7 +52,7 @@ def calculate(input_data: CalculationInput):
         result = calculate_bearing_capacity(raw)
         
         from services.markdown_generator import generate_resolution_md
-        result["resolution_md"] = generate_resolution_md(raw, result)
+        result["resolution_md"] = generate_resolution_md(raw, result, raw.get("unit_config"))
         
         return result
     except ValueError as e:

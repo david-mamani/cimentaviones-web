@@ -4,7 +4,6 @@
  * Uses unitStore for dynamic unit labels and conversions.
  */
 import { useFoundationStore } from '../../store/foundationStore';
-import { useUnitStore } from '../../store/unitStore';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -15,21 +14,8 @@ const METHOD_LABELS: Record<string, string> = {
   rne: 'RNE E.050',
 };
 
-const WATER_CASE_LABELS: Record<number, string> = {
-  0: 'Sin nivel freático',
-  1: 'NF sobre cimentación',
-  2: 'NF en la base',
-  3: 'NF entre Df y Df+B',
-  4: 'NF debajo de Df+B',
-};
-
 export default function ResultsPanel() {
   const result = useFoundationStore((s) => s.result);
-  const siToOutput = useUnitStore((s) => s.siToOutput);
-  const outputLabel = useUnitStore((s) => s.outputLabel);
-  const inputLabel = useUnitStore((s) => s.inputLabel);
-  const fmt = useUnitStore((s) => s.fmt);
-
   if (!result) {
     return (
       <div style={{ padding: 24, color: 'var(--text-muted)', fontSize: 12, textAlign: 'center' }}>
@@ -37,17 +23,6 @@ export default function ResultsPanel() {
       </div>
     );
   }
-
-  const ds = result.designStratum;
-  const bf = result.bearingFactors;
-
-  // Output unit labels
-  const pu = outputLabel('pressure');
-  const fu = outputLabel('force');
-  const wu = outputLabel('unitWeight');
-  // Input unit labels (for design stratum data, since those are input values)
-  const iwu = inputLabel('unitWeight');
-  const ipu = inputLabel('pressure');
 
   return (
     <div style={{ fontFamily: 'var(--font-sans)' }}>
@@ -65,54 +40,18 @@ export default function ResultsPanel() {
         Resultados del Análisis — {METHOD_LABELS[result.method]}
       </div>
 
-      {/* Design stratum — shows INPUT units since these are user-entered values */}
-      <ResultSection title="Estrato de Diseño">
-        <Row label="Estrato" value={`N° ${result.designStratumIndex + 1}`} />
-        <Row label="Tipo de suelo" value={result.soilType === 'Coh' ? 'Cohesivo' : 'Friccionante'} accent />
-        <Row label="φ" value={`${ds.phi}°`} />
-        <Row label="c" value={`${ds.c} ${ipu}`} />
-        <Row label="γ" value={`${ds.gamma} ${iwu}`} />
-        <Row label="γsat" value={`${ds.gammaSat} ${iwu}`} />
-      </ResultSection>
-
-      {/* Bearing factors — dimensionless */}
-      <ResultSection title="Factores de Capacidad Portante">
-        <Row label="Nc" value={fmt(bf.Nc)} mono />
-        <Row label="Nq" value={fmt(bf.Nq)} mono />
-        <Row label="Nγ" value={fmt(bf.Ngamma)} mono />
-      </ResultSection>
-
-      {/* Overburden — OUTPUT units */}
-      <ResultSection title="Sobrecarga y Correcciones">
-        <Row label="q (sobrecarga)" value={`${fmt(siToOutput(result.q, 'pressure'))} ${pu}`} mono />
-        <Row label="γ efectivo" value={`${fmt(siToOutput(result.gammaEffective, 'unitWeight'))} ${wu}`} mono />
-        <Row label="Caso NF" value={WATER_CASE_LABELS[result.waterTableCase]} />
-      </ResultSection>
-
-      {/* Individual terms — OUTPUT units */}
-      <ResultSection title="Términos Individuales">
-        <Row label="Término 1 (F1)" value={`${fmt(siToOutput(result.F1, 'pressure'))} ${pu}`} mono />
-        <Row label="Término 2 (F2)" value={`${fmt(siToOutput(result.F2, 'pressure'))} ${pu}`} mono />
-        <Row label="Término 3 (F3)" value={`${fmt(siToOutput(result.F3, 'pressure'))} ${pu}`} mono />
-      </ResultSection>
-
-      {/* Final results — OUTPUT units */}
-      <ResultSection title="Capacidades Portantes" highlight>
-        <Row label="qu (cap. última)" value={`${fmt(siToOutput(result.qu, 'pressure'))} ${pu}`} accent mono />
-        <Row label="qneta (cap. neta última)" value={`${fmt(siToOutput(result.qnet, 'pressure'))} ${pu}`} mono />
-        <Row label="qa (cap. admisible)" value={`${fmt(siToOutput(result.qa, 'pressure'))} ${pu}`} accent mono />
-        <Row label="qa_neta (cap. neta admisible)" value={`${fmt(siToOutput(result.qaNet, 'pressure'))} ${pu}`} mono />
-        <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-        <Row label="Q_max (carga máxima)" value={`${fmt(siToOutput(result.Qmax, 'force'))} ${fu}`} accent mono />
-      </ResultSection>
-
-      {/* RNE Consideration — OUTPUT units */}
-      {result.rneConsideration && (
-        <ResultSection title="Consideración RNE">
-          <Row label="qu RNE" value={`${fmt(siToOutput(result.rneConsideration.qultRNE, 'pressure'))} ${pu}`} mono />
-          <Row label="qa RNE" value={`${fmt(siToOutput(result.rneConsideration.qadmRNE, 'pressure'))} ${pu}`} mono />
-          <Row label="qu RNE corregido" value={`${fmt(siToOutput(result.rneConsideration.qultRNECorrected, 'pressure'))} ${pu}`} mono />
-        </ResultSection>
+      {/* Resolución Paso a Paso */}
+      {result.resolution_md && (
+        <div style={{ marginTop: 12, padding: '0 12px 24px 12px' }}>
+          <div className="markdown-body" style={{ fontSize: 13, lineHeight: 1.6, overflowX: 'auto', color: 'var(--text-primary)' }}>
+            <ReactMarkdown 
+              remarkPlugins={[remarkMath]} 
+              rehypePlugins={[rehypeKatex]}
+            >
+              {result.resolution_md}
+            </ReactMarkdown>
+          </div>
+        </div>
       )}
 
       {/* Warnings */}
@@ -135,31 +74,7 @@ export default function ResultsPanel() {
         </ResultSection>
       )}
 
-      {/* Resolución Paso a Paso */}
-      {result.resolution_md && (
-        <div style={{ marginTop: 24, padding: '0 12px 24px 12px' }}>
-          <div style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--accent)',
-            textTransform: 'uppercase',
-            letterSpacing: 0.8,
-            marginBottom: 12,
-            borderBottom: '1px solid var(--border)',
-            paddingBottom: 8,
-          }}>
-            Memoria de Cálculo (Resolución)
-          </div>
-          <div style={{ fontSize: 14, lineHeight: 1.6, overflowX: 'auto' }}>
-            <ReactMarkdown 
-              remarkPlugins={[remarkMath]} 
-              rehypePlugins={[rehypeKatex]}
-            >
-              {result.resolution_md}
-            </ReactMarkdown>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
@@ -185,25 +100,4 @@ function ResultSection({ title, highlight, children }: {
   );
 }
 
-function Row({ label, value, accent, mono }: {
-  label: string; value: string; accent?: boolean; mono?: boolean;
-}) {
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '3px 0',
-      fontSize: 11,
-    }}>
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span style={{
-        fontFamily: mono ? 'var(--font-mono)' : 'inherit',
-        color: accent ? 'var(--accent)' : 'var(--text-primary)',
-        fontWeight: accent ? 700 : 500,
-      }}>
-        {value}
-      </span>
-    </div>
-  );
-}
+

@@ -261,7 +261,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     const state = get();
 
     // Convert input values to SI for the API
-    const { inputToSI } = useUnitStore.getState();
+    const { inputToSI, input: inputUnitConfig, output: outputUnitConfig } = useUnitStore.getState();
     const strataForAPI = state.strata.map((s) => ({
       ...s,
       thickness: inputToSI(s.thickness, 'length'),
@@ -294,6 +294,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
           strata: strataForAPI,
           conditions: conditionsForAPI,
           method: state.method,
+          unit_config: { input: inputUnitConfig, output: outputUnitConfig },
         }),
       });
       if (!response.ok) {
