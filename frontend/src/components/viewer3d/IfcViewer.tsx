@@ -319,12 +319,47 @@ export default function IfcViewer() {
         mat.needsUpdate = true;
       });
 
-      // Set PREDETERMINED camera angle (isometric engineering view)
-      camera.position.set(10, 8, 10);
-      camera.lookAt(0, -2, 0);
-      if (controlsRef.current) {
-        controlsRef.current.target.set(0, -2, 0);
-        controlsRef.current.update();
+      // Fit camera to object for PDF capture
+      const allMeshes = [
+        ...strataMeshesRef.current,
+        ...foundationMeshesRef.current,
+        ...waterMeshesRef.current,
+      ];
+      if (allMeshes.length > 0) {
+        const tempGroup = new THREE.Group();
+        allMeshes.forEach((m) => tempGroup.add(m.clone()));
+        const box = new THREE.Box3().setFromObject(tempGroup);
+        if (!box.isEmpty()) {
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          // For PDF, we want it a bit tighter than the default viewport
+          const dist = maxDim * 1.5;
+
+          camera.position.set(
+            center.x + dist * 0.7,
+            center.y + dist * 0.5,
+            center.z + dist * 0.7
+          );
+          camera.lookAt(center);
+          if (controlsRef.current) {
+            controlsRef.current.target.copy(center);
+            controlsRef.current.update();
+          }
+        }
+        tempGroup.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.geometry.dispose();
+            (obj.material as THREE.Material).dispose();
+          }
+        });
+      } else {
+        camera.position.set(10, 8, 10);
+        camera.lookAt(0, -2, 0);
+        if (controlsRef.current) {
+          controlsRef.current.target.set(0, -2, 0);
+          controlsRef.current.update();
+        }
       }
       camera.updateProjectionMatrix();
 

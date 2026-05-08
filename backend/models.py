@@ -84,6 +84,13 @@ class CalculationInput(BaseModel):
                     f"β ({self.foundation.beta}°) debe ser < φ ({design_phi}°) "
                     f"del estrato de diseño"
                 )
+                
+        # Validar Terzaghi + Rectangular
+        if self.method == "terzaghi" and self.foundation.type == "rectangular":
+            raise ValueError(
+                "El método de Terzaghi no soporta cimentaciones rectangulares en su formulación clásica. "
+                "Use cimentación Cuadrada, o cambie al Método General."
+            )
         return self
 
 

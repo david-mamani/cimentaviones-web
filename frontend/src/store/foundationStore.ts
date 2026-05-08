@@ -50,6 +50,12 @@ interface FoundationState {
 
   // Iteration results (for PDF export)
   iterationResults: IterationResult | null;
+  
+  // Iteration config
+  iterationConfig: {
+    varyB: boolean; bStart: number; bEnd: number; bStep: number;
+    varyDf: boolean; dfStart: number; dfEnd: number; dfStep: number;
+  };
 
   // Loading state
   isCalculating: boolean;
@@ -86,6 +92,7 @@ interface FoundationState {
   // Acciones - Iterations
   setIterationResults: (data: IterationResult) => void;
   clearIterationResults: () => void;
+  setIterationConfig: (config: any) => void;
 
   // Acciones - Proyecto
   loadProject: (data: ProjectData) => void;
@@ -99,6 +106,7 @@ export interface ProjectData {
   method: CalculationMethod;
   lbLocked?: boolean;
   lbRatio?: number;
+  iterationConfig?: any;
 }
 
 const defaultFoundation: FoundationParams = {
@@ -139,6 +147,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   lbLocked: false,
   lbRatio: 2.0,
   iterationResults: null,
+  iterationConfig: {
+    varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
+    varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+  },
   isCalculating: false,
 
   toggleSelection: (id, multi) => {
@@ -301,6 +313,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
 
   setIterationResults: (data) => set({ iterationResults: data }),
   clearIterationResults: () => set({ iterationResults: null }),
+  setIterationConfig: (config) => set({ iterationConfig: config }),
 
   reset: () => {
     stratumCounter = 0;
@@ -314,6 +327,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       lbLocked: false,
       lbRatio: 2.0,
       iterationResults: null,
+      iterationConfig: {
+        varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
+        varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+      },
       isCalculating: false,
     });
   },
@@ -327,6 +344,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       method: data.method,
       lbLocked: data.lbLocked ?? false,
       lbRatio: data.lbRatio ?? 2.0,
+      iterationConfig: data.iterationConfig ?? {
+        varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
+        varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+      },
       result: null,
       errors: [],
     });

@@ -13,14 +13,11 @@ import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 const TYPES: { value: FoundationType; label: string }[] = [
   { value: 'cuadrada', label: 'Cuadrada' },
   { value: 'rectangular', label: 'Rectangular' },
-  { value: 'circular', label: 'Circular' },
-  { value: 'franja', label: 'Franja' },
 ];
 
 const METHODS: { value: CalculationMethod; label: string }[] = [
   { value: 'terzaghi', label: 'Terzaghi' },
   { value: 'general', label: 'Ec. General' },
-  { value: 'rne', label: 'RNE E.050' },
 ];
 
 export default function PropertiesPanel() {

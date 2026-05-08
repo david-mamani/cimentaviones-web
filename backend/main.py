@@ -21,8 +21,8 @@ from fastapi.responses import Response
 from models import CalculationInput, IterationInput, IFCExportInput, PDFExportInput
 from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
-from calculos.ifc_generator import generate_ifc
-from calculos.latex_generator import generate_latex, compile_latex_to_pdf
+from services.ifc_generator import generate_ifc
+from services.latex_generator import generate_latex, compile_latex_to_pdf
 
 app = FastAPI(
     title="Cimentaciones API",
@@ -50,6 +50,10 @@ def calculate(input_data: CalculationInput):
     try:
         raw = input_data.model_dump()
         result = calculate_bearing_capacity(raw)
+        
+        from services.markdown_generator import generate_resolution_md
+        result["resolution_md"] = generate_resolution_md(raw, result)
+        
         return result
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

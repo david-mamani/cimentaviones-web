@@ -33,8 +33,6 @@ const CATEGORY_LABELS: Record<Exclude<UnitCategory, 'angle'>, string> = {
 export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
   const input = useUnitStore((s) => s.input);
   const output = useUnitStore((s) => s.output);
-  const setInput = useUnitStore((s) => s.setInput);
-  const setOutput = useUnitStore((s) => s.setOutput);
   const setInputPreset = useUnitStore((s) => s.setInputPreset);
   const setOutputPreset = useUnitStore((s) => s.setOutputPreset);
 
@@ -88,7 +86,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           config={input}
           preset={inputPreset}
           onPreset={setInputPreset}
-          onChange={setInput}
         />
 
         {/* Divider */}
@@ -105,7 +102,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           config={output}
           preset={outputPreset}
           onPreset={setOutputPreset}
-          onChange={setOutput}
         />
 
         {/* Input ≠ Output notice */}
@@ -155,13 +151,12 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
  * SUB-COMPONENTS
  * ═══════════════════════════════════════ */
 
-function UnitSection({ title, subtitle, config, preset, onPreset, onChange }: {
+function UnitSection({ title, subtitle, config, preset, onPreset }: {
   title: string;
   subtitle: string;
   config: UnitConfig;
   preset: UnitPreset | null;
   onPreset: (p: UnitPreset) => void;
-  onChange: (partial: Partial<UnitConfig>) => void;
 }) {
   return (
     <div>
@@ -213,23 +208,6 @@ function UnitSection({ title, subtitle, config, preset, onPreset, onChange }: {
             {PRESET_LABELS[key]}
           </button>
         ))}
-        <button
-          style={{
-            flex: 1,
-            padding: '6px 8px',
-            background: preset === null ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
-            border: `1px solid ${preset === null ? 'var(--accent)' : 'var(--border)'}`,
-            borderRadius: 'var(--radius-sm)',
-            color: preset === null ? 'var(--accent)' : 'var(--text-secondary)',
-            fontSize: 11,
-            fontWeight: preset === null ? 700 : 500,
-            fontFamily: 'var(--font-sans)',
-            cursor: 'default',
-            transition: 'all var(--transition-fast)',
-          }}
-        >
-          Personalizado
-        </button>
       </div>
 
       {/* Category dropdowns */}
@@ -243,25 +221,21 @@ function UnitSection({ title, subtitle, config, preset, onPreset, onChange }: {
           label={CATEGORY_LABELS.length}
           value={config.length}
           options={LENGTH_OPTIONS}
-          onChange={(v) => onChange({ length: v as LengthUnit })}
         />
         <UnitDropdown
           label={CATEGORY_LABELS.force}
           value={config.force}
           options={FORCE_OPTIONS}
-          onChange={(v) => onChange({ force: v as ForceUnit })}
         />
         <UnitDropdown
           label={CATEGORY_LABELS.pressure}
           value={config.pressure}
           options={PRESSURE_OPTIONS}
-          onChange={(v) => onChange({ pressure: v as PressureUnit })}
         />
         <UnitDropdown
           label={CATEGORY_LABELS.unitWeight}
           value={config.unitWeight}
           options={UNIT_WEIGHT_OPTIONS}
-          onChange={(v) => onChange({ unitWeight: v as UnitWeightUnit })}
           last
         />
       </div>
@@ -269,11 +243,10 @@ function UnitSection({ title, subtitle, config, preset, onPreset, onChange }: {
   );
 }
 
-function UnitDropdown({ label, value, options, onChange, last }: {
+function UnitDropdown({ label, value, options, last }: {
   label: string;
   value: string;
   options: string[];
-  onChange: (v: string) => void;
   last?: boolean;
 }) {
   return (
@@ -291,7 +264,7 @@ function UnitDropdown({ label, value, options, onChange, last }: {
       </span>
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        disabled
         style={{
           background: 'var(--bg-surface-1)',
           border: '1px solid var(--border)',

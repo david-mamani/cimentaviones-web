@@ -340,15 +340,17 @@ def generate_latex(
         tex.append(f"Peso unitario efectivo: $\\gamma_{{eff}} = {_fmt(gamma_eff)}$ {ou_weight_tex}\n\n")
 
         if method == 'terzaghi':
-            tex.append(r"Ecuaci\'on de Terzaghi:" + "\n")
-            tex.append(r"\begin{equation}" + "\n")
+            tex.append(r"Ecuaci\'on de Terzaghi \cite{terzaghi1943}:" + "\n")
+            tex.append(r"\begin{equation}\label{eq:terzaghi}" + "\n")
             tex.append(r"q_u = c \cdot N_c \cdot s_c + q \cdot N_q + \frac{1}{2} \gamma B \cdot N_\gamma \cdot s_\gamma" + "\n")
             tex.append(r"\end{equation}" + "\n\n")
+            tex.append(r"Aplicando la Ecuaci\'on \ref{eq:terzaghi}:" + "\n")
         else:
-            tex.append(r"Ecuaci\'on General de Capacidad Portante:" + "\n")
-            tex.append(r"\begin{equation}" + "\n")
+            tex.append(r"Ecuaci\'on General de Capacidad Portante \cite{meyerhof1963,das2011}:" + "\n")
+            tex.append(r"\begin{equation}\label{eq:general}" + "\n")
             tex.append(r"q_u = c \cdot N_c \cdot s_c \cdot d_c \cdot i_c + q \cdot N_q \cdot s_q \cdot d_q \cdot i_q + \frac{1}{2} \gamma B \cdot N_\gamma \cdot s_\gamma \cdot d_\gamma \cdot i_\gamma" + "\n")
             tex.append(r"\end{equation}" + "\n\n")
+            tex.append(r"Aplicando la Ecuaci\'on \ref{eq:general}:" + "\n")
 
         tex.append(r"T\'erminos individuales:" + "\n")
         tex.append(r"\begin{align*}" + "\n")
@@ -492,6 +494,16 @@ def generate_latex(
         tex.append(r"\includegraphics[width=0.9\textwidth]{chart}" + "\n")
         tex.append(r"\caption{Gr\'afico de iteraciones param\'etricas de capacidad portante}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
+
+    # ── Bibliografia ──
+    tex.append(r"\begin{thebibliography}{9}" + "\n")
+    tex.append(r"\bibitem{terzaghi1943}" + "\n")
+    tex.append(r"Terzaghi, K. (1943). \textit{Theoretical Soil Mechanics}. John Wiley \& Sons." + "\n")
+    tex.append(r"\bibitem{meyerhof1963}" + "\n")
+    tex.append(r"Meyerhof, G. G. (1963). \textit{Some recent research on the bearing capacity of foundations}. Canadian Geotechnical Journal." + "\n")
+    tex.append(r"\bibitem{das2011}" + "\n")
+    tex.append(r"Das, B. M. (2011). \textit{Principles of Foundation Engineering}. Cengage Learning." + "\n")
+    tex.append(r"\end{thebibliography}" + "\n\n")
 
     # ── Footer ──
     tex.append(r"\vfill" + "\n")

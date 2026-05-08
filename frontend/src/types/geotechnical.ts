@@ -119,6 +119,9 @@ export interface CalculationResult {
 
   // Advertencias del motor de cálculo (condiciones inusuales)
   warnings?: string[];
+  
+  // Resolución paso a paso en Markdown/LaTeX
+  resolution_md?: string;
 }
 
 /** Input completo para el cálculo */

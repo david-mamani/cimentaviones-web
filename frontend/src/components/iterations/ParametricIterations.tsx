@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useUnitStore } from '../../store/unitStore';
-import type { IterationConfig, IterationResult } from '../../types/geotechnical';
+import type { IterationResult } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 // @ts-ignore — plotly.js-basic-dist-min has no types
 import Plotly from 'plotly.js-basic-dist-min';
@@ -47,16 +47,8 @@ export default function ParametricIterations() {
     return () => observer.disconnect();
   }, []);
 
-  const [config, setConfig] = useState<IterationConfig>({
-    varyB: true,
-    bStart: foundation.B,
-    bEnd: foundation.B + 2,
-    bStep: 0.5,
-    varyDf: false,
-    dfStart: foundation.Df,
-    dfEnd: foundation.Df + 2,
-    dfStep: 0.5,
-  });
+  const config = useFoundationStore((s) => s.iterationConfig);
+  const setConfig = useFoundationStore((s) => s.setIterationConfig);
 
   const [iterResult, setIterResult] = useState<IterationResult | null>(null);
   const [chartMetric, setChartMetric] = useState<'qa' | 'Qmax'>('qa');
