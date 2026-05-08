@@ -5,6 +5,9 @@
  */
 import { useFoundationStore } from '../../store/foundationStore';
 import { useUnitStore } from '../../store/unitStore';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi Clásico',
@@ -130,6 +133,32 @@ export default function ResultsPanel() {
             </div>
           ))}
         </ResultSection>
+      )}
+
+      {/* Resolución Paso a Paso */}
+      {result.resolution_md && (
+        <div style={{ marginTop: 24, padding: '0 12px 24px 12px' }}>
+          <div style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--accent)',
+            textTransform: 'uppercase',
+            letterSpacing: 0.8,
+            marginBottom: 12,
+            borderBottom: '1px solid var(--border)',
+            paddingBottom: 8,
+          }}>
+            Memoria de Cálculo (Resolución)
+          </div>
+          <div style={{ fontSize: 14, lineHeight: 1.6, overflowX: 'auto' }}>
+            <ReactMarkdown 
+              remarkPlugins={[remarkMath]} 
+              rehypePlugins={[rehypeKatex]}
+            >
+              {result.resolution_md}
+            </ReactMarkdown>
+          </div>
+        </div>
       )}
     </div>
   );

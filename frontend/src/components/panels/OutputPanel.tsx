@@ -12,9 +12,6 @@ import type {
   CalculationResult,
   CalculationMethod,
 } from '../../types/geotechnical';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 
 const API_BASE = '';
 
@@ -39,7 +36,6 @@ export default function OutputPanel() {
   const strata = useFoundationStore((s) => s.strata);
   const conditions = useFoundationStore((s) => s.conditions);
   const method = useFoundationStore((s) => s.method);
-  const [activeTab, setActiveTab] = useState<'resumen' | 'resolucion'>('resumen');
 
   return (
     <div>
@@ -59,49 +55,13 @@ export default function OutputPanel() {
         </div>
       )}
 
-      {/* Tabs */}
-      {result && (
-        <div className="tab-bar">
-          <div 
-            className={`tab-item ${activeTab === 'resumen' ? 'active' : ''}`}
-            onClick={() => setActiveTab('resumen')}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
-            Resumen
-          </div>
-          <div 
-            className={`tab-item ${activeTab === 'resolucion' ? 'active' : ''}`}
-            onClick={() => setActiveTab('resolucion')}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
-            Resolución
-          </div>
-        </div>
-      )}
-
       {/* Quick results */}
-      {result && activeTab === 'resumen' && (
+      {result && (
         <>
           <QuickResultSection result={result} />
           <FactorsSection result={result} />
           <RNESection result={result} />
         </>
-      )}
-
-      {/* Resolución Paso a Paso */}
-      {result && activeTab === 'resolucion' && (
-        <div style={{ padding: 12, fontSize: 14, lineHeight: 1.6, overflowX: 'auto' }}>
-          {result.resolution_md ? (
-            <ReactMarkdown 
-              remarkPlugins={[remarkMath]} 
-              rehypePlugins={[rehypeKatex]}
-            >
-              {result.resolution_md}
-            </ReactMarkdown>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>Resolución no disponible.</p>
-          )}
-        </div>
       )}
 
       {/* Export actions — only when there are results */}
