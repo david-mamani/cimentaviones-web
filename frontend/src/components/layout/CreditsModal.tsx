@@ -45,18 +45,7 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
           textAlign: 'center',
         }}
       >
-        {/* App logo */}
-        <img
-          src={logoSrc}
-          alt="UCSM"
-          style={{
-            height: 48,
-            width: 'auto',
-            objectFit: 'contain',
-            margin: '0 auto 16px',
-            display: 'block',
-          }}
-        />
+
 
         <h2 style={{
           fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
