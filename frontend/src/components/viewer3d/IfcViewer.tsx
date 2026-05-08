@@ -31,6 +31,21 @@ const IFCFOOTING = WebIFC.IFCFOOTING;
 const IFCCOLUMN = WebIFC.IFCCOLUMN;
 const IFCBUILDINGELEMENTPROXY = WebIFC.IFCBUILDINGELEMENTPROXY;
 
+// ── Scene constants ──
+const SCENE_DEFAULTS = {
+  camera: { fov: 75, near: 0.1, far: 1000, position: [8, 6, 8] as const },
+  grid: { size: 20, divisions: 20, colorCenter: 0x444444, colorGrid: 0x333333, darkOpacity: 0.7, lightOpacity: 0.4 },
+  edge: { color: 0x000000, opacity: 0.3, thresholdAngle: 20 },
+  hemiLight: { skyColor: 0xddeeff, groundColor: 0x776644, intensity: 0.6 },
+  dirLights: [
+    { color: 0xffffff, intensity: 0.8, position: [10, 15, 10] as const, shadow: true },
+    { color: 0xffffff, intensity: 0.3, position: [-10, 10, -10] as const, shadow: false },
+    { color: 0xffffff, intensity: 0.2, position: [0, -10, 0] as const, shadow: false },
+  ],
+  material: { metalness: 0.1, roughness: 0.7 },
+  autoFit: { distMultiplier: 2, offsetX: 0.7, offsetY: 0.5, offsetZ: 0.7 },
+} as const;
+
 export default function IfcViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -79,7 +94,7 @@ export default function IfcViewer() {
       0.01,
       200
     );
-    camera.position.set(8, 6, 8);
+    camera.position.set(...SCENE_DEFAULTS.camera.position);
     camera.lookAt(0, -1, 0);
     cameraRef.current = camera;
 
@@ -114,24 +129,23 @@ export default function IfcViewer() {
     scene.add(ambient);
     ambientRef.current = ambient;
 
-    const hemi = new THREE.HemisphereLight(0xddeeff, 0x776644, 0.6);
+    const hemi = new THREE.HemisphereLight(
+      SCENE_DEFAULTS.hemiLight.skyColor,
+      SCENE_DEFAULTS.hemiLight.groundColor,
+      SCENE_DEFAULTS.hemiLight.intensity,
+    );
     scene.add(hemi);
 
-    const dir1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir1.position.set(10, 15, 10);
-    dir1.castShadow = true;
-    scene.add(dir1);
-
-    const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
-    dir2.position.set(-10, 10, -10);
-    scene.add(dir2);
-
-    const dir3 = new THREE.DirectionalLight(0xffffff, 0.2);
-    dir3.position.set(0, -10, 0);
-    scene.add(dir3);
+    for (const dl of SCENE_DEFAULTS.dirLights) {
+      const light = new THREE.DirectionalLight(dl.color, dl.intensity);
+      light.position.set(dl.position[0], dl.position[1], dl.position[2]);
+      light.castShadow = dl.shadow;
+      scene.add(light);
+    }
 
     // Grid — transparent, theme-aware opacity
-    const grid = new THREE.GridHelper(20, 20, 0x444444, 0x333333);
+    const { grid: gridCfg } = SCENE_DEFAULTS;
+    const grid = new THREE.GridHelper(gridCfg.size, gridCfg.divisions, gridCfg.colorCenter, gridCfg.colorGrid);
     grid.position.y = 0.001;
     grid.visible = settings.showGrid;
     grid.userData.__permanent = true;  // Don't remove during model reload
@@ -139,7 +153,7 @@ export default function IfcViewer() {
     const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
     gridMaterials.forEach((m) => {
       m.transparent = true;
-      m.opacity = 0.7; // default dark mode opacity
+      m.opacity = gridCfg.darkOpacity;
     });
     scene.add(grid);
     gridRef.current = grid;
@@ -242,7 +256,9 @@ export default function IfcViewer() {
     const root = document.documentElement;
     const updateTheme = () => {
       const isLight = root.classList.contains('light-mode');
-      const newBg = isLight ? '#f7f3ed' : '#1e1e1e'; // match --bg-viewport
+      // Read --bg-viewport from CSS (no hardcoded hex)
+      const style = getComputedStyle(root);
+      const newBg = style.getPropertyValue('--bg-viewport').trim() || '#1e1e1e';
       if (sceneRef.current) {
         sceneRef.current.background = new THREE.Color(newBg);
       }
@@ -253,7 +269,7 @@ export default function IfcViewer() {
           ? gridRef.current.material
           : [gridRef.current.material];
         gridMats.forEach((m) => {
-          m.opacity = isLight ? 0.4 : 0.7;
+          m.opacity = isLight ? SCENE_DEFAULTS.grid.lightOpacity : SCENE_DEFAULTS.grid.darkOpacity;
         });
       }
     };
@@ -519,8 +535,8 @@ export default function IfcViewer() {
             transparent: opacity < 1.0,
             depthWrite: opacity >= 1.0,
             side: THREE.DoubleSide,
-            metalness: 0.1,
-            roughness: 0.7,
+            metalness: SCENE_DEFAULTS.material.metalness,
+            roughness: SCENE_DEFAULTS.material.roughness,
             wireframe: wireframe,
           });
 
@@ -547,10 +563,10 @@ export default function IfcViewer() {
 
           // Add edges for clean look (not for wireframe)
           if (!wireframe) {
-            const edges = new THREE.EdgesGeometry(geometry, 20);
+            const edges = new THREE.EdgesGeometry(geometry, SCENE_DEFAULTS.edge.thresholdAngle);
             const edgeMat = new THREE.LineBasicMaterial({
-              color: 0x000000,
-              opacity: 0.3,
+              color: SCENE_DEFAULTS.edge.color,
+              opacity: SCENE_DEFAULTS.edge.opacity,
               transparent: true,
             });
             const edgeMesh = new THREE.LineSegments(edges, edgeMat);

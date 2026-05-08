@@ -14,6 +14,14 @@ import type {
 
 const API_BASE = '';
 
+// PDF export configuration
+const PDF_RENDER_WIDTH = 1200;
+const PDF_JPEG_QUALITY = 0.85;
+const PDF_MIN_IMAGE_SIZE = 5000;  // bytes — below this it's likely a blank image
+const ERROR_TRUNCATE_LENGTH = 200;
+const PDF_BG_COLOR = '#ffffff';
+const PDF_TEXT_COLOR = '#333333';
+
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi',
   general: 'Ec. General (Das)',
@@ -125,20 +133,22 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
 
             // Compute standardized viewBox (same formula as Viewer2D init)
             const totalDepth = strata.reduce((sum: number, s: any) => sum + s.thickness, 0);
-            const soilW = foundation.B + 4;
+            const SOIL_SIDE_PADDING = 2;
+            const VIEWBOX_MARGIN = 2;
+            const LABEL_SPACE = 5;
+            const VIEWBOX_RIGHT_PAD = 8;
+            const soilW = foundation.B + SOIL_SIDE_PADDING * 2;
             const halfW = soilW / 2;
-            const margin = 2;
-            const labelSpace = 5;
             const stdViewBox = {
-              x: -halfW - margin - labelSpace,
-              y: -margin,
-              w: soilW + margin * 2 + labelSpace + 8,
-              h: totalDepth + margin * 2 + 1,
+              x: -halfW - VIEWBOX_MARGIN - LABEL_SPACE,
+              y: -VIEWBOX_MARGIN,
+              w: soilW + VIEWBOX_MARGIN * 2 + LABEL_SPACE + VIEWBOX_RIGHT_PAD,
+              h: totalDepth + VIEWBOX_MARGIN * 2 + 1,
             };
             svgClone.setAttribute('viewBox', `${stdViewBox.x} ${stdViewBox.y} ${stdViewBox.w} ${stdViewBox.h}`);
 
             // Set fixed render dimensions
-            const renderW = 1200;
+            const renderW = PDF_RENDER_WIDTH;
             const renderH = Math.round(renderW * (stdViewBox.h / stdViewBox.w));
             svgClone.setAttribute('width', String(renderW));
             svgClone.setAttribute('height', String(renderH));
@@ -149,14 +159,14 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             bgRect.setAttribute('y', String(stdViewBox.y));
             bgRect.setAttribute('width', String(stdViewBox.w));
             bgRect.setAttribute('height', String(stdViewBox.h));
-            bgRect.setAttribute('fill', '#ffffff');
+            bgRect.setAttribute('fill', PDF_BG_COLOR);
             svgClone.insertBefore(bgRect, svgClone.firstChild);
 
             // Make all text dark for white background readability
             svgClone.querySelectorAll('text').forEach((t) => {
               const fill = t.getAttribute('fill');
               if (fill && (fill.startsWith('#a') || fill.startsWith('#b') || fill.startsWith('#c') || fill.startsWith('#d') || fill.startsWith('#e') || fill.startsWith('#f') || fill === 'white' || fill === '#fff' || fill === '#ffffff')) {
-                t.setAttribute('fill', '#333333');
+                t.setAttribute('fill', PDF_TEXT_COLOR);
               }
             });
 
@@ -175,12 +185,12 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             tempCanvas.width = renderW * 2;
             tempCanvas.height = renderH * 2;
             const ctx = tempCanvas.getContext('2d')!;
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = PDF_BG_COLOR;
             ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             ctx.scale(2, 2);
             ctx.drawImage(img, 0, 0, renderW, renderH);
-            const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
-            if (dataUrl.length > 5000) {
+            const dataUrl = tempCanvas.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
+            if (dataUrl.length > PDF_MIN_IMAGE_SIZE) {
               images.view2d_b64 = dataUrl;
             }
             URL.revokeObjectURL(url);
@@ -197,7 +207,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           if (typeof capture === 'function') {
             const dataUrl = capture();
             // Validate: must be > 5KB to be a real image
-            if (dataUrl && dataUrl.length > 5000) {
+            if (dataUrl && dataUrl.length > PDF_MIN_IMAGE_SIZE) {
               images.view3d_b64 = dataUrl;
             }
           }
@@ -263,8 +273,8 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       console.error('PDF export error:', err);
       // Show a short, user-friendly message instead of full pdflatex output
       const msg = String(err.message || '');
-      const short = msg.length > 200
-        ? msg.slice(0, 200) + '...'
+      const short = msg.length > ERROR_TRUNCATE_LENGTH
+        ? msg.slice(0, ERROR_TRUNCATE_LENGTH) + '...'
         : msg;
       alert(`Error al exportar PDF: ${short}`);
     } finally {

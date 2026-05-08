@@ -38,6 +38,13 @@ STRATA_COLORS = [
 FOUNDATION_COLOR = (0.498, 0.549, 0.553)  # #7f8c8d gris concreto
 WATER_COLOR = (0.204, 0.596, 0.859)       # #3498db azul
 
+# ── Geometry defaults ──
+PAD_HEIGHT = 0.3            # Footing pad thickness (m)
+COLUMN_WIDTH_RATIO = 0.3    # Column width as fraction of B
+COLUMN_WIDTH_MAX = 0.5      # Maximum column width (m)
+SOIL_PADDING = 2.0          # Padding on each side of foundation in soil block (m)
+WATER_TABLE_THICKNESS = 0.02  # Water table reference plane thickness (m)
+
 
 def _create_owner_history(ifc_file):
     """Crea el OwnerHistory requerido por IFC."""
@@ -332,7 +339,7 @@ def generate_ifc(
     # ══════════════════════════════════════════════
     # CIMENTACIÓN (zapata)
     # ══════════════════════════════════════════════
-    pad_height = 0.3
+    pad_height = PAD_HEIGHT
     total_depth = basement_depth + Df
 
     pad_placement = _create_local_placement(
@@ -372,7 +379,7 @@ def generate_ifc(
     # the level where the column terminates).
     col_height = Df - pad_height
     if col_height > 0:
-        col_w = min(B * 0.3, 0.5)
+        col_w = min(B * COLUMN_WIDTH_RATIO, COLUMN_WIDTH_MAX)
         # Bottom of column = top of footing = -(basement_depth + Df - pad_height)
         col_placement = _create_local_placement(
             ifc_file, storey_placement,

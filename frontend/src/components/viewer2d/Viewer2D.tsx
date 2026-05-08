@@ -13,46 +13,36 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
 
-/* SVG colors — theme-aware. SVG attributes can't use CSS vars,
-   so we read the current theme and return matching constants. */
+/* SVG colors — read from CSS custom properties (--svg-*) so they stay
+   in sync with the design system. SVG attributes can't use CSS vars
+   directly, so we read them via getComputedStyle. */
 function useSvgColors() {
-  const [isLight, setIsLight] = useState(() =>
-    document.documentElement.classList.contains('light-mode')
-  );
+  const read = useCallback(() => {
+    const s = getComputedStyle(document.documentElement);
+    const v = (name: string) => s.getPropertyValue(name).trim();
+    return {
+      DIM: v('--svg-dim'),             DIMSEL: v('--svg-dim-selected'),
+      SURFACE: v('--svg-surface'),     GRID: v('--svg-grid'),
+      LABEL: v('--svg-label'),         STRATA_TEXT: v('--svg-strata-text'),
+      TABLE_BG: v('--svg-table-bg'),   TABLE_CELL: v('--svg-table-cell'),
+      TABLE_SEL: v('--svg-table-selected'), TABLE_BORDER: v('--svg-table-border'),
+      TABLE_TEXT: v('--svg-table-text'), TABLE_TEXT_SEL: v('--svg-table-text-sel'),
+      FOUNDATION: v('--svg-foundation'), FOUNDATION_SEL: v('--svg-foundation-sel'),
+      COL_DEFAULT: v('--svg-col-default'), COL_SELECTED: v('--svg-col-selected'),
+      WATER: v('--svg-water'),         STROKE: v('--svg-stroke'),
+    };
+  }, []);
+
+  const [colors, setColors] = useState(read);
 
   useEffect(() => {
     const root = document.documentElement;
-    const observer = new MutationObserver(() => {
-      setIsLight(root.classList.contains('light-mode'));
-    });
+    const observer = new MutationObserver(() => setColors(read()));
     observer.observe(root, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  }, []);
+  }, [read]);
 
-  if (isLight) {
-    return {
-      DIM: '#6b6358',       DIMSEL: '#4a4540',
-      SURFACE: '#b8b0a5',   GRID: '#c4bdb3',
-      LABEL: '#8a8279',     STRATA_TEXT: '#4a4540',
-      TABLE_BG: '#e8e3db',  TABLE_CELL: '#f0ebe3',
-      TABLE_SEL: '#d5cfc6', TABLE_BORDER: '#c4bdb3',
-      TABLE_TEXT: '#6b6358', TABLE_TEXT_SEL: '#2b2b2b',
-      FOUNDATION: '#7f8c8d', FOUNDATION_SEL: '#4a4540',
-      COL_DEFAULT: '#95a5a6', COL_SELECTED: '#4a4540',
-      WATER: '#6a8fa8',     STROKE: '#c4bdb3',
-    };
-  }
-  return {
-    DIM: '#b8ad9c',       DIMSEL: '#d4c9b8',
-    SURFACE: '#666',      GRID: '#555',
-    LABEL: '#999',        STRATA_TEXT: '#ccc',
-    TABLE_BG: '#3a3a3a',  TABLE_CELL: '#2a2a2a',
-    TABLE_SEL: '#3d3528', TABLE_BORDER: '#555',
-    TABLE_TEXT: '#aaa',   TABLE_TEXT_SEL: '#e0e0e0',
-    FOUNDATION: '#7f8c8d', FOUNDATION_SEL: '#b8ad9c',
-    COL_DEFAULT: '#95a5a6', COL_SELECTED: '#d4c9b8',
-    WATER: '#7a9eb8',     STROKE: '#444',
-  };
+  return colors;
 }
 
 export default function Viewer2D() {
@@ -74,21 +64,25 @@ export default function Viewer2D() {
   const basementDepth = conditions.hasBasement ? conditions.basementDepth : 0;
   const totalH = totalDepth;
 
-  // Soil block width: B + 4m (2m padding each side)
-  const soilW = foundation.B + 4;
+  // Layout constants
+  const SOIL_SIDE_PADDING = 2; // metres padding each side of foundation
+  const VIEWBOX_MARGIN = 2;
+  const LABEL_SPACE = 5;
+  const VIEWBOX_RIGHT_PAD = 8;
+
+  // Soil block width: B + padding on each side
+  const soilW = foundation.B + SOIL_SIDE_PADDING * 2;
   const halfW = soilW / 2;
 
   // Auto-fit viewBox only on initial mount
   const hasInitialized = useRef(false);
   useEffect(() => {
     if (!hasInitialized.current) {
-      const margin = 2;
-      const labelSpace = 5;
       setViewBox({
-        x: -halfW - margin - labelSpace,
-        y: -margin,
-        w: soilW + margin * 2 + labelSpace + 8,
-        h: totalH + margin * 2 + 1,
+        x: -halfW - VIEWBOX_MARGIN - LABEL_SPACE,
+        y: -VIEWBOX_MARGIN,
+        w: soilW + VIEWBOX_MARGIN * 2 + LABEL_SPACE + VIEWBOX_RIGHT_PAD,
+        h: totalH + VIEWBOX_MARGIN * 2 + 1,
       });
       hasInitialized.current = true;
     }

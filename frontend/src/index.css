@@ -46,6 +46,26 @@
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;
 
+  /* SVG 2D viewer tokens (SVG attrs can't use rgba/CSS vars directly) */
+  --svg-dim: #b8ad9c;
+  --svg-dim-selected: #d4c9b8;
+  --svg-surface: #666666;
+  --svg-grid: #555555;
+  --svg-label: #999999;
+  --svg-strata-text: #cccccc;
+  --svg-table-bg: #3a3a3a;
+  --svg-table-cell: #2a2a2a;
+  --svg-table-selected: #3d3528;
+  --svg-table-border: #555555;
+  --svg-table-text: #aaaaaa;
+  --svg-table-text-sel: #e0e0e0;
+  --svg-foundation: #7f8c8d;
+  --svg-foundation-sel: #b8ad9c;
+  --svg-col-default: #95a5a6;
+  --svg-col-selected: #d4c9b8;
+  --svg-water: #7a9eb8;
+  --svg-stroke: #444444;
+
   color-scheme: dark;
 }
 
@@ -75,6 +95,25 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.15);
+
+  --svg-dim: #6b6358;
+  --svg-dim-selected: #4a4540;
+  --svg-surface: #b8b0a5;
+  --svg-grid: #c4bdb3;
+  --svg-label: #8a8279;
+  --svg-strata-text: #4a4540;
+  --svg-table-bg: #e8e3db;
+  --svg-table-cell: #f0ebe3;
+  --svg-table-selected: #d5cfc6;
+  --svg-table-border: #c4bdb3;
+  --svg-table-text: #6b6358;
+  --svg-table-text-sel: #2b2b2b;
+  --svg-foundation: #7f8c8d;
+  --svg-foundation-sel: #4a4540;
+  --svg-col-default: #95a5a6;
+  --svg-col-selected: #4a4540;
+  --svg-water: #6a8fa8;
+  --svg-stroke: #c4bdb3;
 
   color-scheme: light;
 }

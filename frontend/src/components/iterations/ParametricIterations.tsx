@@ -22,6 +22,11 @@ const MARKERS: Array<'circle' | 'square' | 'triangle-up' | 'diamond' | 'cross'> 
   'circle', 'square', 'triangle-up', 'diamond', 'cross',
 ];
 
+// Chart layout
+const CHART_DEFAULT_HEIGHT = 320;
+const CHART_MIN_HEIGHT = 180;
+const CHART_MAX_HEIGHT = 700;
+
 export default function ParametricIterations() {
   const foundation = useFoundationStore((s) => s.foundation);
   const strata = useFoundationStore((s) => s.strata);
@@ -55,8 +60,8 @@ export default function ParametricIterations() {
   const [iterResult, setIterResult] = useState<IterationResult | null>(null);
   const [chartMetric, setChartMetric] = useState<'qa' | 'Qmax'>('qa');
   const [loading, setLoading] = useState(false);
-  const [chartHeight, setChartHeight] = useState(320);
-  const chartHRef = useRef(320);
+  const [chartHeight, setChartHeight] = useState(CHART_DEFAULT_HEIGHT);
+  const chartHRef = useRef(CHART_DEFAULT_HEIGHT);
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -65,7 +70,7 @@ export default function ParametricIterations() {
     document.body.style.cursor = 'ns-resize';
     document.body.style.userSelect = 'none';
     const onMove = (ev: MouseEvent) => {
-      const h = Math.max(180, Math.min(700, startH + (ev.clientY - startY)));
+      const h = Math.max(CHART_MIN_HEIGHT, Math.min(CHART_MAX_HEIGHT, startH + (ev.clientY - startY)));
       chartHRef.current = h;
       setChartHeight(h);
     };
