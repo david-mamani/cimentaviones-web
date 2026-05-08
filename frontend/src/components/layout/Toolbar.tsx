@@ -13,7 +13,7 @@ import UnitSettingsModal from './UnitSettingsModal';
 import {
   Save, FolderOpen, Play, RotateCcw,
   Square, Box, SplitSquareHorizontal,
-  BarChart3, Table2, Info,
+  BarChart3, Table2, Info, Ruler,
   PanelLeft, PanelRight,
   Sun, Moon, Loader2,
 } from 'lucide-react';
@@ -48,7 +48,6 @@ export default function Toolbar({
 
   const [showCredits, setShowCredits] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const outputConfig = useUnitStore((s) => s.output);
   const showUnitModal = useUnitStore((s) => s.showModal);
   const toggleUnitModal = useUnitStore((s) => s.toggleModal);
 
@@ -183,38 +182,12 @@ export default function Toolbar({
         <Sep />
 
         {/* Unit settings */}
-        <button
-          onClick={toggleUnitModal}
+        <ToolBtn
+          icon={<Ruler size={15} />}
           title="Configuración de unidades"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '4px 10px',
-            background: showUnitModal ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
-            border: `1px solid ${showUnitModal ? 'var(--accent)' : 'var(--border-active)'}`,
-            borderRadius: 12,
-            color: showUnitModal ? 'var(--accent)' : 'var(--text-primary)',
-            fontSize: 10,
-            fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
-            cursor: 'pointer',
-            transition: 'all var(--transition-fast)',
-            letterSpacing: 0.5,
-          }}
-          onMouseEnter={(e) => {
-            if (!showUnitModal) {
-              e.currentTarget.style.borderColor = 'var(--accent)';
-              e.currentTarget.style.color = 'var(--accent)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showUnitModal) {
-              e.currentTarget.style.borderColor = 'var(--border-active)';
-              e.currentTarget.style.color = 'var(--text-primary)';
-            }
-          }}
-        >
-          {outputConfig.force} · {outputConfig.pressure}
-        </button>
+          active={showUnitModal}
+          onClick={toggleUnitModal}
+        />
 
         <ToolBtn icon={<Info size={15} />} title="Créditos" onClick={() => setShowCredits(true)} />
 
