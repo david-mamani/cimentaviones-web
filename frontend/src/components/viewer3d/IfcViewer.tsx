@@ -425,6 +425,21 @@ export default function IfcViewer() {
       const ifcApi = ifcApiRef.current;
       const modelID = ifcApi.OpenModel(data);
 
+      // ── Pre-build type lookup map ──
+      // Using GetLineIdsWithType is the only reliable way to classify elements.
+      // GetLine().type can return different numeric IDs depending on IFC schema
+      // version, and our hardcoded constants may not match.
+      const typeMap = new Map<number, number>();
+      const typeIds = [IFCSLAB, IFCFOOTING, IFCCOLUMN, IFCBUILDINGELEMENTPROXY];
+      for (const typeId of typeIds) {
+        try {
+          const ids = ifcApi.GetLineIDsWithType(modelID, typeId);
+          for (let i = 0; i < ids.size(); i++) {
+            typeMap.set(ids.get(i), typeId);
+          }
+        } catch { /* type may not exist in this schema */ }
+      }
+
       // Counters for stratum ordering
       let strataIndex = 0;
       // Track processed express IDs to avoid duplicates
@@ -440,20 +455,8 @@ export default function IfcViewer() {
 
         const placedGeometries = mesh.geometries;
 
-        // Determine IFC type — with fallback name-based detection
-        let ifcType = 0;
-        try {
-          const lineData = ifcApi.GetLine(modelID, expressID);
-          ifcType = lineData?.type ?? 0;
-          // Fallback: if type is 0 but element has a known name, classify it
-          if (ifcType === 0 && lineData?.Name?.value) {
-            const name = (lineData.Name.value as string).toLowerCase();
-            if (name.includes('zapata') || name.includes('footing')) ifcType = IFCFOOTING;
-            else if (name.includes('pedestal') || name.includes('column')) ifcType = IFCCOLUMN;
-            else if (name.includes('estrato') || name.includes('stratum')) ifcType = IFCSLAB;
-            else if (name.includes('freático') || name.includes('water')) ifcType = IFCBUILDINGELEMENTPROXY;
-          }
-        } catch { /* ignore */ }
+        // Look up IFC type from pre-built map (infallible)
+        const ifcType = typeMap.get(expressID) ?? 0;
 
         for (let i = 0; i < placedGeometries.size(); i++) {
           const placedGeom = placedGeometries.get(i);
