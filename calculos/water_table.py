@@ -7,11 +7,15 @@ respecto a la profundidad efectiva de la cimentación y el ancho B.
 γw = 9.81 kN/m³ (peso unitario del agua)
 γ' = γsat - γw  (peso unitario sumergido o efectivo)
 
-NOTA IMPORTANTE sobre sótano:
-  Cuando hay sótano de profundidad Ds, la cimentación real está a
-  profundidad efectiva = Ds + Df desde la superficie.
-  La sobrecarga q se calcula desde Ds hasta Ds + Df (el suelo
-  sobre el sótano ha sido excavado, no contribuye a la sobrecarga).
+NOTA IMPORTANTE — Sobrecarga q:
+  q es la presión TOTAL (no efectiva) al nivel de la zapata.
+  Bajo el NF se usa γsat (peso total), NO γ' (peso sumergido).
+  γ' solo se usa para gammaEffective (tercer término de la ecuación).
+
+NOTA IMPORTANTE — Sótano con NF encima:
+  Cuando hay sótano de profundidad Ds y el NF está arriba del piso
+  del sótano (Dw < Ds), existe una columna de agua sin suelo entre
+  Dw y Ds que ejerce presión γw × (Ds - Dw) sobre la cimentación.
 """
 
 GAMMA_W = 9.81  # kN/m³
@@ -29,8 +33,9 @@ def apply_water_table_correction(
     """
     Calcula la sobrecarga efectiva q y el γ efectivo considerando el NF.
 
-    La sobrecarga q se calcula desde el nivel del sótano (Ds) hasta
-    la profundidad efectiva de la cimentación (Ds + Df).
+    La sobrecarga q es la presión TOTAL al nivel de la zapata.
+    Se calcula desde el nivel del sótano (Ds) hasta la profundidad
+    efectiva de la cimentación (Ds + Df).
 
     Args:
         strata: Lista de estratos [{thickness, gamma, gammaSat, ...}]
@@ -42,9 +47,17 @@ def apply_water_table_correction(
         Ds: Profundidad del sótano desde la superficie (m), default 0
 
     Returns:
-        dict con claves: case, q, gammaEffective
+        dict con claves: case, q, gammaEffective, warnings
     """
     effective_depth = Ds + Df  # profundidad real de la cimentación
+    warnings = []
+
+    # ── Bug 4: Clamp Dw ≥ 0 ──
+    if has_water_table and Dw < 0:
+        Dw = 0.0
+        warnings.append(
+            "El nivel freático (Dw) era negativo; se ajustó a 0.0 (superficie)."
+        )
 
     # Sin nivel freático → sin corrección de γ
     if not has_water_table:
@@ -53,37 +66,59 @@ def apply_water_table_correction(
             "case": 0,
             "q": q,
             "gammaEffective": design_stratum["gamma"],
+            "warnings": warnings,
         }
 
-    gamma_prime = design_stratum["gammaSat"] - GAMMA_W
+    # ── Bug 2: Clamp γ' ≥ 0 ──
+    raw_gamma_prime = design_stratum["gammaSat"] - GAMMA_W
+    if raw_gamma_prime < 0:
+        warnings.append(
+            f"γsat ({design_stratum['gammaSat']:.2f}) < γw ({GAMMA_W}). "
+            f"Dato inválido: γsat debe ser mayor que γw. "
+            f"Se usó γ' = 0 como protección."
+        )
+    gamma_prime = max(0.0, raw_gamma_prime)
+
+    # ── Bug 1: Columna de agua sin suelo cuando NF sobre el sótano ──
+    # Si Dw < Ds, hay agua (sin suelo) entre Dw y Ds que ejerce presión
+    water_column_q = 0.0
+    if Dw < Ds:
+        water_column_q = GAMMA_W * (Ds - Dw)
+        warnings.append(
+            f"NF ({Dw:.2f}m) sobre el sótano ({Ds:.2f}m): "
+            f"se añadió presión hidrostática de columna de agua "
+            f"γw×(Ds-Dw) = {water_column_q:.2f} kN/m²."
+        )
 
     # Caso 1: NF por encima de la cimentación (Dw < effective_depth)
-    #   → La cimentación está sumergida
-    #   → q se calcula con γ natural arriba del NF y γ' debajo
-    #   → γ efectivo = γ' (sumergido)
+    #   → La cimentación está sumergida total o parcialmente
+    #   → q usa γ natural arriba del NF y γsat debajo (presión TOTAL)
+    #   → γ efectivo = γ' (sumergido) para el tercer término
     if Dw < effective_depth:
-        q = _calculate_overburden_with_water_table(
+        q = _calculate_overburden_total(
             strata, start_depth=Ds, end_depth=effective_depth, Dw=Dw
         )
-        return {"case": 1, "q": q, "gammaEffective": gamma_prime}
+        q += water_column_q  # Bug 1: añadir columna de agua
+        return {"case": 1, "q": q, "gammaEffective": gamma_prime, "warnings": warnings}
 
     # Caso 2: NF en la base de la cimentación (Dw ≈ effective_depth)
     #   → El NF está justo al nivel de la zapata
-    #   → q sin corrección por NF, pero γ' para el suelo debajo
+    #   → q sin corrección por NF (todo sobre el NF usa γ natural)
+    #   → γ' para el suelo debajo de la zapata
     if abs(Dw - effective_depth) < 0.001:
         q = _calculate_overburden(strata, start_depth=Ds, end_depth=effective_depth)
-        return {"case": 2, "q": q, "gammaEffective": gamma_prime}
+        q += water_column_q  # poco probable pero consistente
+        return {"case": 2, "q": q, "gammaEffective": gamma_prime, "warnings": warnings}
 
-    # Caso 3: NF entre la base y base + B (Dw entre effective_depth y effective_depth + B)
-    #   → Parcialmente sumergido debajo de la zapata
-    #   → γ efectivo interpolado
+    # Caso 3: NF entre la base y base + B (parcialmente sumergido debajo)
+    #   → γ efectivo interpolado entre γ' y γ natural
     if Dw > effective_depth and Dw < effective_depth + B:
         q = _calculate_overburden(strata, start_depth=Ds, end_depth=effective_depth)
         delta = Dw - effective_depth
         gamma_eff = gamma_prime + (delta / B) * (
             design_stratum["gamma"] - gamma_prime
         )
-        return {"case": 3, "q": q, "gammaEffective": gamma_eff}
+        return {"case": 3, "q": q, "gammaEffective": gamma_eff, "warnings": warnings}
 
     # Caso 4: NF por debajo de effective_depth + B (sin efecto)
     q = _calculate_overburden(strata, start_depth=Ds, end_depth=effective_depth)
@@ -91,6 +126,7 @@ def apply_water_table_correction(
         "case": 4,
         "q": q,
         "gammaEffective": design_stratum["gamma"],
+        "warnings": warnings,
     }
 
 
@@ -105,6 +141,8 @@ def _calculate_overburden(
     Solo acumula el peso de los estratos dentro del rango
     [start_depth, end_depth]. Esto permite calcular desde el
     nivel del sótano en vez de desde la superficie.
+
+    Usa γ natural (peso unitario total del suelo seco o húmedo).
 
     Args:
         strata: Lista de estratos
@@ -139,17 +177,21 @@ def _calculate_overburden(
     return q
 
 
-def _calculate_overburden_with_water_table(
+def _calculate_overburden_total(
     strata: list,
     start_depth: float,
     end_depth: float,
     Dw: float,
 ) -> float:
     """
-    Calcula la sobrecarga q con corrección por NF (Caso 1: NF dentro del rango).
+    Calcula la sobrecarga q con corrección por NF usando PRESIÓN TOTAL.
 
-    Los segmentos sobre el NF usan γ natural.
-    Los segmentos bajo el NF usan γ' = γsat - γw.
+    Los segmentos sobre el NF usan γ natural (peso total del suelo).
+    Los segmentos bajo el NF usan γsat (peso total saturado, NO γ').
+
+    IMPORTANTE: q es presión TOTAL, no efectiva. Bajo el NF se usa γsat
+    porque el peso del agua forma parte de la presión total sobre la zapata.
+    γ' = γsat - γw solo se usa para gammaEffective (tercer término).
 
     Args:
         strata: Lista de estratos
@@ -158,7 +200,7 @@ def _calculate_overburden_with_water_table(
         Dw: Profundidad del nivel freático desde la superficie
 
     Returns:
-        Sobrecarga q con corrección por NF
+        Sobrecarga q (presión total) con corrección por NF
     """
     if end_depth <= start_depth:
         return 0.0
@@ -181,19 +223,17 @@ def _calculate_overburden_with_water_table(
             depth = bottom
             continue
 
-        gamma_prime = stratum["gammaSat"] - GAMMA_W
-
         if effective_bottom <= Dw:
             # Todo el segmento está sobre el NF → usar γ natural
             q += stratum["gamma"] * (effective_bottom - effective_top)
         elif effective_top >= Dw:
-            # Todo el segmento está bajo el NF → usar γ'
-            q += gamma_prime * (effective_bottom - effective_top)
+            # Todo el segmento está bajo el NF → usar γsat (presión TOTAL)
+            q += stratum["gammaSat"] * (effective_bottom - effective_top)
         else:
             # El NF cruza este segmento
             dry_part = Dw - effective_top
             wet_part = effective_bottom - Dw
-            q += stratum["gamma"] * dry_part + gamma_prime * wet_part
+            q += stratum["gamma"] * dry_part + stratum["gammaSat"] * wet_part
 
         depth = bottom
 

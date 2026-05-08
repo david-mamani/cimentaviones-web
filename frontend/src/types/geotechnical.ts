@@ -116,6 +116,9 @@ export interface CalculationResult {
     qadmRNE: number;
     qultRNECorrected: number;
   };
+
+  // Advertencias del motor de cálculo (condiciones inusuales)
+  warnings?: string[];
 }
 
 /** Input completo para el cálculo */

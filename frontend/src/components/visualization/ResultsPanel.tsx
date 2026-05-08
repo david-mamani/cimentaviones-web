@@ -111,6 +111,26 @@ export default function ResultsPanel() {
           <Row label="qu RNE corregido" value={`${fmt(siToOutput(result.rneConsideration.qultRNECorrected, 'pressure'))} ${pu}`} mono />
         </ResultSection>
       )}
+
+      {/* Warnings */}
+      {result.warnings && result.warnings.length > 0 && (
+        <ResultSection title={`⚠ Advertencias (${result.warnings.length})`}>
+          {result.warnings.map((w, i) => (
+            <div key={i} style={{
+              padding: '4px 8px',
+              marginBottom: 4,
+              background: 'rgba(255, 191, 0, 0.08)',
+              border: '1px solid rgba(255, 191, 0, 0.25)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 10,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.4,
+            }}>
+              {w}
+            </div>
+          ))}
+        </ResultSection>
+      )}
     </div>
   );
 }
