@@ -144,12 +144,6 @@ export default function IfcViewer() {
     scene.add(grid);
     gridRef.current = grid;
 
-    // Axis helper
-    const axes = new THREE.AxesHelper(2);
-    axes.position.set(-8, 0, -8);
-    axes.userData.__permanent = true;  // Don't remove during model reload
-    scene.add(axes);
-
     // Animation loop
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
