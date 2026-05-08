@@ -7,7 +7,6 @@ import { useFoundationStore } from '../../store/foundationStore';
 import type { CalculationMethod, FoundationType } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
-import { useUnitStore } from '../../store/unitStore';
 import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 
 const TYPES: { value: FoundationType; label: string }[] = [
@@ -242,7 +241,6 @@ function StrataSection() {
   const updateStratum = useFoundationStore((s) => s.updateStratum);
   const strataColors = useViewerSettings((s) => s.strataColors);
   const setStrataColor = useViewerSettings((s) => s.setStrataColor);
-  const { labels, toDisplay, toSI } = useUnitStore();
 
   return (
     <Section
@@ -260,7 +258,7 @@ function StrataSection() {
         }}>
           <thead>
             <tr>
-              {['', 'h(m)', `γ(${labels.gamma})`, `c(${labels.c})`, 'φ°', `γsat(${labels.gamma})`, ''].map((h, i) => (
+              {['', 'h(m)', 'γ(kN/m³)', 'c(kPa)', 'φ°', 'γsat(kN/m³)', ''].map((h, i) => (
                 <th key={i} style={{
                   padding: '4px 2px',
                   fontSize: 9,
@@ -299,25 +297,25 @@ function StrataSection() {
                     <CadNumericInput className="stratum-input" value={s.thickness} step={0.1}
                       onChange={(v) => updateStratum(s.id, { thickness: v })} />
                   </td>
-                  {/* gamma — with unit conversion */}
+                  {/* gamma */}
                   <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={parseFloat(toDisplay(s.gamma).toFixed(4))} step={0.5}
-                      onChange={(v) => updateStratum(s.id, { gamma: toSI(v) })} />
+                    <CadNumericInput className="stratum-input" value={s.gamma} step={0.5}
+                      onChange={(v) => updateStratum(s.id, { gamma: v })} />
                   </td>
-                  {/* c — with unit conversion */}
+                  {/* c */}
                   <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={parseFloat(toDisplay(s.c).toFixed(4))} step={1}
-                      onChange={(v) => updateStratum(s.id, { c: toSI(v) })} />
+                    <CadNumericInput className="stratum-input" value={s.c} step={1}
+                      onChange={(v) => updateStratum(s.id, { c: v })} />
                   </td>
                   {/* phi */}
                   <td style={{ padding: '2px 1px' }}>
                     <CadNumericInput className="stratum-input" value={s.phi} step={1}
                       onChange={(v) => updateStratum(s.id, { phi: v })} />
                   </td>
-                  {/* gammaSat — with unit conversion */}
+                  {/* gammaSat */}
                   <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={parseFloat(toDisplay(s.gammaSat).toFixed(4))} step={0.5}
-                      onChange={(v) => updateStratum(s.id, { gammaSat: toSI(v) })} />
+                    <CadNumericInput className="stratum-input" value={s.gammaSat} step={0.5}
+                      onChange={(v) => updateStratum(s.id, { gammaSat: v })} />
                   </td>
                   {/* Delete */}
                   <td style={{ padding: '2px 2px', textAlign: 'center', width: 20 }}>
