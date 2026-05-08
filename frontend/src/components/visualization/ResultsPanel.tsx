@@ -7,6 +7,8 @@ import { useFoundationStore } from '../../store/foundationStore';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
+import 'github-markdown-css/github-markdown.css';
 
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi Clásico',
@@ -43,9 +45,9 @@ export default function ResultsPanel() {
       {/* Resolución Paso a Paso */}
       {result.resolution_md && (
         <div style={{ marginTop: 12, padding: '0 12px 24px 12px' }}>
-          <div className="markdown-body" style={{ fontSize: 13, lineHeight: 1.6, overflowX: 'auto', color: 'var(--text-primary)' }}>
+          <div className="markdown-body" style={{ fontSize: 14, lineHeight: 1.6, overflowX: 'auto', background: 'transparent', color: 'var(--text-primary)' }}>
             <ReactMarkdown 
-              remarkPlugins={[remarkMath]} 
+              remarkPlugins={[remarkMath, remarkGfm]} 
               rehypePlugins={[rehypeKatex]}
             >
               {result.resolution_md}

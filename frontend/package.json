@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@types/three": "^0.184.0",
+    "github-markdown-css": "^5.9.0",
     "katex": "^0.16.45",
     "lucide-react": "^1.14.0",
     "plotly.js-basic-dist-min": "^3.5.0",
@@ -19,6 +20,7 @@
     "react-markdown": "^10.1.0",
     "react-plotly.js": "^2.6.0",
     "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "three": "^0.184.0",
     "web-ifc": "^0.0.77",
