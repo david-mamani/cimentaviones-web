@@ -158,7 +158,7 @@ export default function ParametricIterations() {
   };
 
   /** Convert SI value to metric display */
-  const toMetric = (val: number, type: 'pressure' | 'force') => val / G;
+  const toMetric = (val: number, _type: 'pressure' | 'force') => val / G;
 
   // Build Plotly traces — display in metric
   const getTraces = (): Partial<Plotly.Data>[] => {
