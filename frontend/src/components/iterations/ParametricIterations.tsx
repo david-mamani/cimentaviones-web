@@ -1,9 +1,9 @@
 /**
  * ParametricIterations — Iteration controls + Plotly.js interactive chart.
+ * Hardcoded to Metric units (m, tnf/m², tnf).
  */
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
-import { useUnitStore } from '../../store/unitStore';
 import type { IterationResult } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 // @ts-ignore — plotly.js-basic-dist-min has no types
@@ -22,6 +22,9 @@ const COLORS = [
 const MARKERS: Array<'circle' | 'square' | 'triangle-up' | 'diamond' | 'cross'> = [
   'circle', 'square', 'triangle-up', 'diamond', 'cross',
 ];
+
+// SI to Metric conversion factor
+const G = 9.80665;
 
 // Chart layout
 const CHART_DEFAULT_HEIGHT = 320;
@@ -55,6 +58,43 @@ export default function ParametricIterations() {
   const [loading, setLoading] = useState(false);
   const [chartHeight, setChartHeight] = useState(CHART_DEFAULT_HEIGHT);
   const chartHRef = useRef(CHART_DEFAULT_HEIGHT);
+  const summaryTableRef = useRef<HTMLTableElement>(null);
+  const plotRef = useRef<any>(null);
+
+  const handleCopyChart = useCallback(async () => {
+    if (!plotRef.current) return;
+    try {
+      const dataUrl = await Plotly.toImage(plotRef.current, { format: 'png', width: 1200, height: 700 });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      alert('Gráfico copiado al portapapeles. Puedes pegarlo en Word o PowerPoint.');
+    } catch (err) {
+      console.error('Error copying chart:', err);
+      alert('No se pudo copiar el gráfico. Tu navegador podría no soportar esta función.');
+    }
+  }, []);
+
+  const handleCopyTable = useCallback(() => {
+    if (!summaryTableRef.current) return;
+    const range = document.createRange();
+    range.selectNode(summaryTableRef.current);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      try {
+        document.execCommand('copy');
+        alert('Tabla copiada al portapapeles. Puedes pegarla en Word o Excel.');
+      } catch (err) {
+        console.error('Error al copiar', err);
+        alert('No se pudo copiar automáticamente. Por favor, selecciona y copia la tabla manualmente.');
+      }
+      selection.removeAllRanges();
+    }
+  }, []);
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -84,38 +124,15 @@ export default function ParametricIterations() {
     if (!config.varyB && !config.varyDf) return;
     setLoading(true);
     try {
-      // Convert strata to SI for API
-      const { inputToSI } = useUnitStore.getState();
+      // Convertir strata a SI para la API (Métrico → SI)
       const strataForAPI = strata.map((s) => ({
         ...s,
-        thickness: inputToSI(s.thickness, 'length'),
-        gamma: inputToSI(s.gamma, 'unitWeight'),
-        c: inputToSI(s.c, 'pressure'),
-        gammaSat: inputToSI(s.gammaSat, 'unitWeight'),
+        gamma: s.gamma * G,      // t/m³ → kN/m³
+        c: s.c * G,              // t/m² → kPa
+        gammaSat: s.gammaSat * G, // t/m³ → kN/m³
       }));
-      // Convert foundation dimensions to SI
-      const foundationForAPI = {
-        ...foundation,
-        B: inputToSI(foundation.B, 'length'),
-        L: inputToSI(foundation.L, 'length'),
-        Df: inputToSI(foundation.Df, 'length'),
-      };
-      // Convert conditions to SI
-      const conditionsForAPI = {
-        ...conditions,
-        waterTableDepth: inputToSI(conditions.waterTableDepth, 'length'),
-        basementDepth: inputToSI(conditions.basementDepth, 'length'),
-      };
-      // Convert iteration config to SI
-      const configForAPI: Record<string, unknown> = {
-        ...config,
-        bStart: inputToSI(config.bStart, 'length'),
-        bEnd: inputToSI(config.bEnd, 'length'),
-        bStep: inputToSI(config.bStep, 'length'),
-        dfStart: inputToSI(config.dfStart, 'length'),
-        dfEnd: inputToSI(config.dfEnd, 'length'),
-        dfStep: inputToSI(config.dfStep, 'length'),
-      };
+      // Dimensiones ya en metros
+      const configForAPI: Record<string, unknown> = { ...config };
       // When lbLocked, pass ratio so backend computes L = k × B for each iteration
       if (lbLocked && foundation.type === 'rectangular') {
         configForAPI.lbRatio = lbRatio;
@@ -124,7 +141,7 @@ export default function ParametricIterations() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          base: { foundation: foundationForAPI, strata: strataForAPI, conditions: conditionsForAPI, method },
+          base: { foundation, strata: strataForAPI, conditions, method },
           config: configForAPI,
         }),
       });
@@ -140,19 +157,20 @@ export default function ParametricIterations() {
     }
   };
 
-  const { siToOutput, outputLabel } = useUnitStore();
+  /** Convert SI value to metric display */
+  const toMetric = (val: number, type: 'pressure' | 'force') => val / G;
 
-  // Build Plotly traces
+  // Build Plotly traces — display in metric
   const getTraces = (): Partial<Plotly.Data>[] => {
     if (!iterResult) return [];
     return iterResult.dfValues.map((df, di) => {
       const row = iterResult.matrix[di];
       return {
         x: row.map((c) => c.B),
-        y: row.map((c) => siToOutput(chartMetric === 'qa' ? c.result.qa : c.Qmax, chartMetric === 'qa' ? 'pressure' : 'force')),
+        y: row.map((c) => toMetric(chartMetric === 'qa' ? c.result.qa : c.Qmax, chartMetric === 'qa' ? 'pressure' : 'force')),
         type: 'scatter' as const,
         mode: 'lines+markers' as const,
-        name: `D_f = ${siToOutput(df, 'length').toFixed(2)} ${outputLabel('length')}`,
+        name: `D_f = ${df.toFixed(2)} m`,
         line: { color: COLORS[di % COLORS.length], width: 2 },
         marker: {
           symbol: MARKERS[di % MARKERS.length],
@@ -164,7 +182,7 @@ export default function ParametricIterations() {
           `<b>B = %{x:.2f} m</b><br>` +
           `D<sub>f</sub> = ${df.toFixed(2)} m<br>` +
           `${chartMetric === 'qa' ? 'q<sub>adm</sub>' : 'Q<sub>max</sub>'} = %{y:.2f} ` +
-          `${chartMetric === 'qa' ? outputLabel('pressure') : outputLabel('force')}` +
+          `${chartMetric === 'qa' ? 'tnf/m²' : 'tnf'}` +
           `<extra></extra>`,
       };
     });
@@ -186,7 +204,7 @@ export default function ParametricIterations() {
 
   const layout: Partial<Plotly.Layout> = {
     xaxis: {
-      title: { text: `B (${outputLabel('length')})`, font: { size: 11, color: chartAxisLabel } },
+      title: { text: 'B (m)', font: { size: 11, color: chartAxisLabel } },
       color: chartAxisText,
       gridcolor: chartGrid,
       gridwidth: 0.5,
@@ -198,7 +216,7 @@ export default function ParametricIterations() {
     },
     yaxis: {
       title: {
-        text: chartMetric === 'qa' ? `q<sub>adm</sub> (${outputLabel('pressure')})` : `Q<sub>max</sub> (${outputLabel('force')})`,
+        text: chartMetric === 'qa' ? 'q<sub>adm</sub> (tnf/m²)' : 'Q<sub>max</sub> (tnf)',
         font: { size: 11, color: chartAxisLabel },
       },
       color: chartAxisText,
@@ -301,21 +319,29 @@ export default function ParametricIterations() {
       {/* Results */}
       {iterResult && (
         <div style={{ padding: 12 }}>
-          {/* Metric toggle */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+          {/* Metric toggle & Copy Chart */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8, alignItems: 'center' }}>
             <button
               className={chartMetric === 'qa' ? 'cad-btn cad-btn-accent' : 'cad-btn'}
               onClick={() => setChartMetric('qa')}
               style={{ flex: 1, fontSize: 10 }}
             >
-              q_adm ({outputLabel('pressure')})
+              q_adm (tnf/m²)
             </button>
             <button
               className={chartMetric === 'Qmax' ? 'cad-btn cad-btn-accent' : 'cad-btn'}
               onClick={() => setChartMetric('Qmax')}
               style={{ flex: 1, fontSize: 10 }}
             >
-              Q_max ({outputLabel('force')})
+              Q_max (tnf)
+            </button>
+            <button
+              className="cad-btn"
+              onClick={handleCopyChart}
+              style={{ padding: '6px 12px', fontSize: 10, flexShrink: 0 }}
+              title="Copiar gráfico como imagen"
+            >
+              📸 Copiar Gráfico
             </button>
           </div>
 
@@ -326,6 +352,7 @@ export default function ParametricIterations() {
               layout={{ ...layout, height: chartHeight }}
               config={plotConfig}
               useResizeHandler
+              onInitialized={(_figure: any, graphDiv: any) => { plotRef.current = graphDiv; }}
               style={{ width: '100%', height: '100%' }}
             />
           </div>
@@ -373,6 +400,74 @@ export default function ParametricIterations() {
                 onClick={() => exportTXT(iterResult, foundation, method)}>
                 📝 TXT
               </button>
+            </div>
+          </div>
+
+          {/* Summary Table for Copy-Paste */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, margin: 0 }}>
+                Tabla Resumen (Copiar y Pegar en Word)
+              </p>
+              <button className="cad-btn" style={{ fontSize: 10, padding: '4px 8px' }} onClick={handleCopyTable}>
+                📋 Copiar Tabla
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto', background: 'white', border: '1px solid var(--border)' }}>
+              {(() => {
+                if (!iterResult || !iterResult.matrix.length || !iterResult.matrix[0]) return null;
+                const bValues = iterResult.matrix[0].map(cell => cell.B);
+                const dfValues = iterResult.dfValues;
+                const metricU = chartMetric === 'qa' ? 'tnf/m²' : 'tnf';
+                const metricName = chartMetric === 'qa' ? 'Q adm' : 'Q max';
+
+                return (
+                  <table ref={summaryTableRef} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 12, color: 'black', fontFamily: 'Arial, sans-serif' }}>
+                    <thead>
+                      <tr>
+                        {dfValues.map((df, i) => (
+                          <th key={`df-${i}`} colSpan={2} style={{ border: '1px solid black', padding: '4px', backgroundColor: '#87CEEB', fontWeight: 'bold' }}>
+                            Para un Df = {df.toFixed(2)} m
+                          </th>
+                        ))}
+                      </tr>
+                      <tr>
+                        {dfValues.map((_, i) => (
+                          <React.Fragment key={`sub-${i}`}>
+                            <th style={{ border: '1px solid black', padding: '4px', backgroundColor: '#87CEEB', fontWeight: 'bold' }}>
+                              B (m)
+                            </th>
+                            <th style={{ border: '1px solid black', padding: '4px', backgroundColor: '#87CEEB', fontWeight: 'bold' }}>
+                              {metricName} ({metricU})
+                            </th>
+                          </React.Fragment>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bValues.map((_, bi) => (
+                        <tr key={`row-${bi}`}>
+                          {dfValues.map((_df, di) => {
+                            const cell = iterResult.matrix[di][bi];
+                            if (!cell) return <React.Fragment key={`empty-${di}-${bi}`}><td style={{border:'1px solid black'}}>-</td><td style={{border:'1px solid black'}}>-</td></React.Fragment>;
+                            const val = chartMetric === 'qa' ? cell.result.qa : cell.Qmax;
+                            return (
+                              <React.Fragment key={`cell-${di}-${bi}`}>
+                                <td style={{ border: '1px solid black', padding: '4px' }}>
+                                  {cell.B.toFixed(2)}
+                                </td>
+                                <td style={{ border: '1px solid black', padding: '4px' }}>
+                                  {toMetric(val, chartMetric === 'qa' ? 'pressure' : 'force').toFixed(2)}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -431,18 +526,14 @@ function exportJSON(
 }
 
 function exportCSV(iterResult: IterationResult) {
-  const { siToOutput, outputLabel } = useUnitStore.getState();
-  const lu = outputLabel('length');
-  const pu = outputLabel('pressure');
-  const fu = outputLabel('force');
-  const header = `N°,B (${lu}),Df (${lu}),qu (${pu}),qa (${pu}),qnet (${pu}),Qmax (${fu}),Nc,Nq,Nγ\n`;
+  const header = `N°,B (m),Df (m),qu (tnf/m²),qa (tnf/m²),qnet (tnf/m²),Qmax (tnf),Nc,Nq,Nγ\n`;
   let n = 1;
   const rows = iterResult.matrix.flatMap((row) =>
     row.map((cell) => {
       const r = cell.result;
       return [
-        n++, siToOutput(cell.B, 'length').toFixed(3), siToOutput(cell.Df, 'length').toFixed(3),
-        siToOutput(r.qu, 'pressure').toFixed(3), siToOutput(r.qa, 'pressure').toFixed(3), siToOutput(r.qnet, 'pressure').toFixed(3), siToOutput(cell.Qmax, 'force').toFixed(3),
+        n++, cell.B.toFixed(3), cell.Df.toFixed(3),
+        (r.qu / G).toFixed(3), (r.qa / G).toFixed(3), (r.qnet / G).toFixed(3), (cell.Qmax / G).toFixed(3),
         r.bearingFactors.Nc, r.bearingFactors.Nq, r.bearingFactors.Ngamma,
       ].join(',');
     })
@@ -455,10 +546,6 @@ function exportTXT(
   foundation: { type: string; B: number; L: number; Df: number; FS: number; beta: number },
   method: string,
 ) {
-  const { siToOutput, outputLabel } = useUnitStore.getState();
-  const lu = outputLabel('length');
-  const pu = outputLabel('pressure');
-  const fu = outputLabel('force');
   const lines: string[] = [];
   lines.push('═══════════════════════════════════════════════════════════════');
   lines.push('  Cimentaciones WEB — Reporte de Iteraciones Paramétricas');
@@ -473,11 +560,11 @@ function exportTXT(
     for (const cell of row) {
       const r = cell.result;
       lines.push(`  Cálculo ${String(n).padStart(2, '0')}:`);
-      lines.push(`    B  = ${siToOutput(cell.B, 'length').toFixed(3)} ${lu}    Df = ${siToOutput(cell.Df, 'length').toFixed(3)} ${lu}`);
-      lines.push(`    qu = ${siToOutput(r.qu, 'pressure').toFixed(3)} ${pu}`);
-      lines.push(`    qa = ${siToOutput(r.qa, 'pressure').toFixed(3)} ${pu}`);
-      lines.push(`    qnet = ${siToOutput(r.qnet, 'pressure').toFixed(3)} ${pu}`);
-      lines.push(`    Qmax = ${siToOutput(cell.Qmax, 'force').toFixed(3)} ${fu}`);
+      lines.push(`    B  = ${cell.B.toFixed(3)} m    Df = ${cell.Df.toFixed(3)} m`);
+      lines.push(`    qu = ${(r.qu / G).toFixed(3)} tnf/m²`);
+      lines.push(`    qa = ${(r.qa / G).toFixed(3)} tnf/m²`);
+      lines.push(`    qnet = ${(r.qnet / G).toFixed(3)} tnf/m²`);
+      lines.push(`    Qmax = ${(cell.Qmax / G).toFixed(3)} tnf`);
       lines.push(`    Nc = ${r.bearingFactors.Nc}  Nq = ${r.bearingFactors.Nq}  Nγ = ${r.bearingFactors.Ngamma}`);
       lines.push('');
       n++;

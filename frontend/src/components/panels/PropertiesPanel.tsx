@@ -7,7 +7,6 @@ import { useFoundationStore } from '../../store/foundationStore';
 import type { CalculationMethod, FoundationType } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
-import { useUnitStore } from '../../store/unitStore';
 import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 
 const TYPES: { value: FoundationType; label: string }[] = [
@@ -18,6 +17,7 @@ const TYPES: { value: FoundationType; label: string }[] = [
 const METHODS: { value: CalculationMethod; label: string }[] = [
   { value: 'terzaghi', label: 'Terzaghi' },
   { value: 'general', label: 'Ec. General' },
+  { value: 'rne', label: 'RNE E.050' },
 ];
 
 export default function PropertiesPanel() {
@@ -98,17 +98,16 @@ function DimensionsSection() {
   const lbRatio = useFoundationStore((s) => s.lbRatio);
   const setLbLocked = useFoundationStore((s) => s.setLbLocked);
   const setLbRatio = useFoundationStore((s) => s.setLbRatio);
-  const inputLabel = useUnitStore((s) => s.inputLabel);
 
   return (
     <Section title="Dimensiones" open={open} onToggle={() => setOpen(!open)}>
-      <PropRow label={`Lado B (${inputLabel('length')})`}>
+      <PropRow label="Lado B (m)">
         <CadNumericInput value={f.B} step={0.1} min={0}
           onChange={(v) => setParam('B', v)} />
       </PropRow>
       {(f.type === 'rectangular') && (
         <>
-          <PropRow label={`Lado L (${inputLabel('length')})`}>
+          <PropRow label="Lado L (m)">
             <CadNumericInput value={f.L} step={0.1} min={0}
               onChange={(v) => setParam('L', v)}
               disabled={lbLocked} />
@@ -138,7 +137,7 @@ function DimensionsSection() {
           </div>
         </>
       )}
-      <PropRow label={`Prof. desplante Df (${inputLabel('length')})`}>
+      <PropRow label="Prof. desplante Df (m)">
         <CadNumericInput value={f.Df} step={0.1} min={0}
           onChange={(v) => setParam('Df', v)} />
       </PropRow>
@@ -159,38 +158,58 @@ function MethodSection() {
   const [open, setOpen] = useState(true);
   const method = useFoundationStore((s) => s.method);
   const setMethod = useFoundationStore((s) => s.setMethod);
+  const fType = useFoundationStore((s) => s.foundation.type);
+
+  // Rectangular no soporta Terzaghi — auto-switch a General
+  const isRectangular = fType === 'rectangular';
+  if (isRectangular && method === 'terzaghi') {
+    setMethod('general');
+  }
 
   return (
     <Section title="Método de Cálculo" open={open} onToggle={() => setOpen(!open)}>
       <div style={{ display: 'flex', gap: 4 }}>
-        {METHODS.map(m => (
-          <button
-            key={m.value}
-            onClick={() => setMethod(m.value)}
-            style={{
-              flex: 1,
-              padding: '6px 4px',
-              background: method === m.value ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
-              border: `1px solid ${method === m.value ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 'var(--radius-sm)',
-              color: method === m.value ? 'var(--accent)' : 'var(--text-primary)',
-              fontSize: 10,
-              fontWeight: method === m.value ? 600 : 500,
-              fontFamily: 'var(--font-sans)',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
-            }}
-            onMouseEnter={(e) => {
-              if (method !== m.value) e.currentTarget.style.borderColor = 'var(--border-active)';
-            }}
-            onMouseLeave={(e) => {
-              if (method !== m.value) e.currentTarget.style.borderColor = 'var(--border)';
-            }}
-          >
-            {m.label}
-          </button>
-        ))}
+        {METHODS.map(m => {
+          const isBlocked = m.value === 'terzaghi' && isRectangular;
+          return (
+            <button
+              key={m.value}
+              onClick={() => !isBlocked && setMethod(m.value)}
+              title={isBlocked ? 'Terzaghi no aplica para cimentaciones rectangulares' : undefined}
+              style={{
+                flex: 1,
+                padding: '6px 4px',
+                background: method === m.value ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
+                border: `1px solid ${method === m.value ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-sm)',
+                color: isBlocked ? 'var(--text-muted)' : method === m.value ? 'var(--accent)' : 'var(--text-primary)',
+                fontSize: 10,
+                fontWeight: method === m.value ? 600 : 500,
+                fontFamily: 'var(--font-sans)',
+                cursor: isBlocked ? 'not-allowed' : 'pointer',
+                opacity: isBlocked ? 0.5 : 1,
+                transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                if (method !== m.value && !isBlocked) e.currentTarget.style.borderColor = 'var(--border-active)';
+              }}
+              onMouseLeave={(e) => {
+                if (method !== m.value && !isBlocked) e.currentTarget.style.borderColor = 'var(--border)';
+              }}
+            >
+              {m.label}
+            </button>
+          );
+        })}
       </div>
+      {isRectangular && (
+        <div style={{
+          marginTop: 6, fontSize: 9, color: 'var(--text-muted)',
+          fontStyle: 'italic', lineHeight: 1.3,
+        }}>
+          Terzaghi no disponible para cimentación rectangular
+        </div>
+      )}
     </Section>
   );
 }
@@ -200,7 +219,6 @@ function ConditionsSection() {
   const [open, setOpen] = useState(true);
   const cond = useFoundationStore((s) => s.conditions);
   const setCond = useFoundationStore((s) => s.setCondition);
-  const inputLabel = useUnitStore((s) => s.inputLabel);
 
   return (
     <Section title="Condiciones Especiales" open={open} onToggle={() => setOpen(!open)}>
@@ -211,7 +229,7 @@ function ConditionsSection() {
           Nivel freático
         </label>
         {cond.hasWaterTable && (
-          <PropRow label={`Prof. NF Dw (${inputLabel('length')})`}>
+          <PropRow label="Prof. NF Dw (m)">
             <CadNumericInput value={cond.waterTableDepth} step={0.1} min={0}
               onChange={(v) => setCond('waterTableDepth', v)} />
           </PropRow>
@@ -222,7 +240,7 @@ function ConditionsSection() {
           Sótano
         </label>
         {cond.hasBasement && (
-          <PropRow label={`Prof. sótano Ds (${inputLabel('length')})`}>
+          <PropRow label="Prof. sótano Ds (m)">
             <CadNumericInput value={cond.basementDepth} step={0.1} min={0}
               onChange={(v) => setCond('basementDepth', v)} />
           </PropRow>
@@ -241,7 +259,7 @@ function StrataSection() {
   const updateStratum = useFoundationStore((s) => s.updateStratum);
   const strataColors = useViewerSettings((s) => s.strataColors);
   const setStrataColor = useViewerSettings((s) => s.setStrataColor);
-  const inputLabel = useUnitStore((s) => s.inputLabel);
+
 
   return (
     <Section
@@ -259,7 +277,7 @@ function StrataSection() {
         }}>
           <thead>
             <tr>
-              {['', `h(${inputLabel('length')})`, `γ(${inputLabel('unitWeight')})`, `c(${inputLabel('pressure')})`, 'φ°', `γsat(${inputLabel('unitWeight')})`, ''].map((h, i) => (
+              {['', 'h(m)', 'γ(t/m³)', 'c(t/m²)', 'φ°', 'γsat(t/m³)', ''].map((h, i) => (
                 <th key={i} style={{
                   padding: '4px 2px',
                   fontSize: 9,

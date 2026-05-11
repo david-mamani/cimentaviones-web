@@ -4,7 +4,6 @@
  */
 
 import { create } from 'zustand';
-import { useUnitStore } from './unitStore';
 import type {
   FoundationType,
   CalculationMethod,
@@ -260,41 +259,26 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     set({ isCalculating: true, errors: [] });
     const state = get();
 
-    // Convert input values to SI for the API
-    const { inputToSI, input: inputUnitConfig, output: outputUnitConfig } = useUnitStore.getState();
+    // Los valores de input ya están en Métrico (m, t/m³, t/m², °)
+    // El motor ProyectoC recibe estos valores y hace la conversión interna a SI
+    // Los inputs se convierten a SI usando G=9.80665: gamma*G → kN/m³, c*G → kPa
+    const G = 9.80665;
     const strataForAPI = state.strata.map((s) => ({
       ...s,
-      thickness: inputToSI(s.thickness, 'length'),
-      gamma: inputToSI(s.gamma, 'unitWeight'),
-      c: inputToSI(s.c, 'pressure'),
-      gammaSat: inputToSI(s.gammaSat, 'unitWeight'),
+      gamma: s.gamma * G,     // t/m³ → kN/m³
+      c: s.c * G,             // t/m² → kPa
+      gammaSat: s.gammaSat * G, // t/m³ → kN/m³
     }));
-
-    // Convert foundation dimensions to SI
-    const foundationForAPI = {
-      ...state.foundation,
-      B: inputToSI(state.foundation.B, 'length'),
-      L: inputToSI(state.foundation.L, 'length'),
-      Df: inputToSI(state.foundation.Df, 'length'),
-    };
-
-    // Convert conditions to SI
-    const conditionsForAPI = {
-      ...state.conditions,
-      waterTableDepth: inputToSI(state.conditions.waterTableDepth, 'length'),
-      basementDepth: inputToSI(state.conditions.basementDepth, 'length'),
-    };
 
     try {
       const response = await fetch('/api/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          foundation: foundationForAPI,
+          foundation: state.foundation,
           strata: strataForAPI,
-          conditions: conditionsForAPI,
+          conditions: state.conditions,
           method: state.method,
-          unit_config: { input: inputUnitConfig, output: outputUnitConfig },
         }),
       });
       if (!response.ok) {

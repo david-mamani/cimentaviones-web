@@ -4,7 +4,6 @@
 import { useState, useCallback } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useUnitStore } from '../../store/unitStore';
 import type {
   FoundationParams,
   Stratum,
@@ -22,6 +21,7 @@ const PDF_MIN_IMAGE_SIZE = 5000;  // bytes — below this it's likely a blank im
 const ERROR_TRUNCATE_LENGTH = 200;
 const PDF_BG_COLOR = '#ffffff';
 const PDF_TEXT_COLOR = '#333333';
+const G = 9.80665; // SI → Metric conversion
 
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi',
@@ -316,22 +316,18 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   }, [foundation, strata, conditions]);
 
   const handleExportCSV = useCallback(() => {
-    const { siToOutput, outputLabel } = useUnitStore.getState();
-    const lu = outputLabel('length');
-    const pu = outputLabel('pressure');
-    const fu = outputLabel('force');
     const rows = [
       ['Parámetro', 'Valor', 'Unidad'],
       ['Tipo', foundation.type, ''],
-      ['B', foundation.B, lu],
-      ['L', foundation.L, lu],
-      ['Df', foundation.Df, lu],
+      ['B', foundation.B, 'm'],
+      ['L', foundation.L, 'm'],
+      ['Df', foundation.Df, 'm'],
       ['FS', foundation.FS, ''],
-      ['qu', siToOutput(result.qu, 'pressure').toFixed(2), pu],
-      ['qnet', siToOutput(result.qnet, 'pressure').toFixed(2), pu],
-      ['qa', siToOutput(result.qa, 'pressure').toFixed(2), pu],
-      ['qaNet', siToOutput(result.qaNet, 'pressure').toFixed(2), pu],
-      ['Qmax', siToOutput(result.Qmax, 'force').toFixed(2), fu],
+      ['qu', (result.qu / G).toFixed(2), 't/m²'],
+      ['qnet', (result.qnet / G).toFixed(2), 't/m²'],
+      ['qa', (result.qa / G).toFixed(2), 't/m²'],
+      ['qaNet', (result.qaNet / G).toFixed(2), 't/m²'],
+      ['Qmax', (result.Qmax / G).toFixed(2), 'tnf'],
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -344,25 +340,21 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   }, [foundation, result]);
 
   const handleExportTXT = useCallback(() => {
-    const { siToOutput, outputLabel, inputLabel } = useUnitStore.getState();
-    const lu = inputLabel('length');
-    const pu = outputLabel('pressure');
-    const fu = outputLabel('force');
     const lines = [
       '═══════════════════════════════════════',
       '  Cimentaciones WEB — Reporte',
       '═══════════════════════════════════════',
       '',
       `Tipo: ${foundation.type}`,
-      `B = ${foundation.B} ${lu}, L = ${foundation.L} ${lu}, Df = ${foundation.Df} ${lu}`,
+      `B = ${foundation.B} m, L = ${foundation.L} m, Df = ${foundation.Df} m`,
       `FS = ${foundation.FS}, β = ${foundation.beta}°`,
       '',
       '── Resultados ──',
-      `qu = ${siToOutput(result.qu, 'pressure').toFixed(2)} ${pu}`,
-      `qneta = ${siToOutput(result.qnet, 'pressure').toFixed(2)} ${pu}`,
-      `qa = ${siToOutput(result.qa, 'pressure').toFixed(2)} ${pu}`,
-      `qa_neta = ${siToOutput(result.qaNet, 'pressure').toFixed(2)} ${pu}`,
-      `Qmax = ${siToOutput(result.Qmax, 'force').toFixed(2)} ${fu}`,
+      `qu = ${(result.qu / G).toFixed(2)} t/m²`,
+      `qneta = ${(result.qnet / G).toFixed(2)} t/m²`,
+      `qa = ${(result.qa / G).toFixed(2)} t/m²`,
+      `qa_neta = ${(result.qaNet / G).toFixed(2)} t/m²`,
+      `Qmax = ${(result.Qmax / G).toFixed(2)} tnf`,
       '',
       '── Factores ──',
       `Nc = ${result.bearingFactors.Nc.toFixed(2)}`,
@@ -582,45 +574,38 @@ function ResultRow({ label, value, unit, accent }: {
   );
 }
 
-/** Result row with automatic unit conversion */
+/** Result row with metric conversion */
 function ConvertedResultRow({ label, value, type, accent }: {
   label: string; value: number; type: 'pressure' | 'force'; accent?: boolean;
 }) {
-  const siToOutput = useUnitStore((s) => s.siToOutput);
-  const outputLabel = useUnitStore((s) => s.outputLabel);
-  const unit = outputLabel(type);
-  return <ResultRow label={label} value={siToOutput(value, type)} unit={unit} accent={accent} />;
+  const unit = type === 'pressure' ? 't/m²' : 'tnf';
+  return <ResultRow label={label} value={value / G} unit={unit} accent={accent} />;
 }
 
-/** Hero qa value with unit conversion */
+/** Hero qa value with metric conversion */
 function HeroResult({ value }: { value: number }) {
-  const siToOutput = useUnitStore((s) => s.siToOutput);
-  const outputLabel = useUnitStore((s) => s.outputLabel);
   return (
     <>
       <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-        {siToOutput(value, 'pressure').toFixed(2)}
+        {(value / G).toFixed(2)}
       </div>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{outputLabel('pressure')}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>t/m²</div>
     </>
   );
 }
 
 /** Inline value with conversion (for F1, F2, F3) */
 function ConvertedValue({ label, value }: { label: string; value: number }) {
-  const siToOutput = useUnitStore((s) => s.siToOutput);
   return (
-    <span style={{ color: 'var(--text-secondary)' }}>{label}={siToOutput(value, 'pressure').toFixed(2)}</span>
+    <span style={{ color: 'var(--text-secondary)' }}>{label}={(value / G).toFixed(2)}</span>
   );
 }
 
 /** Factors detail row with converted q and gamma */
 function FactorsDetail({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
-  const siToOutput = useUnitStore((s) => s.siToOutput);
-  const outputLabel = useUnitStore((s) => s.outputLabel);
   return (
     <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
-      q = {siToOutput(result.q, 'pressure').toFixed(2)} {outputLabel('pressure')} · γeff = {siToOutput(result.gammaEffective, 'unitWeight').toFixed(2)} {outputLabel('unitWeight')}
+      q = {(result.q / G).toFixed(2)} t/m² · γeff = {(result.gammaEffective / G).toFixed(2)} t/m³
     </div>
   );
 }

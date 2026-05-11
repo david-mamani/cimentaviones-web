@@ -70,6 +70,9 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
           <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
             David Mamani
           </p>
+          <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 4 }}>
+            Gaudy Platero
+          </p>
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
             Ingeniería Civil
           </p>

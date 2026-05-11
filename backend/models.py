@@ -30,7 +30,7 @@ class Stratum(BaseModel):
 
 class FoundationParams(BaseModel):
     """Parámetros de cimentación."""
-    type: Literal["cuadrada", "rectangular", "franja", "circular"]
+    type: Literal["cuadrada", "rectangular"]
     B: float = Field(gt=0, description="Ancho o lado (m)")
     L: float = Field(gt=0, description="Longitud (m)")
     Df: float = Field(ge=0, description="Profundidad de desplante (m)")

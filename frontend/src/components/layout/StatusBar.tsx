@@ -1,8 +1,10 @@
 /**
  * StatusBar — Bottom bar showing current state info.
+ * Hardcoded to Metric units.
  */
 import { useFoundationStore } from '../../store/foundationStore';
-import { useUnitStore } from '../../store/unitStore';
+
+const G = 9.80665;
 
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi',
@@ -15,10 +17,6 @@ export default function StatusBar() {
   const foundation = useFoundationStore((s) => s.foundation);
   const result = useFoundationStore((s) => s.result);
   const errors = useFoundationStore((s) => s.errors);
-  const siToOutput = useUnitStore((s) => s.siToOutput);
-  const outputLabel = useUnitStore((s) => s.outputLabel);
-  const inputLabel = useUnitStore((s) => s.inputLabel);
-  const fmt = useUnitStore((s) => s.fmt);
 
   return (
     <div style={{
@@ -36,12 +34,12 @@ export default function StatusBar() {
     }}>
       <span>Método: <strong style={{ color: 'var(--text-primary)' }}>{METHOD_LABELS[method]}</strong></span>
       <span>FS: <strong style={{ color: 'var(--text-primary)' }}>{foundation.FS}</strong></span>
-      <span>B: <strong style={{ color: 'var(--text-primary)' }}>{foundation.B}{inputLabel('length')}</strong></span>
-      <span>Df: <strong style={{ color: 'var(--text-primary)' }}>{foundation.Df}{inputLabel('length')}</strong></span>
+      <span>B: <strong style={{ color: 'var(--text-primary)' }}>{foundation.B}m</strong></span>
+      <span>Df: <strong style={{ color: 'var(--text-primary)' }}>{foundation.Df}m</strong></span>
       {result && (
         <>
           <span style={{ color: 'var(--success)' }}>
-            qa = {fmt(siToOutput(result.qa, 'pressure'))} {outputLabel('pressure')}
+            qa = {(result.qa / G).toFixed(2)} t/m²
           </span>
           <span>Estrato: {result.designStratumIndex + 1} ({result.soilType})</span>
         </>
