@@ -51,10 +51,7 @@ interface FoundationState {
   iterationResults: IterationResult | null;
   
   // Iteration config
-  iterationConfig: {
-    varyB: boolean; bStart: number; bEnd: number; bStep: number;
-    varyDf: boolean; dfStart: number; dfEnd: number; dfStep: number;
-  };
+  iterationConfig: IterationConfig;
 
   // Loading state
   isCalculating: boolean;
@@ -91,10 +88,16 @@ interface FoundationState {
   // Acciones - Iterations
   setIterationResults: (data: IterationResult) => void;
   clearIterationResults: () => void;
-  setIterationConfig: (config: any) => void;
+  setIterationConfig: (config: IterationConfig) => void;
 
   // Acciones - Proyecto
   loadProject: (data: ProjectData) => void;
+}
+
+/** Configuración de iteraciones paramétricas */
+export interface IterationConfig {
+  varyB: boolean; bStart: number; bEnd: number; bStep: number;
+  varyDf: boolean; dfStart: number; dfEnd: number; dfStep: number;
 }
 
 /** Datos serializables del proyecto */
@@ -105,7 +108,7 @@ export interface ProjectData {
   method: CalculationMethod;
   lbLocked?: boolean;
   lbRatio?: number;
-  iterationConfig?: any;
+  iterationConfig?: IterationConfig;
 }
 
 const defaultFoundation: FoundationParams = {
@@ -255,25 +258,25 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   },
 
   calculate: async () => {
-    if (get().isCalculating) return; // Prevent double-click
+    if (get().isCalculating) return;
     set({ isCalculating: true, errors: [] });
     const state = get();
 
-    // Los valores de input ya están en Métrico (m, t/m³, t/m², °)
-    // El motor ProyectoC recibe estos valores y hace la conversión interna a SI
-    // Los inputs se convierten a SI usando G=9.80665: gamma*G → kN/m³, c*G → kPa
+    // Inputs en Métrico (m, t/m³, t/m², °) → conversión a SI antes de enviar al motor
     const G = 9.80665;
     const strataForAPI = state.strata.map((s) => ({
       ...s,
-      gamma: s.gamma * G,     // t/m³ → kN/m³
-      c: s.c * G,             // t/m² → kPa
+      gamma: s.gamma * G,       // t/m³ → kN/m³
+      c: s.c * G,               // t/m² → kPa
       gammaSat: s.gammaSat * G, // t/m³ → kN/m³
     }));
 
+    const controller = new AbortController();
     try {
       const response = await fetch('/api/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           foundation: state.foundation,
           strata: strataForAPI,
@@ -288,6 +291,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       const result = await response.json();
       set({ result, errors: [], isCalculating: false });
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       const message = error instanceof Error ? error.message : 'Error desconocido en el cálculo';
       set({ errors: [message], result: null, isCalculating: false });
     }

@@ -6,12 +6,11 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { IterationResult } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
-// @ts-ignore — plotly.js-basic-dist-min has no types
+// @ts-expect-error — plotly.js-basic-dist-min no publica tipos; se usa la build minificada para reducir bundle
 import Plotly from 'plotly.js-basic-dist-min';
-// @ts-ignore — factory export
+// @ts-expect-error — react-plotly.js/factory no exporta tipos; la interop ESM varía según bundler
 import factoryModule from 'react-plotly.js/factory';
-// @ts-ignore — ESM interop
-const createPlotlyComponent = factoryModule.default || factoryModule;
+const createPlotlyComponent = (factoryModule as { default?: typeof factoryModule }).default ?? factoryModule;
 const Plot = createPlotlyComponent(Plotly);
 
 const COLORS = [

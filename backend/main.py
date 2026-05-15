@@ -8,13 +8,15 @@ Endpoints:
   POST /api/export-pdf → Generar reporte PDF via LaTeX
 """
 
+import os
 import sys
+import math
 from pathlib import Path
 
 # Agregar directorio raíz al path para importar calculos/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
@@ -30,12 +32,17 @@ app = FastAPI(
     version="1.1.0",
 )
 
-# CORS para desarrollo local (frontend en otro puerto)
+# CORS: en producción, definir ALLOWED_ORIGINS como lista separada por comas
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+_allowed_origins: list[str] = (
+    ["*"] if _raw_origins == "*" else [o.strip() for o in _raw_origins.split(",") if o.strip()]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -50,10 +57,16 @@ def calculate(input_data: CalculationInput):
     try:
         raw = input_data.model_dump()
         result = calculate_proyectoc_bearing_capacity(raw)
-        
+
+        # Guard: valores numéricos críticos no deben ser NaN ni Infinity
+        for key in ("qu", "qa", "qnet", "qaNet"):
+            val = result.get(key)
+            if val is not None and (math.isnan(val) or math.isinf(val)):
+                raise ValueError(f"El resultado '{key}' es inválido ({val}). Revise los parámetros de entrada.")
+
         from services.markdown_generator import generate_resolution_md
         result["resolution_md"] = generate_resolution_md(raw, result, raw.get("unit_config"))
-        
+
         return result
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
