@@ -23,8 +23,6 @@ import { useViewerSettings } from '../../store/viewerSettingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import ViewerSettingsPanel from './ViewerSettingsPanel';
 
-const API_BASE = '';
-
 // IFC type IDs — imported from web-ifc (never hardcode these!)
 const IFCSLAB = WebIFC.IFCSLAB;
 const IFCFOOTING = WebIFC.IFCFOOTING;
@@ -453,7 +451,7 @@ export default function IfcViewer() {
       };
 
       // Fetch IFC from backend
-      const response = await fetch(`${API_BASE}/api/export-ifc`, {
+      const response = await fetch('/api/export-ifc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -701,7 +699,7 @@ export default function IfcViewer() {
         },
       };
 
-      const response = await fetch(`${API_BASE}/api/export-ifc`, {
+      const response = await fetch('/api/export-ifc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

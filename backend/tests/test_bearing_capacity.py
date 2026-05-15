@@ -5,7 +5,7 @@ Casos idénticos a los del Vitest original (bearingCapacity.test.ts).
 """
 
 import pytest
-from calculos.bearing_factors import get_bearing_factors
+from calculos.factors import get_bearing_factors
 from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
 

@@ -12,8 +12,6 @@ import type {
   CalculationMethod,
 } from '../../types/geotechnical';
 
-const API_BASE = '';
-
 // PDF export configuration
 const PDF_RENDER_WIDTH = 1200;
 const PDF_JPEG_QUALITY = 0.85;
@@ -133,7 +131,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             const svgClone = targetSvg.cloneNode(true) as SVGSVGElement;
 
             // Compute standardized viewBox (same formula as Viewer2D init)
-            const totalDepth = strata.reduce((sum: number, s: any) => sum + s.thickness, 0);
+            const totalDepth = strata.reduce((sum: number, s) => sum + s.thickness, 0);
             const SOIL_SIDE_PADDING = 2;
             const VIEWBOX_MARGIN = 2;
             const LABEL_SPACE = 5;
@@ -236,7 +234,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
 
       const body: Record<string, unknown> = {
         foundation,
-        strata: strata.map((s: any) => ({
+        strata: strata.map((s) => ({
           id: s.id, thickness: s.thickness, gamma: s.gamma,
           c: s.c, phi: s.phi, gammaSat: s.gammaSat,
         })),
@@ -252,7 +250,7 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         body.iteration_results = iterationResults;
       }
 
-      const response = await fetch(`${API_BASE}/api/export-pdf`, {
+      const response = await fetch('/api/export-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -270,10 +268,9 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       a.download = 'reporte-cimentaciones.pdf';
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('PDF export error:', err);
-      // Show a short, user-friendly message instead of full pdflatex output
-      const msg = String(err.message || '');
+      const msg = err instanceof Error ? err.message : String(err);
       const short = msg.length > ERROR_TRUNCATE_LENGTH
         ? msg.slice(0, ERROR_TRUNCATE_LENGTH) + '...'
         : msg;
@@ -291,13 +288,13 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           L: foundation.type === 'cuadrada' ? foundation.B : foundation.L,
           Df: foundation.Df, FS: foundation.FS, beta: foundation.beta,
         },
-        strata: strata.map((s: any) => ({
+        strata: strata.map((s) => ({
           id: s.id, thickness: s.thickness, gamma: s.gamma,
           c: s.c, phi: s.phi, gammaSat: s.gammaSat,
         })),
         conditions,
       };
-      const response = await fetch(`${API_BASE}/api/export-ifc`, {
+      const response = await fetch('/api/export-ifc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
