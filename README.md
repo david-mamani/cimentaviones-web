@@ -4,7 +4,7 @@
 
 **Stack**: React + TypeScript + Vite + Zustand (Frontend) | FastAPI + Python + ifcopenshell + pdfLaTeX (Backend) | Docker
 
-## 🚀 Características Principales
+##  Características Principales
 
 *   **Motor de Cálculo Geotécnico Riguroso**: Implementa las formulaciones de **Terzaghi Clásico** y la **Ecuación General de Capacidad Portante** (Das/Meyerhof), además de comprobaciones normativas locales (RNE E.050).
 *   **Transparencia de Cálculos**: Generación de memoria de cálculo detallada paso a paso, renderizada en **LaTeX** directamente en el frontend.
@@ -15,7 +15,7 @@
 *   **Reportes PDF Profesionales**: Exportación de reportes de ingeniería utilizando **LaTeX**, con tablas de iteraciones, citas bibliográficas (Terzaghi, Meyerhof, Das) e imágenes de las vistas 2D y 3D en alta fidelidad.
 *   **Estética Elegante (Dark/Light Mode)**: Diseño enfocado en productividad profesional con tipografía y jerarquía visual optimizadas (inspirado en software CAD e IDEs modernos).
 
-## 📁 Estructura del Proyecto
+##  Estructura del Proyecto
 
 El código está estructurado en una arquitectura cliente-servidor estrictamente desacoplada:
 
@@ -36,7 +36,7 @@ El código está estructurado en una arquitectura cliente-servidor estrictamente
     *   `markdown_generator.py`: Generador de resoluciones paso a paso para la UI.
 *   `main.py` y `models.py`: API REST con validaciones estrictas usando **Pydantic** y endpoints FastAPI.
 
-## ⚙️ Instalación y Entorno de Desarrollo
+##  Instalación y Entorno de Desarrollo
 
 ### Requisitos Previos
 *   **Node.js** (v18+)
@@ -78,6 +78,6 @@ La aplicación estará disponible en `http://localhost:5173` y la API en `http:/
 4.  **Respuesta Híbrida**: Se retornan los tensores de datos (`CalculationResult`) junto con el `resolution_md` inyectado para la UI.
 5.  **Exportación**: Cuando el usuario solicita un PDF o IFC, se envían los tensores a los `services/` correspondientes que orquestan las librerías binarias.
 
-## 📜 Licencia
+##  Licencia
 
 Desarrollado para fines académicos y de investigación. Ingeniería de software aplicada a la geotecnia.
