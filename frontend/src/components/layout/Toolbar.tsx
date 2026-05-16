@@ -6,14 +6,14 @@
 import { useState, useRef } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { ProjectData } from '../../store/foundationStore';
-import { foundationSchema, stratumSchema, conditionsSchema, validateCalculationInput } from '../../lib/validation';
+import { triggerCalculateWithValidation } from '../../lib/calculateHelper';
 import CreditsModal from './CreditsModal';
 import {
   Save, FolderOpen, Play, RotateCcw,
   Square, Box, SplitSquareHorizontal,
   BarChart3, Table2, Info,
   PanelLeft, PanelRight,
-  Sun, Moon, Loader2,
+  Sun, Moon, Loader2, Frame,
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -36,8 +36,6 @@ export default function Toolbar({
   const strata = useFoundationStore((s) => s.strata);
   const conditions = useFoundationStore((s) => s.conditions);
   const method = useFoundationStore((s) => s.method);
-  const calculate = useFoundationStore((s) => s.calculate);
-  const setErrors = useFoundationStore((s) => s.setErrors);
   const reset = useFoundationStore((s) => s.reset);
   const loadProject = useFoundationStore((s) => s.loadProject);
   const lbLocked = useFoundationStore((s) => s.lbLocked);
@@ -48,29 +46,7 @@ export default function Toolbar({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCalculate = () => {
-    const fResult = foundationSchema.safeParse(foundation);
-    if (!fResult.success) {
-      setErrors(fResult.error.issues.map((e: { message: string }) => e.message));
-      return;
-    }
-    const strataErrors: string[] = [];
-    strata.forEach((s, i) => {
-      const sResult = stratumSchema.safeParse(s);
-      if (!sResult.success) {
-        sResult.error.issues.forEach((e: { message: string }) => {
-          strataErrors.push(`Estrato ${i + 1}: ${e.message}`);
-        });
-      }
-    });
-    if (strataErrors.length > 0) { setErrors(strataErrors); return; }
-    const cResult = conditionsSchema.safeParse(conditions);
-    if (!cResult.success) {
-      setErrors(cResult.error.issues.map((e: { message: string }) => e.message));
-      return;
-    }
-    const crossErrors = validateCalculationInput(fResult.data, strata, cResult.data);
-    if (crossErrors.length > 0) { setErrors(crossErrors); return; }
-    calculate();
+    triggerCalculateWithValidation();
   };
 
   const handleSaveProject = () => {
@@ -166,6 +142,7 @@ export default function Toolbar({
         {/* View buttons — all visible as icons */}
         <ToolBtn icon={<Square size={15} />} title="Vista 2D" onClick={() => onOpenTab('2d')} />
         <ToolBtn icon={<Box size={15} />} title="Vista 3D" onClick={() => onOpenTab('3d')} />
+        <ToolBtn icon={<Frame size={15} />} title="Diseño de Cimentación" onClick={() => onOpenTab('foundation-design')} />
         <ToolBtn
           icon={<SplitSquareHorizontal size={15} />}
           title={viewMode === 'split' ? 'Desactivar Split' : 'Activar Split'}

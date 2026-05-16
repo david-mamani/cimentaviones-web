@@ -1,31 +1,56 @@
 /**
- * OutputPanel — Right panel: output configuration, quick results, and all export actions.
+ * OutputPanel — Right panel: botón Calcular + selector de criterio + resultados + export.
+ *
+ * Estructura:
+ *   1. CalculateSection — botón Calcular y selector de criterio
+ *   2. (si hay errores) — banner de errores
+ *   3. (si hay resultado):
+ *        QuickResultSection (con valores del criterio seleccionado)
+ *        EccentricitySection (solo si eccentricity != null)
+ *        FactorsSection
+ *        WarningsSection
+ *   4. ExportSection — opciones y botones de exportación
+ *
+ * Convención: todos los valores numéricos se muestran con 3 decimales.
  */
 import { useState, useCallback } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { triggerCalculateWithValidation } from '../../lib/calculateHelper';
 import type {
   FoundationParams,
   Stratum,
   SpecialConditions,
   CalculationResult,
   CalculationMethod,
+  CriterionKey,
+  EccentricityInfo,
 } from '../../types/geotechnical';
+import { Play, Loader2 } from 'lucide-react';
 
-// PDF export configuration
 const PDF_RENDER_WIDTH = 1200;
 const PDF_JPEG_QUALITY = 0.85;
-const PDF_MIN_IMAGE_SIZE = 5000;  // bytes — below this it's likely a blank image
+const PDF_MIN_IMAGE_SIZE = 5000;
 const ERROR_TRUNCATE_LENGTH = 200;
 const PDF_BG_COLOR = '#ffffff';
 const PDF_TEXT_COLOR = '#333333';
-const G = 9.80665; // SI → Metric conversion
+const G = 9.80665;
 
-const METHOD_LABELS: Record<string, string> = {
+const METHOD_LABELS: Record<CalculationMethod, string> = {
   terzaghi: 'Terzaghi',
-  general: 'Ec. General (Das)',
+  general: 'Ec. General',
   rne: 'RNE E.050',
 };
+
+const CRITERION_LABELS: Record<CriterionKey, string> = {
+  general: 'General (S₁+S₂+S₃)',
+  rne: 'RNE',
+  rne_corrected: 'RNE corregido',
+};
+
+/** Formato de 3 decimales para valores numéricos */
+const fmt3 = (v: number | null | undefined): string =>
+  (v == null || !isFinite(v)) ? '—' : v.toFixed(3);
 
 export default function OutputPanel() {
   const result = useFoundationStore((s) => s.result);
@@ -34,10 +59,12 @@ export default function OutputPanel() {
   const strata = useFoundationStore((s) => s.strata);
   const conditions = useFoundationStore((s) => s.conditions);
   const method = useFoundationStore((s) => s.method);
+  const selectedCriterion = useFoundationStore((s) => s.selectedCriterion);
 
   return (
     <div>
-      {/* Errors */}
+      <CalculateSection />
+
       {errors.length > 0 && (
         <div style={{
           padding: 10,
@@ -53,33 +80,323 @@ export default function OutputPanel() {
         </div>
       )}
 
-      {/* Quick results */}
       {result && (
         <>
-          <QuickResultSection result={result} />
+          <QuickResultSection result={result} method={method} criterion={selectedCriterion} />
+          {result.eccentricity && <EccentricitySection eccentricity={result.eccentricity} />}
           <FactorsSection result={result} />
+          {result.warnings && result.warnings.length > 0 && (
+            <WarningsSection warnings={result.warnings} />
+          )}
           <RNESection result={result} />
+          <ExportSection
+            foundation={foundation}
+            strata={strata}
+            conditions={conditions}
+            method={method}
+            result={result}
+          />
         </>
-      )}
-
-      {/* Export actions — only when there are results */}
-      {result && (
-        <ExportSection
-          foundation={foundation}
-          strata={strata}
-          conditions={conditions}
-          method={method}
-          result={result}
-        />
       )}
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════
- * EXPORT SECTION
+ * CALCULATE: botón + selector de criterio
  * ═══════════════════════════════════════════════ */
+function CalculateSection() {
+  const isCalculating = useFoundationStore((s) => s.isCalculating);
+  const selectedCriterion = useFoundationStore((s) => s.selectedCriterion);
+  const setSelectedCriterion = useFoundationStore((s) => s.setSelectedCriterion);
 
+  return (
+    <div style={{
+      padding: 10,
+      borderBottom: '1px solid var(--border)',
+      background: 'var(--bg-surface-2)',
+    }}>
+      <button
+        onClick={() => triggerCalculateWithValidation()}
+        disabled={isCalculating}
+        style={{
+          width: '100%', padding: '9px 0',
+          background: isCalculating ? 'var(--bg-surface-3)' : 'var(--accent)',
+          border: 'none', borderRadius: 20,
+          color: isCalculating ? 'var(--text-secondary)' : 'var(--bg-base)',
+          fontSize: 12, fontWeight: 700,
+          fontFamily: 'var(--font-sans)',
+          cursor: isCalculating ? 'wait' : 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          transition: 'all var(--transition-fast)',
+        }}
+        onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent-hover)'; }}
+        onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent)'; }}
+      >
+        {isCalculating
+          ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+          : <Play size={14} />}
+        {isCalculating ? 'Calculando...' : 'Calcular'}
+      </button>
+
+      {/* Selector de criterio */}
+      <div style={{ marginTop: 10 }}>
+        <div style={{
+          fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
+          textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4,
+        }}>
+          Criterio a mostrar
+        </div>
+        <div style={{ display: 'flex', gap: 3 }}>
+          {(['general', 'rne', 'rne_corrected'] as CriterionKey[]).map((c) => (
+            <button
+              key={c}
+              onClick={() => setSelectedCriterion(c)}
+              style={{
+                flex: 1, padding: '5px 4px',
+                background: selectedCriterion === c ? 'var(--accent-bg)' : 'var(--bg-surface-1)',
+                border: `1px solid ${selectedCriterion === c ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-sm)',
+                color: selectedCriterion === c ? 'var(--accent)' : 'var(--text-primary)',
+                fontSize: 9,
+                fontWeight: selectedCriterion === c ? 600 : 500,
+                fontFamily: 'var(--font-sans)',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              {CRITERION_LABELS[c]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * QUICK RESULT — valores según método activo + criterio seleccionado
+ * ═══════════════════════════════════════════════ */
+function QuickResultSection({ result, method, criterion }: {
+  result: CalculationResult; method: CalculationMethod; criterion: CriterionKey;
+}) {
+  // Obtener qu/qa del criterio seleccionado (de methodCriteriaMatrix si está disponible)
+  const matrixBlock = result.methodCriteriaMatrix?.[method];
+  const critData = matrixBlock?.criteria?.[criterion];
+
+  // Fallback: si no hay matrixBlock (motor antiguo), usar campos top-level
+  const qu = critData?.qu ?? result.qu;
+  const qa = critData?.qa ?? result.qa;
+  const Qmax = critData?.Qmax ?? result.Qmax;
+  const S1 = matrixBlock?.S1 ?? result.F1;
+  const S2 = matrixBlock?.S2 ?? result.F2;
+  const S3 = matrixBlock?.S3 ?? result.F3;
+  const qnet = qu - result.q;
+  const qa_net = qnet / (qu > 0 ? (qu / qa) : 1);
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="section-header" style={{ cursor: 'default' }}>
+        Resultados — {METHOD_LABELS[method]} / {CRITERION_LABELS[criterion]}
+      </div>
+      <div style={{ padding: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+          <span style={{
+            fontSize: 9, fontWeight: 700, padding: '3px 8px',
+            background: result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.12)' : 'var(--accent-bg)',
+            color: result.soilType === 'Coh' ? 'var(--info)' : 'var(--accent)',
+            border: `1px solid ${result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.25)' : 'var(--border-accent)'}`,
+            borderRadius: 'var(--radius-sm)',
+            textTransform: 'uppercase', letterSpacing: 0.5,
+          }}>
+            {result.soilType === 'Coh' ? 'Cohesivo' : 'Friccionante'}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+            Estrato {result.designStratumIndex + 1}
+          </span>
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '8px 0 12px' }}>
+          <div style={{
+            fontSize: 9, color: 'var(--text-muted)',
+            textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4,
+          }}>
+            Capacidad admisible
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+            {fmt3(qa / G)}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>t/m²</div>
+        </div>
+
+        <ResultRow label="qu" value={qu / G} unit="t/m²" />
+        <ResultRow label="qneta" value={qnet / G} unit="t/m²" />
+        <ResultRow label="qa_neta" value={qa_net / G} unit="t/m²" />
+        <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+        <ResultRow label="Q_max" value={Qmax / G} unit="tnf" accent />
+
+        <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+        <div style={{
+          fontSize: 9, color: 'var(--text-muted)', marginBottom: 4,
+          textTransform: 'uppercase', letterSpacing: 0.5,
+        }}>
+          Sumandos
+        </div>
+        <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>S₁={fmt3(S1 / G)}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>S₂={fmt3(S2 / G)}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>S₃={fmt3(S3 / G)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * ECCENTRICITY — Solo si hay e1, e2 o Q
+ * ═══════════════════════════════════════════════ */
+function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo }) {
+  const ec = eccentricity;
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="section-header" style={{ cursor: 'default' }}>
+        Excentricidad
+      </div>
+      <div style={{ padding: 10 }}>
+        <div style={{
+          fontSize: 9, color: 'var(--text-muted)', marginBottom: 6,
+          textTransform: 'uppercase', letterSpacing: 0.5,
+        }}>
+          Régimen: <strong style={{ color: 'var(--text-primary)' }}>{ec.regime}</strong>
+        </div>
+        <ResultRow label="B'" value={ec.B_eff} unit="m" />
+        <ResultRow label="L'" value={ec.L_eff} unit="m" />
+        <ResultRow label="A'" value={ec.A_eff} unit="m²" />
+        {ec.qmax != null && (
+          <>
+            <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+            <ResultRow label="q_max" value={ec.qmax / G} unit="t/m²" />
+            <ResultRow label="q_min" value={ec.qmin != null ? ec.qmin / G : 0} unit="t/m²" />
+          </>
+        )}
+        {ec.FS_real != null && (
+          <>
+            <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+            <ResultRow label="FS_real" value={ec.FS_real} unit="" accent />
+            <div style={{ marginTop: 6 }}>
+              <span style={{
+                display: 'inline-block', padding: '3px 8px',
+                fontSize: 10, fontWeight: 700,
+                background: ec.valid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: ec.valid ? 'var(--success, #22c55e)' : 'var(--error, #ef4444)',
+                border: `1px solid ${ec.valid ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                borderRadius: 'var(--radius-sm)',
+                textTransform: 'uppercase', letterSpacing: 0.5,
+              }}>
+                {ec.valid ? '✓ Diseño Válido' : '✗ Falla — FS Insuficiente'}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * FACTORS — Nc, Nq, Nγ y factores correctivos
+ * ═══════════════════════════════════════════════ */
+function FactorsSection({ result }: { result: CalculationResult }) {
+  const bf = result.bearingFactors;
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="section-header" style={{ cursor: 'default' }}>
+        Factores
+      </div>
+      <div style={{ padding: 10 }}>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: 'var(--text-primary)' }}>Nc={fmt3(bf.Nc)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>Nq={fmt3(bf.Nq)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>Nγ={fmt3(bf.Ngamma)}</span>
+        </div>
+        <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
+          q = {fmt3(result.q / G)} t/m² · γeff = {fmt3(result.gammaEffective / G)} t/m³
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * WARNINGS — Avisos del motor
+ * ═══════════════════════════════════════════════ */
+function WarningsSection({ warnings }: { warnings: string[] }) {
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="section-header" style={{ cursor: 'default' }}>
+        Advertencias ({warnings.length})
+      </div>
+      <div style={{ padding: 10 }}>
+        {warnings.map((w, i) => (
+          <div key={i} style={{
+            fontSize: 10, color: 'var(--warning, #f59e0b)', marginBottom: 4,
+            paddingLeft: 8, borderLeft: '2px solid var(--warning, #f59e0b)',
+            lineHeight: 1.4,
+          }}>
+            {w}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * RNE CONSIDERATION — info adicional
+ * ═══════════════════════════════════════════════ */
+function RNESection({ result }: { result: CalculationResult }) {
+  if (!result.rneConsideration) return null;
+  const rne = result.rneConsideration;
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="section-header" style={{ cursor: 'default' }}>
+        Consideración RNE (método activo)
+      </div>
+      <div style={{ padding: 10 }}>
+        <ResultRow label="qu RNE" value={rne.qultRNE / G} unit="t/m²" />
+        <ResultRow label="qa RNE" value={rne.qadmRNE / G} unit="t/m²" />
+        <ResultRow label="qu RNE corr." value={rne.qultRNECorrected / G} unit="t/m²" />
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * UTILITY — fila de resultado
+ * ═══════════════════════════════════════════════ */
+function ResultRow({ label, value, unit, accent }: {
+  label: string; value: number; unit: string; accent?: boolean;
+}) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '3px 0', fontSize: 11,
+    }}>
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span style={{
+        fontFamily: 'var(--font-mono)',
+        color: accent ? 'var(--accent)' : 'var(--text-primary)',
+        fontWeight: accent ? 700 : 500,
+      }}>
+        {fmt3(value)} <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{unit}</span>
+      </span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * EXPORT SECTION — (sin cambios funcionales)
+ * ═══════════════════════════════════════════════ */
 function ExportSection({ foundation, strata, conditions, method, result }: {
   foundation: FoundationParams;
   strata: Stratum[];
@@ -102,12 +419,8 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
     setPdfOptions(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
   };
 
-  // Capture standardized images for PDF (white backgrounds, clean renders)
-  // Temporarily reveals hidden tabs to ensure correct rendering dimensions
   const captureImages = useCallback(async () => {
     const images: Record<string, string> = {};
-
-    // ── Temporarily show ALL hidden tab panes so canvases/SVGs have dimensions ──
     const hiddenPanes: HTMLElement[] = [];
     document.querySelectorAll('[style*="display: none"]').forEach((el) => {
       const htmlEl = el as HTMLElement;
@@ -116,21 +429,14 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         hiddenPanes.push(htmlEl);
       }
     });
-
-    // Wait a frame for layout recalculation
     await new Promise((r) => requestAnimationFrame(r));
     await new Promise((r) => setTimeout(r, 100));
-
     try {
-      // ── 2D: SVG → Canvas with white background ──
       if (pdfOptions.include_2d) {
-        // Use the unique data-viewer2d attribute to find the correct SVG
         const targetSvg = document.querySelector('svg[data-viewer2d="true"]') as SVGSVGElement | null;
         if (targetSvg) {
           try {
             const svgClone = targetSvg.cloneNode(true) as SVGSVGElement;
-
-            // Compute standardized viewBox (same formula as Viewer2D init)
             const totalDepth = strata.reduce((sum: number, s) => sum + s.thickness, 0);
             const SOIL_SIDE_PADDING = 2;
             const VIEWBOX_MARGIN = 2;
@@ -145,14 +451,10 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
               h: totalDepth + VIEWBOX_MARGIN * 2 + 1,
             };
             svgClone.setAttribute('viewBox', `${stdViewBox.x} ${stdViewBox.y} ${stdViewBox.w} ${stdViewBox.h}`);
-
-            // Set fixed render dimensions
             const renderW = PDF_RENDER_WIDTH;
             const renderH = Math.round(renderW * (stdViewBox.h / stdViewBox.w));
             svgClone.setAttribute('width', String(renderW));
             svgClone.setAttribute('height', String(renderH));
-
-            // Force white background as first element
             const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             bgRect.setAttribute('x', String(stdViewBox.x));
             bgRect.setAttribute('y', String(stdViewBox.y));
@@ -160,26 +462,21 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             bgRect.setAttribute('height', String(stdViewBox.h));
             bgRect.setAttribute('fill', PDF_BG_COLOR);
             svgClone.insertBefore(bgRect, svgClone.firstChild);
-
-            // Make all text dark for white background readability
             svgClone.querySelectorAll('text').forEach((t) => {
               const fill = t.getAttribute('fill');
               if (fill && (fill.startsWith('#a') || fill.startsWith('#b') || fill.startsWith('#c') || fill.startsWith('#d') || fill.startsWith('#e') || fill.startsWith('#f') || fill === 'white' || fill === '#fff' || fill === '#ffffff')) {
                 t.setAttribute('fill', PDF_TEXT_COLOR);
               }
             });
-
             const svgData = new XMLSerializer().serializeToString(svgClone);
             const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
-
             const img = new Image();
             await new Promise<void>((resolve, reject) => {
               img.onload = () => resolve();
               img.onerror = reject;
               img.src = url;
             });
-
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = renderW * 2;
             tempCanvas.height = renderH * 2;
@@ -199,13 +496,11 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         }
       }
 
-      // ── 3D: Use workspace store captureView3D (white bg, 0.15 strata, no grid) ──
       if (pdfOptions.include_3d) {
         try {
           const capture = useWorkspaceStore.getState().captureView3D;
           if (typeof capture === 'function') {
             const dataUrl = capture();
-            // Validate: must be > 5KB to be a real image
             if (dataUrl && dataUrl.length > PDF_MIN_IMAGE_SIZE) {
               images.view3d_b64 = dataUrl;
             }
@@ -214,53 +509,36 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           console.warn('Could not capture 3D view:', e);
         }
       }
-
-      // ── Charts: Will be generated server-side with matplotlib ──
-      // No frontend capture needed for charts
     } finally {
-      // ── Restore hidden panes ──
-      hiddenPanes.forEach((el) => {
-        el.style.display = 'none';
-      });
+      hiddenPanes.forEach((el) => { el.style.display = 'none'; });
     }
-
     return images;
-  }, [pdfOptions]);
+  }, [pdfOptions, foundation.B, strata]);
 
   const handleExportPDF = useCallback(async () => {
     setPdfLoading(true);
     try {
       const images = await captureImages();
-
       const body: Record<string, unknown> = {
         foundation,
         strata: strata.map((s) => ({
           id: s.id, thickness: s.thickness, gamma: s.gamma,
           c: s.c, phi: s.phi, gammaSat: s.gammaSat,
         })),
-        conditions,
-        method,
-        result,
-        options: pdfOptions,
+        conditions, method, result, options: pdfOptions,
         images: Object.keys(images).length > 0 ? images : null,
       };
-
-      // Always include iteration results if available (needed for table AND chart)
-      if (iterationResults) {
-        body.iteration_results = iterationResults;
-      }
+      if (iterationResults) body.iteration_results = iterationResults;
 
       const response = await fetch('/api/export-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-
       if (!response.ok) {
         const err = await response.json().catch(() => ({ detail: 'Error del servidor' }));
         throw new Error(err.detail || `Error ${response.status}`);
       }
-
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -271,14 +549,12 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
     } catch (err: unknown) {
       console.error('PDF export error:', err);
       const msg = err instanceof Error ? err.message : String(err);
-      const short = msg.length > ERROR_TRUNCATE_LENGTH
-        ? msg.slice(0, ERROR_TRUNCATE_LENGTH) + '...'
-        : msg;
+      const short = msg.length > ERROR_TRUNCATE_LENGTH ? msg.slice(0, ERROR_TRUNCATE_LENGTH) + '...' : msg;
       alert(`Error al exportar PDF: ${short}`);
     } finally {
       setPdfLoading(false);
     }
-  }, [foundation, strata, conditions, method, result, pdfOptions, captureImages]);
+  }, [foundation, strata, conditions, method, result, pdfOptions, iterationResults, captureImages]);
 
   const handleExportIFC = useCallback(async () => {
     try {
@@ -320,11 +596,11 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       ['L', foundation.L, 'm'],
       ['Df', foundation.Df, 'm'],
       ['FS', foundation.FS, ''],
-      ['qu', (result.qu / G).toFixed(2), 't/m²'],
-      ['qnet', (result.qnet / G).toFixed(2), 't/m²'],
-      ['qa', (result.qa / G).toFixed(2), 't/m²'],
-      ['qaNet', (result.qaNet / G).toFixed(2), 't/m²'],
-      ['Qmax', (result.Qmax / G).toFixed(2), 'tnf'],
+      ['qu', (result.qu / G).toFixed(3), 't/m²'],
+      ['qnet', (result.qnet / G).toFixed(3), 't/m²'],
+      ['qa', (result.qa / G).toFixed(3), 't/m²'],
+      ['qaNet', (result.qaNet / G).toFixed(3), 't/m²'],
+      ['Qmax', (result.Qmax / G).toFixed(3), 'tnf'],
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -347,18 +623,18 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
       `FS = ${foundation.FS}, β = ${foundation.beta}°`,
       '',
       '── Resultados ──',
-      `qu = ${(result.qu / G).toFixed(2)} t/m²`,
-      `qneta = ${(result.qnet / G).toFixed(2)} t/m²`,
-      `qa = ${(result.qa / G).toFixed(2)} t/m²`,
-      `qa_neta = ${(result.qaNet / G).toFixed(2)} t/m²`,
-      `Qmax = ${(result.Qmax / G).toFixed(2)} tnf`,
+      `qu = ${(result.qu / G).toFixed(3)} t/m²`,
+      `qneta = ${(result.qnet / G).toFixed(3)} t/m²`,
+      `qa = ${(result.qa / G).toFixed(3)} t/m²`,
+      `qa_neta = ${(result.qaNet / G).toFixed(3)} t/m²`,
+      `Qmax = ${(result.Qmax / G).toFixed(3)} tnf`,
       '',
       '── Factores ──',
-      `Nc = ${result.bearingFactors.Nc.toFixed(2)}`,
-      `Nq = ${result.bearingFactors.Nq.toFixed(2)}`,
-      `Nγ = ${result.bearingFactors.Ngamma.toFixed(2)}`,
+      `Nc = ${result.bearingFactors.Nc.toFixed(3)}`,
+      `Nq = ${result.bearingFactors.Nq.toFixed(3)}`,
+      `Nγ = ${result.bearingFactors.Ngamma.toFixed(3)}`,
       '',
-      `Generado por Cimentaciones Web v1.1`,
+      'Generado por Cimentaciones Web v2',
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -371,11 +647,8 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
 
   return (
     <div style={{ borderTop: '1px solid var(--border)' }}>
-      <div className="section-header" style={{ cursor: 'default' }}>
-        Exportar
-      </div>
+      <div className="section-header" style={{ cursor: 'default' }}>Exportar</div>
 
-      {/* PDF Options */}
       <div style={{ padding: '10px 10px 6px' }}>
         <p style={{
           fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
@@ -408,7 +681,6 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         </div>
       </div>
 
-      {/* Export buttons */}
       <div style={{ padding: '8px 10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <button
           onClick={handleExportPDF}
@@ -416,8 +688,8 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
           style={{
             width: '100%', padding: '8px 0', fontSize: 11, fontWeight: 600,
             background: pdfLoading ? 'var(--bg-surface-3)' : 'var(--accent)',
-            border: 'none',
-            color: 'var(--bg-base)', borderRadius: 20, cursor: pdfLoading ? 'wait' : 'pointer',
+            border: 'none', color: 'var(--bg-base)',
+            borderRadius: 20, cursor: pdfLoading ? 'wait' : 'pointer',
             fontFamily: 'var(--font-sans)',
             transition: 'all var(--transition-fast)',
           }}
@@ -455,154 +727,5 @@ function ExportBtn({ icon, label, onClick }: { icon: string; label: string; onCl
     >
       {icon} {label}
     </button>
-  );
-}
-
-/* ═══════════════════════════════════════════════
- * RESULT SECTIONS
- * ═══════════════════════════════════════════════ */
-
-function QuickResultSection({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
-  return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="section-header" style={{ cursor: 'default' }}>
-        Resultados — {METHOD_LABELS[result.method]}
-      </div>
-      <div style={{ padding: 10 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
-        }}>
-          <span style={{
-            fontSize: 9, fontWeight: 700, padding: '3px 8px',
-            background: result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.12)' : 'var(--accent-bg)',
-            color: result.soilType === 'Coh' ? 'var(--info)' : 'var(--accent)',
-            border: `1px solid ${result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.25)' : 'var(--border-accent)'}`,
-            borderRadius: 'var(--radius-sm)',
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-          }}>
-            {result.soilType === 'Coh' ? 'Cohesivo' : 'Friccionante'}
-          </span>
-          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-            Estrato {result.designStratumIndex + 1}
-          </span>
-        </div>
-
-        {/* Hero result */}
-        <div style={{ textAlign: 'center', padding: '8px 0 12px' }}>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Capacidad admisible</div>
-          <HeroResult value={result.qa} />
-        </div>
-
-        <ConvertedResultRow label="qu" value={result.qu} type="pressure" />
-        <ConvertedResultRow label="qneta" value={result.qnet} type="pressure" />
-        <ConvertedResultRow label="qa_neta" value={result.qaNet} type="pressure" />
-        <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
-        <ConvertedResultRow label="Q_max" value={result.Qmax} type="force" accent />
-
-        <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
-        <p style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Términos</p>
-        <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'var(--font-mono)' }}>
-          <ConvertedValue label="F1" value={result.F1} />
-          <ConvertedValue label="F2" value={result.F2} />
-          <ConvertedValue label="F3" value={result.F3} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FactorsSection({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
-  const bf = result.bearingFactors;
-  return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="section-header" style={{ cursor: 'default' }}>
-        Factores
-      </div>
-      <div style={{ padding: 10 }}>
-        <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: 'var(--text-primary)' }}>Nc={bf.Nc.toFixed(2)}</span>
-          <span style={{ color: 'var(--text-primary)' }}>Nq={bf.Nq.toFixed(2)}</span>
-          <span style={{ color: 'var(--text-primary)' }}>Nγ={bf.Ngamma.toFixed(2)}</span>
-        </div>
-        <FactorsDetail result={result} />
-      </div>
-    </div>
-  );
-}
-
-function RNESection({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
-  if (!result.rneConsideration) return null;
-  const rne = result.rneConsideration;
-  return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="section-header" style={{ cursor: 'default' }}>
-        Consideración RNE
-      </div>
-      <div style={{ padding: 10 }}>
-        <ConvertedResultRow label="qu RNE" value={rne.qultRNE} type="pressure" />
-        <ConvertedResultRow label="qa RNE" value={rne.qadmRNE} type="pressure" />
-        <ConvertedResultRow label="qu RNE corr." value={rne.qultRNECorrected} type="pressure" />
-      </div>
-    </div>
-  );
-}
-
-function ResultRow({ label, value, unit, accent }: {
-  label: string; value: number; unit: string; accent?: boolean;
-}) {
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '3px 0',
-      fontSize: 11,
-    }}>
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        color: accent ? 'var(--accent)' : 'var(--text-primary)',
-        fontWeight: accent ? 700 : 500,
-      }}>
-        {value.toFixed(2)} <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{unit}</span>
-      </span>
-    </div>
-  );
-}
-
-/** Result row with metric conversion */
-function ConvertedResultRow({ label, value, type, accent }: {
-  label: string; value: number; type: 'pressure' | 'force'; accent?: boolean;
-}) {
-  const unit = type === 'pressure' ? 't/m²' : 'tnf';
-  return <ResultRow label={label} value={value / G} unit={unit} accent={accent} />;
-}
-
-/** Hero qa value with metric conversion */
-function HeroResult({ value }: { value: number }) {
-  return (
-    <>
-      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-        {(value / G).toFixed(2)}
-      </div>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>t/m²</div>
-    </>
-  );
-}
-
-/** Inline value with conversion (for F1, F2, F3) */
-function ConvertedValue({ label, value }: { label: string; value: number }) {
-  return (
-    <span style={{ color: 'var(--text-secondary)' }}>{label}={(value / G).toFixed(2)}</span>
-  );
-}
-
-/** Factors detail row with converted q and gamma */
-function FactorsDetail({ result }: { result: NonNullable<ReturnType<typeof useFoundationStore.getState>['result']> }) {
-  return (
-    <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
-      q = {(result.q / G).toFixed(2)} t/m² · γeff = {(result.gammaEffective / G).toFixed(2)} t/m³
-    </div>
   );
 }

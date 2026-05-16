@@ -10,6 +10,7 @@ import ResultsPanel from '../visualization/ResultsPanel';
 import ParametricIterations from '../iterations/ParametricIterations';
 import IfcViewer from '../viewer3d/IfcViewer';
 import Viewer2D from '../viewer2d/Viewer2D';
+import FoundationDesignTab from '../foundation-design/FoundationDesignTab';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { TabType } from '../../store/workspaceStore';
 
@@ -24,6 +25,7 @@ const TAB_LABELS: Record<TabType, string> = {
   '3d': 'Vista 3D',
   charts: 'Gráficas',
   results: 'Resultados',
+  'foundation-design': 'Diseño de Cimentación',
 };
 
 interface WorkspaceProps {
@@ -251,6 +253,8 @@ function TabContent({ type }: { type: TabType; tabId: string }) {
           <ResultsPanel />
         </div>
       );
+    case 'foundation-design':
+      return <FoundationDesignTab />;
     default:
       return null;
   }

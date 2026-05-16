@@ -15,7 +15,7 @@
 
 import { create } from 'zustand';
 
-export type TabType = '2d' | '3d' | 'charts' | 'results';
+export type TabType = '2d' | '3d' | 'charts' | 'results' | 'foundation-design';
 
 type AddTabFn = (type: TabType, slot?: 'left' | 'right') => void;
 type CaptureView3DFn = () => string | null;
