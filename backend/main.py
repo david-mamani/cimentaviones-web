@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from models import CalculationInput, IterationInput, IFCExportInput, PDFExportInput
-from calculos.proyectoc_engine import calculate_proyectoc_bearing_capacity
+from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
 from services.ifc_generator import generate_ifc
 from services.latex_generator import generate_latex, compile_latex_to_pdf
@@ -56,7 +56,7 @@ def calculate(input_data: CalculationInput):
     """
     try:
         raw = input_data.model_dump()
-        result = calculate_proyectoc_bearing_capacity(raw)
+        result = calculate_bearing_capacity(raw)
 
         # Guard: valores numéricos críticos no deben ser NaN ni Infinity
         for key in ("qu", "qa", "qnet", "qaNet"):

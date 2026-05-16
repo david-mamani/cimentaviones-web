@@ -36,12 +36,30 @@ class FoundationParams(BaseModel):
     Df: float = Field(ge=0, description="Profundidad de desplante (m)")
     FS: float = Field(ge=1.0, le=10.0, description="Factor de seguridad")
     beta: float = Field(ge=0, le=45, description="Ángulo de inclinación de carga β (°)")
+    e1: float = Field(default=0.0, ge=0, description="Excentricidad en dirección B (m)")
+    e2: float = Field(default=0.0, ge=0, description="Excentricidad en dirección L (m)")
+    Q: Optional[float] = Field(
+        default=None, gt=0,
+        description="Carga vertical total aplicada (kN). Requerida para qmax/qmin y FS_real.",
+    )
 
     @model_validator(mode="after")
     def validate_rectangular_L_gte_B(self):
         if self.type == "rectangular" and self.L < self.B:
             raise ValueError(
                 f"Para cimentación rectangular, L ({self.L}) debe ser ≥ B ({self.B})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_eccentricity_in_dimensions(self):
+        if 2.0 * self.e1 >= self.B:
+            raise ValueError(
+                f"Excentricidad e1 ({self.e1} m) demasiado grande: 2·e1 debe ser < B ({self.B} m)."
+            )
+        if 2.0 * self.e2 >= self.L:
+            raise ValueError(
+                f"Excentricidad e2 ({self.e2} m) demasiado grande: 2·e2 debe ser < L ({self.L} m)."
             )
         return self
 
@@ -64,20 +82,24 @@ class CalculationInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_cross_field(self):
-        # Validar que la suma de espesores cubra Df
+        # Df absoluto desde la superficie (incluye sótano si está activo)
+        Ds = self.conditions.basementDepth if self.conditions.hasBasement else 0.0
+        Df_abs = self.foundation.Df + Ds
+
+        # Validar que la suma de espesores cubra Df_abs
         total_thickness = sum(s.thickness for s in self.strata)
-        if total_thickness < self.foundation.Df - 0.001:
+        if total_thickness < Df_abs - 0.001:
             raise ValueError(
                 f"La suma de espesores ({total_thickness:.2f} m) debe ser ≥ "
-                f"Df ({self.foundation.Df:.2f} m)"
+                f"Df_abs = Ds + Df ({Df_abs:.2f} m)"
             )
-        # Validar β < φ del estrato de diseño
+        # Validar β < φ del estrato de diseño (al nivel Df_abs)
         if self.foundation.beta > 0:
             depth = 0.0
             design_phi = self.strata[-1].phi
             for stratum in self.strata:
                 depth += stratum.thickness
-                if depth >= self.foundation.Df - 0.001:
+                if depth >= Df_abs - 0.001:
                     design_phi = stratum.phi
                     break
             if design_phi > 0 and self.foundation.beta >= design_phi:

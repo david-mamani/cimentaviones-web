@@ -1,154 +1,163 @@
 """
-Cálculo de capacidad portante — Función principal.
+Capacidad de carga de cimentaciones superficiales — Función principal.
 
-Soporta 3 métodos:
-  1. "terzaghi" — Fórmulas clásicas con coeficientes fijos (tabla)
-  2. "general"  — Ecuación general con factores analíticos (Das/Braja)
-  3. "rne"      — Norma E.050 (RNE Perú)
+Pipeline de 13 bloques (alineado con el flujo de cálculo documentado):
 
-Pipeline de 5 pasos:
-  1. Encontrar estrato de diseño al nivel Ds+Df (sótano + desplante)
-  2. Corrección por NF + sobrecarga q desde Ds hasta Ds+Df
-  3. Calcular factores de forma, profundidad, inclinación
-  4. Calcular qu según el método elegido
-  5. Derivar qa, qnet, Qmax
+  1. Lectura y clasificación de datos
+  2. Nivel de referencia y estrato de fundación (Df_abs = Ds + Df)
+  3. Sobrecarga efectiva q
+  4. Corrección por nivel freático → γ_eff
+  5. Factores Nc, Nq, Nγ por método
+  6. Validación geometría/método (Terzaghi rechaza rectangular)
+  7. Factores correctivos (forma, profundidad, inclinación) según método
+  8. Sumandos S1, S2, S3 por método
+  9. Aplicación de criterios (General, RNE, RNE-Corregido) → matriz 3×3
+ 10. Presión admisible qadm = qu / FS y carga máxima Qu_max
+ 11. Excentricidad: B', L', A', kern, qmax/qmin, FS_real
+ 12. Validación final y salida
+ 13. Iteraciones (manejado en parametric_iterations.py)
 
-NOTA sobre warnings:
-  El cálculo recopila advertencias en una lista "warnings" que se
-  devuelve en el resultado. Estas advertencias indican condiciones
-  que, si bien no impiden el cálculo, pueden afectar la validez
-  física de los resultados.
+Salida:
+  - Campos "tradicionales" (qu, qa, qnet, qaNet, Qmax, F1/F2/F3, factores)
+    correspondientes al método+criterio "principal" (método elegido + criterio
+    General). Esto preserva compatibilidad con markdown_generator y latex_generator.
+  - methodCriteriaMatrix: dict con los 3 métodos × 3 criterios = 9 combinaciones.
+  - eccentricity: información del bloque 11 (None si e1=e2=0 y sin Q).
 """
 
-from .factors import get_bearing_factors, get_shape_factors, get_depth_factors, get_inclination_factors
 from .water_table import apply_water_table_correction
-from .methods import calculate_qu_general, calculate_qu_rne, calculate_rne_consideration
+from .methods import (
+    calculate_qu_terzaghi,
+    calculate_qu_general,
+    calculate_qu_rne,
+    apply_criterion,
+    soil_type_from_phi,
+    CRITERIA,
+)
+
+
+# Conversiones de presión kPa → otras unidades
+# 1 kPa = 1/9.81 t/m²; 1 t/m² = 0.1 kg/cm² → 1 kPa = 0.01020 kg/cm²
+_KPA_TO_TM2 = 1.0 / 9.81
+_KPA_TO_KGCM2 = _KPA_TO_TM2 * 0.1
 
 
 def find_design_stratum(strata: list, effective_depth: float) -> dict:
     """
-    Determina el estrato de diseño (el que se encuentra al nivel de la cimentación).
+    Determina el estrato sobre el que descansa la zapata.
 
-    Recorre los estratos de arriba hacia abajo. El primer estrato
-    cuya profundidad acumulada EXCEDE la profundidad efectiva es
-    el estrato de diseño (la zapata descansa sobre este estrato).
+    Recorre los estratos sumando espesores. El primero cuya profundidad
+    acumulada excede effective_depth (con tolerancia 1e-6) es el estrato
+    de diseño.
 
-    NOTA: Usa comparación estricta (>). Si la zapata queda exactamente
-    en el límite entre dos estratos, se toma el estrato inferior.
-
-    Args:
-        strata: Lista de estratos
-        effective_depth: Profundidad efectiva de la zapata desde la
-                        superficie (Ds + Df cuando hay sótano, solo Df sin sótano)
-
-    Returns:
-        dict con index, stratum, y opcionalmente warning
+    Si effective_depth excede la suma total de espesores, lanza ValueError
+    (la propuesta exige error fatal, no fallback).
     """
     depth = 0.0
     for i, stratum in enumerate(strata):
         depth += stratum["thickness"]
         if depth > effective_depth + 1e-6:
-            return {"index": i, "stratum": stratum, "warning": None}
+            return {"index": i, "stratum": stratum}
 
-    # Bug 5: La profundidad excede todos los estratos — advertir
+    raise ValueError(
+        f"Df_abs ({effective_depth:.2f} m) supera la profundidad total del "
+        f"perfil estratigráfico ({depth:.2f} m). Agregue estratos o reduzca Df."
+    )
+
+
+def _compute_effective_dimensions(B: float, L: float, e1: float, e2: float) -> dict:
+    """
+    Dimensiones efectivas Meyerhof: B' = B - 2e1, L' = L - 2e2.
+    Si B' > L', se intercambian (B' siempre es la dimensión menor).
+    """
+    B_eff = B - 2.0 * e1
+    L_eff = L - 2.0 * e2
+
+    if B_eff <= 0 or L_eff <= 0:
+        raise ValueError(
+            f"Excentricidad excesiva: B'={B_eff:.3f}m, L'={L_eff:.3f}m. "
+            f"El área efectiva es nula o negativa."
+        )
+
+    if B_eff > L_eff:
+        B_eff, L_eff = L_eff, B_eff
+
+    return {"B_eff": B_eff, "L_eff": L_eff, "A_eff": B_eff * L_eff}
+
+
+def _extreme_pressures_trapezoidal(Q: float, B: float, L: float, e1: float, e2: float) -> dict:
+    """qmax, qmin para régimen trapezoidal (kern central, e1≤B/6 y e2≤L/6)."""
+    base = Q / (B * L)
+    term_e1 = 6.0 * e1 / B
+    term_e2 = 6.0 * e2 / L
+    qmax = base * (1.0 + term_e1 + term_e2)
+    qmin = base * (1.0 - term_e1 - term_e2)
+    return {"qmax": qmax, "qmin": qmin}
+
+
+def _extreme_pressures_triangular(Q: float, B: float, L: float, e1: float) -> dict:
+    """qmax para régimen triangular (excentricidad en B, e1 > B/6); qmin = 0."""
+    qmax = 4.0 * Q / (3.0 * L * (B - 2.0 * e1))
+    return {"qmax": qmax, "qmin": 0.0}
+
+
+def _enrich_pressure(qu: float, FS: float, B_for_area: float, L_for_area: float) -> dict:
+    """Devuelve qu y qa con todas las conversiones de unidad."""
+    qa = qu / FS if FS > 0 else 0.0
     return {
-        "index": len(strata) - 1,
-        "stratum": strata[-1],
-        "warning": (
-            f"La profundidad de la zapata ({effective_depth:.2f}m) excede "
-            f"la profundidad total de los estratos ({depth:.2f}m). "
-            f"Se usó el último estrato como diseño."
-        ),
+        "qu": qu,
+        "qu_kPa": qu,
+        "qu_tm2": qu * _KPA_TO_TM2,
+        "qu_kgcm2": qu * _KPA_TO_KGCM2,
+        "qa": qa,
+        "qa_kPa": qa,
+        "qa_tm2": qa * _KPA_TO_TM2,
+        "qa_kgcm2": qa * _KPA_TO_KGCM2,
+        "Qmax": qa * B_for_area * L_for_area,
     }
 
 
-# ── Coeficientes de forma de Terzaghi por tipo de cimentación ──
-# (sc, sq=1 siempre, sgamma)
-TERZAGHI_SHAPE_COEFFS = {
-    "franja":      {"sc": 1.0,  "sgamma": 0.5},
-    "cuadrada":    {"sc": 1.3,  "sgamma": 0.4},
-    "circular":    {"sc": 1.3,  "sgamma": 0.3},
-    # Rectangular usa fórmulas con B/L, se calcula en la función
-}
-
-
-def _calculate_qu_terzaghi(
-    foundation_type: str,
-    c: float, Nc: float,
-    q: float, Nq: float,
-    gamma: float, B: float, Ngamma: float,
-    L: float,
-) -> dict:
+def _build_method_block(method_result: dict, soil_type: str, FS: float,
+                         B_for_area: float, L_for_area: float) -> dict:
     """
-    Calcula qu usando las fórmulas clásicas de Terzaghi.
-
-    Franja:      qu = c·Nc + q·Nq + 0.5·γ·B·Nγ
-    Cuadrada:    qu = 1.3·c·Nc + q·Nq + 0.4·γ·B·Nγ
-    Circular:    qu = 1.3·c·Nc + q·Nq + 0.3·γ·B·Nγ
-    Rectangular: qu = c·Nc·(1+0.3·B/L) + q·Nq + 0.5·γ·B·Nγ·(1-0.2·B/L)
-
-    Returns:
-        dict con qu, F1, F2, F3, y los factores de forma reales usados
+    Para un método (terzaghi/general/rne), construye:
+      - S1, S2, S3, factors
+      - criteria: {general: {qu, qa, …}, rne: {…}, rne_corrected: {…}}
     """
-    if foundation_type == "franja":
-        sc = 1.0
-        sgamma = 0.5
-        F1 = c * Nc
-        F2 = q * Nq
-        F3 = 0.5 * gamma * B * Ngamma
-
-    elif foundation_type == "cuadrada":
-        sc = 1.3
-        sgamma = 0.4
-        F1 = 1.3 * c * Nc
-        F2 = q * Nq
-        F3 = 0.4 * gamma * B * Ngamma
-
-    elif foundation_type == "circular":
-        sc = 1.3
-        sgamma = 0.3
-        F1 = 1.3 * c * Nc
-        F2 = q * Nq
-        F3 = 0.3 * gamma * B * Ngamma
-
-    elif foundation_type == "rectangular":
-        sc = 1 + 0.3 * (B / L)
-        sgamma = 0.5 * (1 - 0.2 * (B / L))
-        F1 = c * Nc * (1 + 0.3 * (B / L))
-        F2 = q * Nq
-        F3 = 0.5 * gamma * B * Ngamma * (1 - 0.2 * (B / L))
-
-    else:
-        raise ValueError(f"Tipo de cimentación no soportado: {foundation_type}")
-
-    # Bug 7: Devolver los factores reales que Terzaghi usa
-    real_shape = {"sc": sc, "sq": 1.0, "sgamma": sgamma}
-
+    S1, S2, S3 = method_result["S1"], method_result["S2"], method_result["S3"]
+    criteria = {}
+    for crit in CRITERIA:
+        qu_c = apply_criterion(S1, S2, S3, soil_type, crit)
+        criteria[crit] = _enrich_pressure(qu_c, FS, B_for_area, L_for_area)
     return {
-        "qu": F1 + F2 + F3,
-        "F1": F1, "F2": F2, "F3": F3,
-        "realShapeFactors": real_shape,
+        "S1": S1, "S2": S2, "S3": S3,
+        "qu": method_result["qu"],  # ≡ criteria["general"]["qu"]
+        "factors": method_result["factors"],
+        "criteria": criteria,
     }
 
 
 def calculate_bearing_capacity(input_data: dict) -> dict:
     """
-    Función principal de cálculo. Ejecuta el análisis completo.
+    Cálculo completo de capacidad portante para una cimentación superficial.
 
     Args:
-        input_data: dict con foundation, strata, conditions, method
+        input_data: {
+            foundation: {type, B, L, Df, FS, beta, e1?, e2?, Q?},
+            strata: [{thickness, gamma, gammaSat, c, phi}, …],
+            conditions: {hasWaterTable, waterTableDepth, hasBasement, basementDepth},
+            method: "terzaghi" | "general" | "rne"
+        }
 
     Returns:
-        dict con todos los resultados del cálculo + warnings
+        Resultado completo con compatibilidad legacy + matriz 3×3 + excentricidad.
     """
+    # ── Bloque 1: Lectura ─────────────────────────────────────────
     foundation = input_data["foundation"]
     strata = input_data["strata"]
     conditions = input_data["conditions"]
     method = input_data["method"]
 
-    warnings = []
-
-    # ── Guards defensivos ──
     if not strata:
         raise ValueError("Se requiere al menos un estrato de suelo.")
 
@@ -157,7 +166,10 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     L = foundation["L"]
     Df = foundation["Df"]
     FS = foundation["FS"]
-    beta = foundation["beta"]
+    beta = foundation.get("beta", 0.0) or 0.0
+    e1 = foundation.get("e1", 0.0) or 0.0
+    e2 = foundation.get("e2", 0.0) or 0.0
+    Q_applied = foundation.get("Q")  # opcional
 
     if B <= 0:
         raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
@@ -165,169 +177,202 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         raise ValueError(f"La longitud L ({L}) debe ser mayor a 0.")
     if FS <= 0:
         raise ValueError(f"El factor de seguridad FS ({FS}) debe ser mayor a 0.")
+    if e1 < 0 or e2 < 0:
+        raise ValueError(f"Las excentricidades deben ser ≥ 0 (e1={e1}, e2={e2}).")
 
-    # ── Bug 9: Warning si Df = 0 ──
-    if Df == 0:
-        warnings.append(
-            "Df = 0: cimentación superficial sin empotramiento. "
-            "Los factores de profundidad serán 1.0."
-        )
+    warnings: list[str] = []
 
-    # ── Bug 8: Warning si c=0 y φ=0 ──
-    has_water_table = conditions["hasWaterTable"]
-    Dw = conditions["waterTableDepth"]
+    # ── Bloque 2: Df absoluto y estrato de fundación ──────────────
     has_basement = conditions["hasBasement"]
     Ds = conditions["basementDepth"] if has_basement else 0.0
+    Df_abs = Ds + Df
 
-    # Profundidad efectiva: Ds + Df cuando hay sótano
-    # Df se mide desde el piso del sótano (o desde la superficie si no hay sótano)
-    effective_depth = Ds + Df
-
-    # ── Paso 1: Encontrar estrato de diseño ──
-    # Se busca a la profundidad efectiva (Ds + Df) desde la superficie
-    design = find_design_stratum(strata, effective_depth)
+    design = find_design_stratum(strata, Df_abs)
     design_index = design["index"]
     design_stratum = design["stratum"]
 
-    # Bug 5: Propagar warning si la profundidad excede los estratos
-    if design["warning"]:
-        warnings.append(design["warning"])
+    soil_type = soil_type_from_phi(design_stratum["phi"])
+    phi = design_stratum["phi"]
+    c = design_stratum["c"]
 
-    is_cohesive = design_stratum["phi"] < 20
-    soil_type = "Coh" if is_cohesive else "Fri"
-
-    # Validación física de pesos específicos
+    # Validaciones físicas del estrato
     if design_stratum["gammaSat"] < design_stratum["gamma"]:
         warnings.append(
-            f"El peso específico saturado ({design_stratum['gammaSat']}) es menor "
-            f"que el natural ({design_stratum['gamma']}). Físicamente, los vacíos llenos "
-            f"de agua pesan más que con aire. Revise sus datos."
+            f"γsat ({design_stratum['gammaSat']}) < γ ({design_stratum['gamma']}). "
+            f"Físicamente imposible: revise los datos."
         )
 
-    # Bug 8: Warning si el suelo no tiene ni cohesión ni fricción
-    if design_stratum["c"] == 0 and design_stratum["phi"] == 0:
+    if c == 0 and phi == 0:
         warnings.append(
-            "c = 0 y φ = 0°: el suelo no tiene capacidad portante. "
-            "Verifique los datos del estrato de diseño."
+            "c = 0 y φ = 0°: el estrato de fundación no tiene capacidad portante."
         )
 
-    # ── Paso 2: Corrección por nivel freático + cálculo de sobrecarga ──
-    # La sobrecarga q se calcula desde Ds hasta Ds+Df (el suelo sobre
-    # el sótano ha sido excavado y no contribuye a la sobrecarga)
+    if Df == 0:
+        warnings.append(
+            "Df = 0: cimentación superficial sin empotramiento. "
+            "Factores de profundidad = 1.0."
+        )
+
+    # Bloque 2.4: validación cimentación superficial
+    if Df_abs / B > 5.0:
+        warnings.append(
+            f"Df/B = {Df_abs/B:.2f} supera 5. Las ecuaciones de cimentación "
+            f"superficial pueden no ser aplicables. Considere cimentación profunda."
+        )
+
+    # ── Bloque 3 + 4: Sobrecarga q y γ efectivo ───────────────────
+    has_water_table = conditions["hasWaterTable"]
+    Dw = conditions["waterTableDepth"]
+
     water_result = apply_water_table_correction(
         strata, Df, B, has_water_table, Dw, design_stratum, Ds=Ds
     )
-
     q = water_result["q"]
     gamma_effective = water_result["gammaEffective"]
-
-    # Propagar warnings del módulo de nivel freático
     warnings.extend(water_result.get("warnings", []))
 
-    # ── Paso 3: Factores de forma, profundidad, inclinación ──
-    shape_factors = get_shape_factors(f_type, B, L)
-    depth_factors = get_depth_factors(design_stratum["phi"], Df, B)
-    inclination_factors = get_inclination_factors(beta, design_stratum["phi"])
-
-    # ── Bug 6: Warning si β ≥ φ ──
-    if beta > 0 and design_stratum["phi"] > 0 and beta >= design_stratum["phi"]:
-        warnings.append(
-            f"β ({beta}°) ≥ φ ({design_stratum['phi']}°): "
-            f"el factor de inclinación iγ = 0, anulando el término F3 "
-            f"(capacidad por fricción). Verifique el ángulo de inclinación."
+    # ── Bloque 6: validación método/geometría ─────────────────────
+    if method == "terzaghi" and f_type == "rectangular":
+        raise ValueError(
+            "Terzaghi no aplica para cimentaciones rectangulares. "
+            "Use Ecuación General o RNE."
         )
 
-    # ── Bug 10: Warning si Terzaghi con β > 0 ──
     if method == "terzaghi" and beta > 0:
         warnings.append(
-            f"Terzaghi no incluye factores de inclinación. "
-            f"El ángulo β = {beta}° no se aplica en este método. "
-            f"Use la Ecuación General o RNE para considerar la inclinación."
+            f"Terzaghi no incluye factores de inclinación. β={beta}° se ignora "
+            f"en este método. Use Ecuación General o RNE para considerar β."
         )
 
-    # ── Paso 4: Calcular qu según método elegido ──
-    if method == "terzaghi":
-        bearing_factors = get_bearing_factors(design_stratum["phi"])
-        t_result = _calculate_qu_terzaghi(
-            f_type, design_stratum["c"], bearing_factors["Nc"],
-            q, bearing_factors["Nq"],
-            gamma_effective, B, bearing_factors["Ngamma"], L,
+    if phi == 0 and beta > 0:
+        warnings.append(
+            "φ=0° con β>0°: Fγi es indeterminado pero S3=0 (Nγ=0), por lo "
+            "que la inclinación no afecta el resultado del 3er sumando."
         )
-        qu = t_result["qu"]
-        F1, F2, F3 = t_result["F1"], t_result["F2"], t_result["F3"]
 
-        # Bug 7: Usar los factores reales de Terzaghi en la respuesta
-        shape_factors = t_result["realShapeFactors"]
-        # Terzaghi no usa factores de profundidad ni inclinación
-        depth_factors = {"dc": 1.0, "dq": 1.0, "dgamma": 1.0}
-        inclination_factors = {"ic": 1.0, "iq": 1.0, "igamma": 1.0}
-    elif method == "general":
-        g_result = calculate_qu_general(
-            design_stratum["c"], q, gamma_effective, B, L,
-            design_stratum["phi"], beta, Df,
+    if beta > 0 and phi > 0 and beta >= phi:
+        warnings.append(
+            f"β ({beta}°) ≥ φ ({phi}°): condición inestable. iγ se anula y "
+            f"el 3er sumando se reduce a 0."
         )
-        qu = g_result["qu"]
-        factors = g_result["factors"]
-        bearing_factors = {
-            "Nc": factors["Nc"],
-            "Nq": factors["Nq"],
-            "Ngamma": factors["Ngamma"],
-        }
-        F1 = design_stratum["c"] * factors["Nc"] * factors["Fcs"] * factors["Fcd"] * factors["Fci"]
-        F2 = q * factors["Nq"] * factors["Fqs"] * factors["Fqd"] * factors["Fqi"]
-        F3 = 0.5 * gamma_effective * B * factors["Ngamma"] * factors["Fgs"] * factors["Fgd"] * factors["Fgi"]
 
-        # Actualizar shape/depth/inclination con los factores reales
-        shape_factors = {"sc": factors["Fcs"], "sq": factors["Fqs"], "sgamma": factors["Fgs"]}
-        depth_factors = {"dc": factors["Fcd"], "dq": factors["Fqd"], "dgamma": factors["Fgd"]}
-        inclination_factors = {"ic": factors["Fci"], "iq": factors["Fqi"], "igamma": factors["Fgi"]}
+    # ── Bloque 11 parcial: dimensiones efectivas y régimen ────────
+    has_eccentricity = (e1 > 0 or e2 > 0)
+    eff = _compute_effective_dimensions(B, L, e1, e2)
+    B_eff, L_eff, A_eff = eff["B_eff"], eff["L_eff"], eff["A_eff"]
 
-    else:  # rne
-        r_result = calculate_qu_rne(
-            design_stratum["c"], q, gamma_effective, B, L,
-            design_stratum["phi"], beta,
+    if has_eccentricity:
+        in_kern = (e1 <= B / 6.0 + 1e-9) and (e2 <= L / 6.0 + 1e-9)
+        regime = "trapezoidal" if in_kern else "triangular"
+        if not in_kern:
+            warnings.append(
+                f"Excentricidad fuera del núcleo central (kern): "
+                f"e1={e1:.3f} (B/6={B/6:.3f}), e2={e2:.3f} (L/6={L/6:.3f}). "
+                f"Se produce levantamiento; distribución triangular."
+            )
+    else:
+        regime = "uniforme"
+
+    # ── Bloques 5+7+8: Sumandos por método ────────────────────────
+    method_blocks = {}
+
+    # Terzaghi (omitido si rectangular)
+    if f_type != "rectangular":
+        t_res = calculate_qu_terzaghi(c, q, gamma_effective, B_eff, phi, f_type)
+        method_blocks["terzaghi"] = _build_method_block(
+            t_res, soil_type, FS, B, L
         )
-        qu = r_result["qu"]
-        factors = r_result["factors"]
-        bearing_factors = {
-            "Nc": factors["Nc"],
-            "Nq": factors["Nq"],
-            "Ngamma": factors["Ngamma"],
-        }
-        F1 = factors["Sc"] * factors["ic"] * design_stratum["c"] * factors["Nc"]
-        F2 = factors["iq"] * q * factors["Nq"]
-        F3 = 0.5 * factors["Sgamma"] * factors["igamma"] * gamma_effective * B * factors["Ngamma"]
 
-        # Actualizar shape/inclination con los factores reales del RNE
-        shape_factors = {"sc": factors["Sc"], "sq": 1.0, "sgamma": factors["Sgamma"]}
-        depth_factors = {"dc": 1.0, "dq": 1.0, "dgamma": 1.0}  # RNE no usa profundidad
-        inclination_factors = {"ic": factors["ic"], "iq": factors["iq"], "igamma": factors["igamma"]}
-    # ── Consideración RNE Global ──
-    # Siempre calculamos el RNE real usando la función pura, para evitar
-    # falsificar resultados con factores empíricos de otros métodos.
-    rne_c = calculate_rne_consideration(
-        design_stratum["c"], q, gamma_effective, B, L,
-        design_stratum["phi"], beta, is_cohesive,
+    g_res = calculate_qu_general(
+        c, q, gamma_effective, B, B_eff, L_eff, phi, beta, Df_abs,
     )
+    method_blocks["general"] = _build_method_block(g_res, soil_type, FS, B, L)
+
+    r_res = calculate_qu_rne(
+        c, q, gamma_effective, B_eff, L_eff, phi, beta,
+    )
+    method_blocks["rne"] = _build_method_block(r_res, soil_type, FS, B, L)
+
+    # ── Bloque 11: presiones extremas y FS_real ────────────────────
+    eccentricity_info = None
+    if has_eccentricity or Q_applied is not None:
+        # Validar qu del método+criterio principal sobre el área efectiva
+        principal_qu = method_blocks[method]["criteria"]["general"]["qu"]
+        Qu = principal_qu * A_eff  # carga última total (kN si qu en kPa)
+        FS_real = (Qu / Q_applied) if (Q_applied and Q_applied > 0) else None
+
+        # qmax, qmin si tenemos Q aplicada
+        qmax = None
+        qmin = None
+        if Q_applied is not None and Q_applied > 0:
+            if regime == "triangular" and e1 > B / 6.0:
+                pr = _extreme_pressures_triangular(Q_applied, B, L, e1)
+            else:
+                pr = _extreme_pressures_trapezoidal(Q_applied, B, L, e1, e2)
+                if pr["qmin"] < 0 and regime == "trapezoidal":
+                    warnings.append(
+                        f"qmin = {pr['qmin']:.2f} kPa < 0 con régimen trapezoidal. "
+                        f"Inconsistencia: verifique excentricidad y dimensiones."
+                    )
+            qmax, qmin = pr["qmax"], pr["qmin"]
+
+        valid = None
+        if FS_real is not None:
+            valid = FS_real >= FS
+
+        eccentricity_info = {
+            "hasEccentricity": has_eccentricity,
+            "e1": e1, "e2": e2,
+            "Q": Q_applied,
+            "B_eff": B_eff, "L_eff": L_eff, "A_eff": A_eff,
+            "regime": regime,
+            "qmax": qmax,
+            "qmin": qmin,
+            "Qu": Qu,
+            "FS_real": FS_real,
+            "valid": valid,
+        }
+
+    # ── Compatibilidad con markdown/latex generators ──────────────
+    # Campos "principales" = método elegido + criterio General
+    principal = method_blocks[method]
+    principal_general = principal["criteria"]["general"]
+    factors = principal["factors"]
+
+    qu = principal_general["qu"]
+    qa = principal_general["qa"]
+    qnet = qu - q
+    qa_net = qnet / FS if FS > 0 else 0.0
+    Qmax = qa * B * L
+
+    # rneConsideration: criterios RNE y RNE-Corregido aplicados al método elegido
+    rne_qu = principal["criteria"]["rne"]["qu"]
+    rne_corr_qu = principal["criteria"]["rne_corrected"]["qu"]
     rne_consideration = {
-        "qultRNE": rne_c["qultRNE"],
-        "qadmRNE": rne_c["qultRNE"] / FS,
-        "qultRNECorrected": rne_c["qultRNECorrected"],
+        "qultRNE": rne_qu,
+        "qultRNECorrected": rne_corr_qu,
+        "qadmRNE": rne_qu / FS if FS > 0 else 0.0,
+        "qadmRNECorrected": rne_corr_qu / FS if FS > 0 else 0.0,
     }
 
-    # ── Paso 5: Valores derivados ──
-    qnet = qu - q
-    qa = qu / FS
-    qa_net = qnet / FS
-    Qmax = qa_net * B * L  # Usar capacidad neta para cálculo de carga segura
-
     return {
+        # ── Compatibilidad legacy ─────────────────────────────────
         "designStratumIndex": design_index,
         "designStratum": design_stratum,
-        "bearingFactors": bearing_factors,
-        "shapeFactors": shape_factors,
-        "depthFactors": depth_factors,
-        "inclinationFactors": inclination_factors,
+        "bearingFactors": {
+            "Nc": factors["Nc"],
+            "Nq": factors["Nq"],
+            "Ngamma": factors["Ngamma"],
+        },
+        "shapeFactors": {
+            "sc": factors["Fcs"], "sq": factors["Fqs"], "sgamma": factors["Fgs"],
+        },
+        "depthFactors": {
+            "dc": factors["Fcd"], "dq": factors["Fqd"], "dgamma": factors["Fgd"],
+        },
+        "inclinationFactors": {
+            "ic": factors["Fci"], "iq": factors["Fqi"], "igamma": factors["Fgi"],
+        },
         "q": q,
         "waterTableCase": water_result["case"],
         "gammaEffective": gamma_effective,
@@ -337,10 +382,13 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         "qaNet": qa_net,
         "method": method,
         "Qmax": Qmax,
-        "F1": F1,
-        "F2": F2,
-        "F3": F3,
+        "F1": principal["S1"],
+        "F2": principal["S2"],
+        "F3": principal["S3"],
         "soilType": soil_type,
         "rneConsideration": rne_consideration,
         "warnings": warnings,
+        # ── Estructura nueva ──────────────────────────────────────
+        "methodCriteriaMatrix": method_blocks,
+        "eccentricity": eccentricity_info,
     }
