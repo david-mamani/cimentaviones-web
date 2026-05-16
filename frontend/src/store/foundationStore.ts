@@ -12,6 +12,7 @@ import type {
   SpecialConditions,
   CalculationResult,
   IterationResult,
+  CriterionKey,
 } from '../types/geotechnical';
 
 /** Genera un ID único para cada estrato */
@@ -34,6 +35,9 @@ interface FoundationState {
   // Método de cálculo
   method: CalculationMethod;
 
+  // Criterio seleccionado para display de resultados (no afecta el cálculo)
+  selectedCriterion: CriterionKey;
+
   // Resultado
   result: CalculationResult | null;
 
@@ -49,7 +53,7 @@ interface FoundationState {
 
   // Iteration results (for PDF export)
   iterationResults: IterationResult | null;
-  
+
   // Iteration config
   iterationConfig: IterationConfig;
 
@@ -74,6 +78,9 @@ interface FoundationState {
 
   // Acciones - Método
   setMethod: (method: CalculationMethod) => void;
+
+  // Acciones - Criterio
+  setSelectedCriterion: (criterion: CriterionKey) => void;
 
   // Acciones - L/B ratio
   setLbLocked: (locked: boolean) => void;
@@ -109,6 +116,7 @@ export interface ProjectData {
   lbLocked?: boolean;
   lbRatio?: number;
   iterationConfig?: IterationConfig;
+  selectedCriterion?: CriterionKey;
 }
 
 const defaultFoundation: FoundationParams = {
@@ -118,6 +126,9 @@ const defaultFoundation: FoundationParams = {
   Df: 1.0,
   FS: 3.0,
   beta: 0,
+  e1: 0,
+  e2: 0,
+  Q: null,
 };
 
 const defaultConditions: SpecialConditions = {
@@ -135,14 +146,20 @@ function createDefaultStratum(): Stratum {
     c: 0,
     phi: 30,
     gammaSat: 2.0,    // t/m³ (default métrico)
+    Es: null,
+    mu_s: null,
   };
 }
+
+// Constante de conversión Métrico ↔ SI
+const G = 9.80665;
 
 export const useFoundationStore = create<FoundationState>((set, get) => ({
   foundation: { ...defaultFoundation },
   strata: [createDefaultStratum()],
   conditions: { ...defaultConditions },
   method: 'terzaghi',
+  selectedCriterion: 'general',
   result: null,
   errors: [],
   selectedIds: [],
@@ -158,11 +175,9 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   toggleSelection: (id, multi) => {
     set((state) => {
       if (multi) {
-        // Ctrl+click: toggle in/out of selection
         const has = state.selectedIds.includes(id);
         return { selectedIds: has ? state.selectedIds.filter(x => x !== id) : [...state.selectedIds, id] };
       }
-      // Single click: select only this
       return { selectedIds: [id] };
     });
   },
@@ -230,10 +245,13 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     }));
   },
 
+  setSelectedCriterion: (criterion) => {
+    set({ selectedCriterion: criterion });
+  },
+
   setLbLocked: (locked) => {
     set((state) => {
       if (locked && state.foundation.type === 'rectangular') {
-        // When locking, auto-update L = ratio × B
         return {
           lbLocked: locked,
           foundation: { ...state.foundation, L: state.lbRatio * state.foundation.B },
@@ -262,14 +280,32 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     set({ isCalculating: true, errors: [] });
     const state = get();
 
-    // Inputs en Métrico (m, t/m³, t/m², °) → conversión a SI antes de enviar al motor
-    const G = 9.80665;
+    // Conversión Métrico → SI antes de enviar al motor
     const strataForAPI = state.strata.map((s) => ({
-      ...s,
-      gamma: s.gamma * G,       // t/m³ → kN/m³
-      c: s.c * G,               // t/m² → kPa
-      gammaSat: s.gammaSat * G, // t/m³ → kN/m³
+      id: s.id,
+      thickness: s.thickness,
+      gamma: s.gamma * G,
+      c: s.c * G,
+      phi: s.phi,
+      gammaSat: s.gammaSat * G,
+      // Es y mu_s: opcionales, solo se envían si el usuario los proveyó
+      ...(typeof s.Es === 'number' && s.Es > 0 ? { Es: s.Es * G } : {}),
+      ...(typeof s.mu_s === 'number' ? { mu_s: s.mu_s } : {}),
     }));
+
+    const f = state.foundation;
+    const foundationForAPI = {
+      type: f.type,
+      B: f.B,
+      L: f.L,
+      Df: f.Df,
+      FS: f.FS,
+      beta: f.beta,
+      e1: f.e1 ?? 0,
+      e2: f.e2 ?? 0,
+      // Q: tnf → kN (multiplicar por G). Si no fue provista, se omite.
+      ...(typeof f.Q === 'number' && f.Q > 0 ? { Q: f.Q * G } : {}),
+    };
 
     const controller = new AbortController();
     try {
@@ -278,7 +314,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          foundation: state.foundation,
+          foundation: foundationForAPI,
           strata: strataForAPI,
           conditions: state.conditions,
           method: state.method,
@@ -311,6 +347,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       strata: [createDefaultStratum()],
       conditions: { ...defaultConditions },
       method: 'terzaghi',
+      selectedCriterion: 'general',
       result: null,
       errors: [],
       lbLocked: false,
@@ -326,11 +363,25 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
 
   loadProject: (data) => {
     stratumCounter = data.strata.length;
+    // Backfill nuevos campos si vienen de un proyecto antiguo
+    const foundationLoaded: FoundationParams = {
+      ...defaultFoundation,
+      ...data.foundation,
+      e1: data.foundation.e1 ?? 0,
+      e2: data.foundation.e2 ?? 0,
+      Q: data.foundation.Q ?? null,
+    };
+    const strataLoaded = data.strata.map((s) => ({
+      ...s,
+      Es: s.Es ?? null,
+      mu_s: s.mu_s ?? null,
+    }));
     set({
-      foundation: data.foundation,
-      strata: data.strata,
+      foundation: foundationLoaded,
+      strata: strataLoaded,
       conditions: data.conditions,
       method: data.method,
+      selectedCriterion: data.selectedCriterion ?? 'general',
       lbLocked: data.lbLocked ?? false,
       lbRatio: data.lbRatio ?? 2.0,
       iterationConfig: data.iterationConfig ?? {

@@ -25,6 +25,10 @@ export const stratumSchema = z.object({
 
   gammaSat: z.number({ error: 'El peso unitario saturado debe ser un número' })
     .check(z.positive('El peso unitario saturado γsat debe ser mayor a 0')),
+
+  // Inputs de asentamiento (opcionales; reservados para módulo futuro)
+  Es: z.number().check(z.positive('Es debe ser > 0')).nullable().optional(),
+  mu_s: z.number().check(z.gte(0, 'μs ≥ 0'), z.lt(0.5, 'μs < 0.5')).nullable().optional(),
 }).refine(
   (data) => data.gammaSat >= data.gamma,
   {
@@ -59,11 +63,33 @@ export const foundationSchema = z.object({
       z.gte(0, 'El ángulo de inclinación β debe ser ≥ 0°'),
       z.lte(45, 'El ángulo de inclinación β debe ser ≤ 45°'),
     ),
+
+  e1: z.number({ error: 'e1 debe ser un número' })
+    .check(z.gte(0, 'La excentricidad e1 debe ser ≥ 0'))
+    .default(0),
+
+  e2: z.number({ error: 'e2 debe ser un número' })
+    .check(z.gte(0, 'La excentricidad e2 debe ser ≥ 0'))
+    .default(0),
+
+  Q: z.number().check(z.positive('La carga Q debe ser > 0')).nullable().optional(),
 }).refine(
   (data) => data.type !== 'rectangular' || data.L >= data.B,
   {
     message: 'Para cimentación rectangular, L debe ser ≥ B',
     path: ['L'],
+  }
+).refine(
+  (data) => 2 * data.e1 < data.B,
+  {
+    message: 'La excentricidad e1 es demasiado grande: 2·e1 debe ser < B',
+    path: ['e1'],
+  }
+).refine(
+  (data) => 2 * data.e2 < data.L,
+  {
+    message: 'La excentricidad e2 es demasiado grande: 2·e2 debe ser < L',
+    path: ['e2'],
   }
 );
 
@@ -77,12 +103,12 @@ export const conditionsSchema = z.object({
 
 /**
  * Validación global del input completo.
- * Verifica restricciones cruzadas como Σ espesores ≥ Df y β < φ.
+ * Verifica restricciones cruzadas como Σ espesores ≥ Df_abs y β < φ.
  */
 export function validateCalculationInput(
   foundation: z.infer<typeof foundationSchema>,
   strata: z.infer<typeof stratumSchema>[],
-  _conditions: z.infer<typeof conditionsSchema>
+  conditions: z.infer<typeof conditionsSchema>
 ): string[] {
   const errors: string[] = [];
 
@@ -90,11 +116,15 @@ export function validateCalculationInput(
     errors.push('Se requiere al menos un estrato de suelo.');
   }
 
+  // Df_abs incluye el sótano si está activo
+  const Ds = conditions.hasBasement ? conditions.basementDepth : 0;
+  const Df_abs = foundation.Df + Ds;
+
   const totalThickness = strata.reduce((sum, s) => sum + s.thickness, 0);
-  if (totalThickness < foundation.Df) {
+  if (totalThickness < Df_abs) {
     errors.push(
       `La suma de espesores (${totalThickness.toFixed(2)} m) debe ser ≥ ` +
-      `la profundidad de desplante Df (${foundation.Df.toFixed(2)} m).`
+      `Df_abs = Ds + Df (${Df_abs.toFixed(2)} m).`
     );
   }
 
@@ -103,7 +133,7 @@ export function validateCalculationInput(
     let designPhi = strata[strata.length - 1].phi;
     for (const stratum of strata) {
       depth += stratum.thickness;
-      if (depth >= foundation.Df - 0.001) {
+      if (depth >= Df_abs - 0.001) {
         designPhi = stratum.phi;
         break;
       }
