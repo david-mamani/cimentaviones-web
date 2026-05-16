@@ -62,10 +62,9 @@ cimentaviones-web/
 │       └── test_bearing_capacity.py
 │
 ├── calculos/                  # Motor de cálculo (Python puro, sin dependencias web)
-│   ├── proyectoc_engine.py    # Punto de entrada del motor
-│   ├── bearing_capacity.py    # Orquestacion del calculo de capacidad portante
-│   ├── factors.py             # Tabla de factores de Terzaghi (Nc, Nq, Ngamma)
-│   ├── methods.py             # Implementacion de los tres metodos de calculo
+│   ├── bearing_capacity.py    # Orquestacion del calculo (pipeline de 13 bloques)
+│   ├── factors.py             # Factores Nc, Nq, Nγ analíticos por método
+│   ├── methods.py             # Implementacion de los tres metodos + criterios
 │   ├── water_table.py         # Correcciones por nivel freatico
 │   ├── parametric_iterations.py  # Iterador parametrico (varia B y/o Df)
 │   └── DOCUMENTACION_MOTOR.md    # Documentacion tecnica del motor de calculos

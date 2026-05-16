@@ -8,7 +8,7 @@ Es simplemente ejecutar calculate_bearing_capacity() muchas veces
 con diferentes valores de B y Df, como correr el programa varias veces.
 """
 
-from .proyectoc_engine import calculate_proyectoc_bearing_capacity
+from .bearing_capacity import calculate_bearing_capacity
 
 
 def _generate_range(start: float, end: float, step: float) -> list:
@@ -89,7 +89,7 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
             }
 
             try:
-                result = calculate_proyectoc_bearing_capacity(modified_input)
+                result = calculate_bearing_capacity(modified_input)
                 L = modified_input["foundation"]["L"]
                 Qmax = result["qa"] * b * L
 
@@ -101,14 +101,13 @@ def run_parametric_iterations(base_input: dict, config: dict) -> dict:
                     "Qmax": Qmax,
                 })
 
-                # Mostrar en métrico (tnf/m²): dividir SI (kN/m²) entre G
-                G = 9.80665
-                qa_disp = result['qa'] / G
-                Qmax_disp = Qmax / G
+                # Anotación en métrico (t/m², tnf): kPa → t/m² dividiendo por 9.81
+                qa_disp = result['qa'] / 9.81
+                Qmax_disp = Qmax / 9.81
                 annotations.append(
                     f"Cálculo {iteration:02d}: "
                     f"B = {b:.3f} m, Df = {df:.3f} m → "
-                    f"q_adm = {qa_disp:.3f} tnf/m², Q_max = {Qmax_disp:.3f} tnf"
+                    f"q_adm = {qa_disp:.3f} t/m², Q_max = {Qmax_disp:.3f} tnf"
                 )
             except Exception as e:
                 error_msg = str(e) if str(e) else "Error desconocido"

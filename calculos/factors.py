@@ -1,242 +1,143 @@
 """
-Factores de capacidad portante, forma, profundidad e inclinación.
+Factores de capacidad de carga Nc, Nq, Nγ por método.
 
-Contiene:
-  1. Tabla de Terzaghi (Nc, Nq, Nγ) — Das (2015), 8va edición
-  2. Factores de forma de Meyerhof (sc, sq, sγ)
-  3. Factores de profundidad de Meyerhof (dc, dq, dγ)
-  4. Factores de inclinación (ic, iq, iγ)
+Tres conjuntos de factores:
+  1. Terzaghi (analítico, Das 8va ed.)
+  2. Ecuación General (Vesic / Prandtl / Reissner)
+  3. RNE E.050 (Norma peruana)
+
+Factores correctivos (forma, profundidad, inclinación) viven en methods.py
+junto a sus respectivas fórmulas de qu, porque cada método los aplica de
+forma diferente.
 """
 
 import math
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1. TABLA DE TERZAGHI — Nc, Nq, Nγ para φ = 0° a 50°
+# 1. TERZAGHI — Factores analíticos (Das 8ed)
 # ═══════════════════════════════════════════════════════════════
-# Fuente: Terzaghi (1943), reproducida en Das (2015)
-# Índice = φ (°), valores = (Nc, Nq, Nγ)
-# Para valores no enteros se usa interpolación lineal.
+#
+# φ = 0°:
+#   Nc = 5.70, Nq = 1.00, Nγ = 0.00
+#
+# φ > 0°:
+#   Nq = e^(2·(3π/4 - φ/2)·tan φ) / (2·cos²(45° + φ/2))
+#   Nc = (Nq - 1) / tan φ
+#   Nγ = (Nq - 1) · tan(1.4·φ)
 
-TERZAGHI_TABLE = [
-    # φ=0°     φ=1°     φ=2°     φ=3°     φ=4°
-    (5.70,    1.00,    0.00),
-    (6.00,    1.10,    0.01),
-    (6.30,    1.22,    0.04),
-    (6.62,    1.35,    0.06),
-    (6.97,    1.49,    0.10),
-    # φ=5°     φ=6°     φ=7°     φ=8°     φ=9°
-    (7.34,    1.64,    0.14),
-    (7.73,    1.81,    0.20),
-    (8.15,    2.00,    0.27),
-    (8.60,    2.21,    0.35),
-    (9.09,    2.44,    0.44),
-    # φ=10°    φ=11°    φ=12°    φ=13°    φ=14°
-    (9.61,    2.69,    0.56),
-    (10.16,   2.98,    0.69),
-    (10.76,   3.29,    0.85),
-    (11.41,   3.63,    1.04),
-    (12.11,   4.02,    1.26),
-    # φ=15°    φ=16°    φ=17°    φ=18°    φ=19°
-    (12.86,   4.45,    1.52),
-    (13.68,   4.92,    1.82),
-    (14.60,   5.45,    2.18),
-    (15.12,   6.04,    2.59),
-    (16.56,   6.70,    3.07),
-    # φ=20°    φ=21°    φ=22°    φ=23°    φ=24°
-    (17.69,   7.44,    3.64),
-    (18.92,   8.26,    4.31),
-    (20.27,   9.19,    5.09),
-    (21.75,  10.23,    6.00),
-    (23.36,  11.40,    7.08),
-    # φ=25°    φ=26°    φ=27°    φ=28°    φ=29°
-    (25.13,  12.72,    8.34),
-    (27.09,  14.21,    9.84),
-    (29.24,  15.90,   11.60),
-    (31.61,  17.81,   13.70),
-    (34.24,  19.98,   16.18),
-    # φ=30°    φ=31°    φ=32°    φ=33°    φ=34°
-    (37.16,  22.46,   19.13),
-    (40.41,  25.28,   22.65),
-    (44.04,  28.52,   26.87),
-    (48.09,  32.23,   31.94),
-    (52.64,  36.50,   38.04),
-    # φ=35°    φ=36°    φ=37°    φ=38°    φ=39°
-    (57.75,  41.44,   45.41),
-    (63.53,  47.16,   54.36),
-    (70.01,  53.80,   65.27),
-    (77.50,  61.55,   78.61),
-    (85.97,  70.61,   95.03),
-    # φ=40°    φ=41°    φ=42°    φ=43°    φ=44°
-    (95.66,  81.27,  115.31),
-    (106.81,  93.85,  140.51),
-    (119.67, 108.75,  171.99),
-    (134.58, 126.50,  211.56),
-    (151.95, 147.74,  261.60),
-    # φ=45°    φ=46°    φ=47°    φ=48°    φ=49°
-    (172.28, 173.28,  325.34),
-    (196.22, 204.19,  407.11),
-    (224.55, 241.80,  512.84),
-    (258.28, 287.85,  650.67),
-    (298.71, 344.63,  831.99),
-    # φ=50°
-    (347.50, 415.14, 1072.80),
-]
-
-
-def get_bearing_factors(phi: float) -> dict:
+def get_terzaghi_bearing_factors(phi: float) -> dict:
     """
-    Obtiene los factores Nc, Nq, Nγ de Terzaghi para un ángulo φ dado.
-    Usa interpolación lineal para valores no enteros.
+    Calcula Nc, Nq, Nγ de Terzaghi analíticamente.
 
     Args:
-        phi: Ángulo de fricción interna (°), entre 0 y 50
+        phi: Ángulo de fricción interna (°), 0 ≤ phi ≤ 50
 
     Returns:
         dict con claves Nc, Nq, Ngamma
-
-    Ejemplo:
-        >>> get_bearing_factors(30)
-        {'Nc': 37.16, 'Nq': 22.46, 'Ngamma': 19.13}
     """
     if phi < 0 or phi > 50:
         raise ValueError(
             f"El ángulo de fricción φ={phi}° está fuera del rango válido [0°, 50°]."
         )
 
-    phi_low = math.floor(phi)
-    phi_high = math.ceil(phi)
+    if phi == 0:
+        return {"Nc": 5.70, "Nq": 1.00, "Ngamma": 0.00}
 
-    # Si es entero, retornar directamente
-    if phi_low == phi_high:
-        Nc, Nq, Ngamma = TERZAGHI_TABLE[phi_low]
-        return {"Nc": Nc, "Nq": Nq, "Ngamma": Ngamma}
+    phi_rad = math.radians(phi)
+    cos_half = math.cos(math.radians(45 + phi / 2))
 
-    # Interpolación lineal
-    fraction = phi - phi_low
-    Nc_low, Nq_low, Ng_low = TERZAGHI_TABLE[phi_low]
-    Nc_high, Nq_high, Ng_high = TERZAGHI_TABLE[phi_high]
+    exponent = 2.0 * (3.0 * math.pi / 4.0 - phi_rad / 2.0) * math.tan(phi_rad)
+    Nq = math.exp(exponent) / (2.0 * cos_half ** 2)
+    Nc = (Nq - 1.0) / math.tan(phi_rad)
+    Ngamma = (Nq - 1.0) * math.tan(1.4 * phi_rad)
 
-    return {
-        "Nc": Nc_low + fraction * (Nc_high - Nc_low),
-        "Nq": Nq_low + fraction * (Nq_high - Nq_low),
-        "Ngamma": Ng_low + fraction * (Ng_high - Ng_low),
-    }
+    return {"Nc": Nc, "Nq": Nq, "Ngamma": Ngamma}
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. FACTORES DE FORMA — Meyerhof (1963)
+# 2. ECUACIÓN GENERAL — Vesic / Prandtl / Reissner
 # ═══════════════════════════════════════════════════════════════
-# | Factor | Cuadrada/Circular | Rectangular     | Franja |
-# |--------|-------------------|-----------------|--------|
-# | sc     | 1.3               | 1 + 0.3·(B/L)   | 1.0    |
-# | sq     | 1.0               | 1.0              | 1.0    |
-# | sγ     | 0.8               | 1 - 0.2·(B/L)   | 1.0    |
+#
+# φ = 0°:  Nc = 5.14, Nq = 1.00, Nγ = 0.00
+# φ > 0°:
+#   Nq = tan²(45° + φ/2) · e^(π·tan φ)
+#   Nc = (Nq - 1) / tan φ
+#   Nγ = 2·(Nq + 1)·tan φ
 
-def get_shape_factors(foundation_type: str, B: float, L: float = None) -> dict:
-    """
-    Calcula los factores de forma según Meyerhof.
+def get_general_bearing_factors(phi: float) -> dict:
+    """Calcula Nc, Nq, Nγ de la Ecuación General (Vesic)."""
+    if phi < 0 or phi > 50:
+        raise ValueError(
+            f"El ángulo de fricción φ={phi}° está fuera del rango válido [0°, 50°]."
+        )
 
-    Args:
-        foundation_type: 'cuadrada', 'circular', 'rectangular', 'franja'
-        B: Ancho de la cimentación (m)
-        L: Longitud (m), solo para rectangular
+    if phi == 0:
+        return {"Nc": 5.14, "Nq": 1.00, "Ngamma": 0.00}
 
-    Returns:
-        dict con claves sc, sq, sgamma
-    """
-    if L is None or L <= 0:
-        L = B
-    if B <= 0:
-        return {"sc": 1.0, "sq": 1.0, "sgamma": 1.0}
+    phi_rad = math.radians(phi)
+    Nq = math.tan(math.radians(45 + phi / 2)) ** 2 * math.exp(math.pi * math.tan(phi_rad))
+    Nc = (Nq - 1.0) / math.tan(phi_rad)
+    Ngamma = 2.0 * (Nq + 1.0) * math.tan(phi_rad)
 
-    if foundation_type in ("cuadrada", "circular"):
-        return {"sc": 1.3, "sq": 1.0, "sgamma": 0.8}
-
-    elif foundation_type == "rectangular":
-        ratio = B / L
-        return {
-            "sc": 1 + 0.3 * ratio,
-            "sq": 1.0,
-            "sgamma": 1 - 0.2 * ratio,
-        }
-
-    else:  # franja
-        return {"sc": 1.0, "sq": 1.0, "sgamma": 1.0}
+    return {"Nc": Nc, "Nq": Nq, "Ngamma": Ngamma}
 
 
 # ═══════════════════════════════════════════════════════════════
-# 3. FACTORES DE PROFUNDIDAD — Meyerhof (1963)
+# 3. RNE E.050 — Norma peruana
 # ═══════════════════════════════════════════════════════════════
-# dc = 1 + 0.4·(Df/B)
-# dq = dγ = 1 + 0.1·tan²(45 + φ/2)·(Df/B)   para φ > 10°
-# dq = dγ = 1.0                                para φ ≤ 10°
+#
+# φ = 0°:  Nc = 5.14, Nq = 1.00, Nγ = 0.00
+# φ > 0°:
+#   Nq = e^(π·tan φ) · tan²(45° + φ/2)   (idéntico a Ec. General)
+#   Nc = (Nq - 1) / tan φ                 (idéntico a Ec. General)
+#   Nγ = (Nq - 1) · tan(1.4·φ)            (fórmula RNE específica)
 
-def get_depth_factors(phi: float, Df: float, B: float) -> dict:
-    """
-    Calcula los factores de profundidad según Meyerhof.
+def get_rne_bearing_factors(phi: float) -> dict:
+    """Calcula Nc, Nq, Nγ según la norma RNE E.050."""
+    if phi < 0 or phi > 50:
+        raise ValueError(
+            f"El ángulo de fricción φ={phi}° está fuera del rango válido [0°, 50°]."
+        )
 
-    Args:
-        phi: Ángulo de fricción interna (°)
-        Df: Profundidad de desplante (m)
-        B: Ancho de la cimentación (m)
+    if phi == 0:
+        return {"Nc": 5.14, "Nq": 1.00, "Ngamma": 0.00}
 
-    Returns:
-        dict con claves dc, dq, dgamma
-    """
-    if B <= 0:
-        return {"dc": 1.0, "dq": 1.0, "dgamma": 1.0}
-    ratio = Df / B
-    dc = 1 + 0.4 * ratio
+    phi_rad = math.radians(phi)
+    Nq = math.exp(math.pi * math.tan(phi_rad)) * math.tan(math.radians(45 + phi / 2)) ** 2
+    Nc = (Nq - 1.0) / math.tan(phi_rad)
+    Ngamma = (Nq - 1.0) * math.tan(1.4 * phi_rad)
 
-    if phi > 10:
-        angle = math.radians(45 + phi / 2)
-        tan_squared = math.tan(angle) ** 2
-        dq = 1 + 0.1 * tan_squared * ratio
-    else:
-        dq = 1.0
-
-    return {
-        "dc": dc,
-        "dq": dq,
-        "dgamma": dq,  # dγ = dq en Meyerhof
-    }
+    return {"Nc": Nc, "Nq": Nq, "Ngamma": Ngamma}
 
 
 # ═══════════════════════════════════════════════════════════════
-# 4. FACTORES DE INCLINACIÓN — Meyerhof (1963) / Hansen (1970)
+# 4. FACTORES DE INCLINACIÓN DE CARGA — Meyerhof (1963)
 # ═══════════════════════════════════════════════════════════════
-# ic = iq = (1 - β/90)²
-# iγ = (1 - β/φ)²          [si φ > 0]
-# iγ = 1.0                 [si φ = 0, porque Nγ = 0]
+#
+# β = 0°:  Fci = Fqi = Fγi = 1.0
+# β > 0°, φ > 0°:
+#   Fci = Fqi = (1 - β/90)²
+#   Fγi = (1 - β/φ)²        (requiere β < φ, ya validado aguas arriba)
+# β > 0°, φ = 0°:
+#   Fci = (1 - β/90)²
+#   Fqi = 1.0                (Nq=1, no es crítico; convención del flujo propuesto)
+#   Fγi = 0.0                (irrelevante: Nγ=0, S3=0 igual)
 
 def get_inclination_factors(beta: float, phi: float) -> dict:
     """
-    Calcula los factores de inclinación de carga.
-
-    Args:
-        beta: Ángulo de inclinación de la carga (°)
-        phi: Ángulo de fricción interna del suelo (°)
-
-    Returns:
-        dict con claves ic, iq, igamma
+    Factores de inclinación de carga (β y φ en grados).
     """
     if beta == 0:
         return {"ic": 1.0, "iq": 1.0, "igamma": 1.0}
 
-    ic_iq = (1 - beta / 90) ** 2
+    ic = (1.0 - beta / 90.0) ** 2
 
-    # Si φ = 0, Nγ = 0, así que iγ no importa → usar 1.0
-    # Si β ≥ φ, el factor se anula (geotécnicamente, sin capacidad por fricción)
-    if phi <= 0:
-        igamma = 1.0
-    elif beta >= phi:
-        igamma = 0.0
-    else:
-        igamma = (1 - beta / phi) ** 2
+    if phi == 0:
+        return {"ic": ic, "iq": 1.0, "igamma": 0.0}
 
-    return {
-        "ic": ic_iq,
-        "iq": ic_iq,
-        "igamma": igamma,
-    }
+    if beta >= phi:
+        return {"ic": ic, "iq": ic, "igamma": 0.0}
+
+    igamma = (1.0 - beta / phi) ** 2
+    return {"ic": ic, "iq": ic, "igamma": igamma}

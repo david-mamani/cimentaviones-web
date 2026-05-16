@@ -1,250 +1,308 @@
 """
-Métodos de cálculo de capacidad portante: Ecuación General y RNE.
+Fórmulas de capacidad de carga última qu para los tres métodos:
 
-Contiene:
-  1. Ecuación General (Das/Braja) — Factores analíticos
-  2. Método RNE E.050 (Norma peruana) — Factores específicos
+  1. Terzaghi (cuadrada / corrida / circular)
+  2. Ecuación General (Das / DeBeer / Hansen / Meyerhof)
+  3. RNE E.050 (Norma peruana)
 
-El método Terzaghi se maneja directamente en bearing_capacity.py
-usando la tabla de factores de factors.py.
+Cada función devuelve los sumandos S1, S2, S3 por separado, lo que permite
+aplicar los tres criterios de combinación (General, RNE, RNE Corregido) en
+una capa superior.
+
+Factores correctivos:
+  - Forma: DeBeer (1970) para Ec. General; coeficientes embebidos en Terzaghi;
+    propios E.050 para RNE.
+  - Profundidad: Hansen (1970) solo en Ec. General; no aplica a Terzaghi ni RNE.
+  - Inclinación: Meyerhof (1963), idénticos en Ec. General y RNE.
+
+Convención de dimensiones:
+  - B_orig, L_orig: dimensiones físicas de la zapata. Se usan en los factores
+    de profundidad (Df/B siempre con B original).
+  - B_eff, L_eff: dimensiones efectivas (Meyerhof). Si hay excentricidad,
+    B_eff = B - 2·e1 y L_eff = L - 2·e2 (con intercambio si B_eff > L_eff).
+    Se usan en factores de forma y en el tercer sumando (S3 = ½·γ·B_eff·Nγ·…).
 """
 
 import math
+from .factors import (
+    get_terzaghi_bearing_factors,
+    get_general_bearing_factors,
+    get_rne_bearing_factors,
+    get_inclination_factors,
+)
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1. ECUACIÓN GENERAL — Das/Braja
+# 1. TERZAGHI — Cuadrada / Corrida / Circular
 # ═══════════════════════════════════════════════════════════════
 #
-# Factores analíticos:
-#   Nq = tan²(45 + φ/2) · e^(π·tan(φ))
-#   Nc = (Nq - 1) · cot(φ)
-#   Nγ = 2·(Nq + 1)·tan(φ)
+# Corrida:   qu = c·Nc + q·Nq + ½·γ·B·Nγ
+# Cuadrada:  qu = 1.3·c·Nc + q·Nq + 0.4·γ·B·Nγ
+# Circular:  qu = 1.3·c·Nc + q·Nq + 0.3·γ·B·Nγ
 #
-# Caso φ = 0: Nq = 1, Nc = 5.14, Nγ = 0
-#
-# Factores de forma (Das):
-#   Fcs = 1 + (B/L)·(Nq/Nc)
-#   Fqs = 1 + (B/L)·tan(φ)
-#   Fγs = 1 - 0.4·(B/L)
-#
-# Factores de profundidad (Das):
-#   Si Df/B ≤ 1:
-#     Fqd = 1 + 2·tan(φ)·(1-sin(φ))²·(Df/B)
-#   Si Df/B > 1:
-#     Fqd = 1 + 2·tan(φ)·(1-sin(φ))²·atan(Df/B)
-#   Fcd = Fqd - (1-Fqd)/(Nc·tan(φ))        [φ > 0]
-#   Fcd = 1 + 0.4·(Df/B)                    [φ = 0]
-#   Fγd = 1
-#
-# qu = c·Nc·Fcs·Fcd·Fci + q·Nq·Fqs·Fqd·Fqi + 0.5·γ·B·Nγ·Fγs·Fγd·Fγi
+# Terzaghi no acepta rectangular en su formulación clásica.
+
+TERZAGHI_COEFS = {
+    "franja":    {"c": 1.0, "gamma": 0.5},
+    "cuadrada":  {"c": 1.3, "gamma": 0.4},
+    "circular":  {"c": 1.3, "gamma": 0.3},
+}
 
 
-def get_general_bearing_factors(phi: float) -> dict:
-    """Calcula factores Nc, Nq, Nγ analíticamente (Das/Braja)."""
-    if phi == 0:
-        return {"Nc": 5.14, "Nq": 1, "Ngamma": 0}
+def calculate_qu_terzaghi(
+    c: float, q: float, gamma_eff: float, B: float, phi: float,
+    foundation_type: str,
+) -> dict:
+    """
+    Capacidad de carga última por Terzaghi.
 
-    phi_rad = math.radians(phi)
-    Nq = math.tan(math.pi / 4 + phi_rad / 2) ** 2 * math.exp(
-        math.pi * math.tan(phi_rad)
-    )
-    Nc = (Nq - 1) * (1 / math.tan(phi_rad))
-    Ngamma = 2 * (Nq + 1) * math.tan(phi_rad)
+    Args:
+        c: cohesión (kPa)
+        q: sobrecarga efectiva al nivel de la base (kPa)
+        gamma_eff: peso específico efectivo para el 3er sumando (kN/m³)
+        B: ancho de la zapata (m) — para Terzaghi no hay B', usa B original
+        phi: ángulo de fricción (°)
+        foundation_type: "franja" | "cuadrada" | "circular"
+
+    Returns:
+        dict con S1, S2, S3, qu (= S1+S2+S3), factors {Nc, Nq, Ngamma, coef_c, coef_gamma}
+    """
+    if foundation_type == "rectangular":
+        raise ValueError(
+            "Terzaghi no aplica para cimentaciones rectangulares. "
+            "Use Ecuación General o RNE."
+        )
+    if foundation_type not in TERZAGHI_COEFS:
+        raise ValueError(f"Tipo de cimentación no soportado: {foundation_type}")
+
+    bf = get_terzaghi_bearing_factors(phi)
+    coefs = TERZAGHI_COEFS[foundation_type]
+
+    S1 = coefs["c"] * c * bf["Nc"]
+    S2 = q * bf["Nq"]
+    S3 = coefs["gamma"] * gamma_eff * B * bf["Ngamma"]
 
     return {
-        "Nc": round(Nc, 2),
-        "Nq": round(Nq, 2),
-        "Ngamma": round(Ngamma, 2),
+        "S1": S1, "S2": S2, "S3": S3,
+        "qu": S1 + S2 + S3,
+        "factors": {
+            **bf,
+            "coef_c": coefs["c"],
+            "coef_gamma": coefs["gamma"],
+            # Para reporting uniforme: factores explícitos que valen 1 en Terzaghi
+            "Fcs": coefs["c"], "Fqs": 1.0, "Fgs": coefs["gamma"] / 0.5,
+            "Fcd": 1.0, "Fqd": 1.0, "Fgd": 1.0,
+            "Fci": 1.0, "Fqi": 1.0, "Fgi": 1.0,
+        },
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# 2. ECUACIÓN GENERAL — Das/DeBeer/Hansen/Meyerhof
+# ═══════════════════════════════════════════════════════════════
+#
+# S1 = c · Nc · Fcs · Fcd · Fci
+# S2 = q · Nq · Fqs · Fqd · Fqi
+# S3 = ½ · γ_eff · B_eff · Nγ · Fγs · Fγd · Fγi
+#
+# Forma (DeBeer 1970)  ─ usa B_eff, L_eff
+#   φ = 0°:  Fcs = 1 + 0.4·(B'/L');  Fqs = 1;  Fγs = 1 - 0.4·(B'/L')
+#   φ > 0°:  Fcs = 1 + (B'/L')·(Nq/Nc);  Fqs = 1 + (B'/L')·tanφ;  Fγs = 1 - 0.4·(B'/L')
+#
+# Profundidad (Hansen 1970) ─ usa B_orig (siempre B original, no B_eff)
+#   k = Df/B   si Df/B ≤ 1;  k = arctan(Df/B) [rad]   si Df/B > 1
+#   φ = 0°:  Fcd = 1 + 0.4·k;  Fqd = 1;  Fγd = 1
+#   φ > 0°:  Fqd = 1 + 2·tanφ·(1-sinφ)²·k
+#            Fcd = Fqd - (1 - Fqd)/(Nc·tanφ)
+#            Fγd = 1
+#
+# Inclinación (Meyerhof 1963)  ─ vía factors.get_inclination_factors
+
+def _depth_factors_general(phi: float, Df: float, B: float, Nc: float) -> dict:
+    """Factores de profundidad Hansen (Ec. General)."""
+    if B <= 0:
+        return {"Fcd": 1.0, "Fqd": 1.0, "Fgd": 1.0}
+
+    ratio = Df / B
+    k = ratio if ratio <= 1.0 else math.atan(ratio)
+
+    if phi == 0:
+        return {"Fcd": 1.0 + 0.4 * k, "Fqd": 1.0, "Fgd": 1.0}
+
+    phi_rad = math.radians(phi)
+    tan_phi = math.tan(phi_rad)
+    sin_phi = math.sin(phi_rad)
+    Fqd = 1.0 + 2.0 * tan_phi * (1.0 - sin_phi) ** 2 * k
+    Fcd = Fqd - (1.0 - Fqd) / (Nc * tan_phi)
+    return {"Fcd": Fcd, "Fqd": Fqd, "Fgd": 1.0}
+
+
+def _shape_factors_general(phi: float, B_eff: float, L_eff: float, Nc: float, Nq: float) -> dict:
+    """Factores de forma DeBeer (Ec. General). Usa B_eff, L_eff."""
+    if L_eff <= 0:
+        return {"Fcs": 1.0, "Fqs": 1.0, "Fgs": 1.0}
+
+    ratio = B_eff / L_eff
+
+    if phi == 0:
+        # DeBeer estricto para φ = 0
+        return {
+            "Fcs": 1.0 + 0.4 * ratio,
+            "Fqs": 1.0,
+            "Fgs": 1.0 - 0.4 * ratio,
+        }
+
+    phi_rad = math.radians(phi)
+    return {
+        "Fcs": 1.0 + ratio * (Nq / Nc),
+        "Fqs": 1.0 + ratio * math.tan(phi_rad),
+        "Fgs": 1.0 - 0.4 * ratio,
     }
 
 
 def calculate_qu_general(
-    c: float, q: float, gamma: float,
-    B: float, L: float, phi: float, beta: float, Df: float,
+    c: float, q: float, gamma_eff: float,
+    B_orig: float, B_eff: float, L_eff: float,
+    phi: float, beta: float, Df: float,
 ) -> dict:
     """
-    Calcula todos los factores y qu usando la Ecuación General (Das).
+    Capacidad de carga última por la Ecuación General (Das).
+
+    Args:
+        c: cohesión (kPa)
+        q: sobrecarga (kPa)
+        gamma_eff: peso específico efectivo (kN/m³)
+        B_orig: ancho original (m), para Df/B
+        B_eff: ancho efectivo (m), para forma y S3
+        L_eff: largo efectivo (m), para forma
+        phi: ángulo de fricción (°)
+        beta: ángulo de inclinación de carga (°)
+        Df: profundidad de desplante absoluta (m)
 
     Returns:
-        dict con qu y factors (todos los factores intermedios)
+        dict con S1, S2, S3, qu y factors completos
     """
-    if B <= 0:
-        raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
-    if L <= 0:
-        raise ValueError(f"La longitud L ({L}) debe ser mayor a 0.")
-
     bf = get_general_bearing_factors(phi)
-    phi_rad = math.radians(phi)
+    sf = _shape_factors_general(phi, B_eff, L_eff, bf["Nc"], bf["Nq"])
+    df_ = _depth_factors_general(phi, Df, B_orig, bf["Nc"])
+    ifac = get_inclination_factors(beta, phi)
 
-    # --- Factores de forma ---
-    if phi == 0:
-        Fcs = 1 + (B / L) * (1 / 5.14)
-        Fqs = 1
-        Fgs = 1 - 0.4 * (B / L)
-    else:
-        Fcs = 1 + (B / L) * (bf["Nq"] / bf["Nc"])
-        Fqs = 1 + (B / L) * math.tan(phi_rad)
-        Fgs = 1 - 0.4 * (B / L)
-
-    # --- Factores de profundidad ---
-    ratio = Df / B
-
-    if phi == 0:
-        Fcd = 1 + 0.4 * ratio if ratio <= 1 else 1 + 0.4 * math.atan(ratio)
-        Fqd = 1
-        Fgd = 1
-    else:
-        tan_phi = math.tan(phi_rad)
-        sin_phi = math.sin(phi_rad)
-        depth_term = 2 * tan_phi * (1 - sin_phi) ** 2
-
-        Fqd = (
-            1 + depth_term * ratio
-            if ratio <= 1
-            else 1 + depth_term * math.atan(ratio)
-        )
-        Fcd = Fqd - (1 - Fqd) / (bf["Nc"] * tan_phi)
-        Fgd = 1
-
-    # --- Factores de inclinación ---
-    Fci = (1 - beta / 90) ** 2 if beta > 0 else 1
-    Fqi = Fci
-    Fgi = (1 - beta / phi) ** 2 if (beta > 0 and phi > 0) else 1
-
-    # --- Cálculo de qu ---
-    qu = (
-        c * bf["Nc"] * Fcs * Fcd * Fci
-        + q * bf["Nq"] * Fqs * Fqd * Fqi
-        + 0.5 * gamma * B * bf["Ngamma"] * Fgs * Fgd * Fgi
-    )
+    S1 = c * bf["Nc"] * sf["Fcs"] * df_["Fcd"] * ifac["ic"]
+    S2 = q * bf["Nq"] * sf["Fqs"] * df_["Fqd"] * ifac["iq"]
+    S3 = 0.5 * gamma_eff * B_eff * bf["Ngamma"] * sf["Fgs"] * df_["Fgd"] * ifac["igamma"]
 
     return {
-        "qu": qu,
+        "S1": S1, "S2": S2, "S3": S3,
+        "qu": S1 + S2 + S3,
         "factors": {
             **bf,
-            "Fcs": Fcs, "Fqs": Fqs, "Fgs": Fgs,
-            "Fcd": Fcd, "Fqd": Fqd, "Fgd": Fgd,
-            "Fci": Fci, "Fqi": Fqi, "Fgi": Fgi,
+            **sf,
+            **df_,
+            "Fci": ifac["ic"], "Fqi": ifac["iq"], "Fgi": ifac["igamma"],
         },
     }
 
 
-
-
-
 # ═══════════════════════════════════════════════════════════════
-# 2. MÉTODO RNE — Norma E.050 (Reglamento Nacional de Edificaciones, Perú)
+# 3. RNE E.050 — Norma peruana
 # ═══════════════════════════════════════════════════════════════
 #
-# Factores analíticos:
-#   Nq = e^(π·tan(φ)) · tan²(45 + φ/2)
-#   Nc = (Nq - 1) · cot(φ)
-#   Nγ = (Nq - 1) · tan(1.4·φ)   [fórmula RNE específica]
+# S1 = sc · ic · c · Nc
+# S2 = iq · q · Nq                       (sq = 1)
+# S3 = ½ · sγ · iγ · γ_eff · B_eff · Nγ
 #
-# Factores de forma:
-#   Sc = 1 + 0.2·(B/L)
-#   Sγ = 1 - 0.2·(B/L)
-#
-# Factores de inclinación:
-#   ic = iq = (1 - β/90)²
-#   iγ = (1 - β/φ)²   [si φ > 0]
-#
-# Fórmula: qu = Sc·ic·c·Nc + iq·q·Nq + 0.5·Sγ·iγ·γ·B·Nγ
-
-
-def get_rne_bearing_factors(phi: float) -> dict:
-    """
-    Calcula Nc, Nq, Nγ según la norma RNE E.050.
-    La diferencia con la Ecuación General está en Nγ:
-        General:  Nγ = 2·(Nq + 1)·tan(φ)
-        RNE:      Nγ = (Nq - 1)·tan(1.4·φ)
-    """
-    if phi == 0:
-        return {"Nc": 5.14, "Nq": 1, "Ngamma": 0}
-
-    phi_rad = math.radians(phi)
-    Nq = math.exp(math.pi * math.tan(phi_rad)) * math.tan(
-        math.pi / 4 + phi_rad / 2
-    ) ** 2
-    Nc = (Nq - 1) * (1 / math.tan(phi_rad))
-    Ngamma = (Nq - 1) * math.tan(1.4 * phi_rad)
-
-    return {
-        "Nc": round(Nc, 2),
-        "Nq": round(Nq, 2),
-        "Ngamma": round(Ngamma, 2),
-    }
-
+# Forma (con dimensiones efectivas):
+#   sc = 1 + 0.2·(B'/L');  sγ = 1 - 0.2·(B'/L')
+# Inclinación: idéntica a Meyerhof.
+# Profundidad: no se contempla.
 
 def calculate_qu_rne(
-    c: float, q: float, gamma: float,
-    B: float, L: float, phi: float, beta: float,
+    c: float, q: float, gamma_eff: float,
+    B_eff: float, L_eff: float,
+    phi: float, beta: float,
 ) -> dict:
     """
-    Calcula qu usando el método RNE E.050.
-    qu = Sc·ic·c·Nc + iq·q·Nq + 0.5·Sγ·iγ·γ·B·Nγ
-    """
-    if B <= 0:
-        raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
-    if L <= 0:
-        raise ValueError(f"La longitud L ({L}) debe ser mayor a 0.")
+    Capacidad de carga última por la norma RNE E.050.
 
+    Args:
+        c, q, gamma_eff: como en calculate_qu_general
+        B_eff, L_eff: dimensiones efectivas
+        phi, beta: en grados
+
+    Returns:
+        dict con S1, S2, S3, qu y factors
+    """
     bf = get_rne_bearing_factors(phi)
 
-    # Factores de forma
-    Sc = 1 + 0.2 * (B / L)
-    Sgamma = 1 - 0.2 * (B / L)
+    if L_eff <= 0:
+        sc = 1.0
+        sgamma = 1.0
+    else:
+        ratio = B_eff / L_eff
+        sc = 1.0 + 0.2 * ratio
+        sgamma = 1.0 - 0.2 * ratio
 
-    # Factores de inclinación
-    ic = (1 - beta / 90) ** 2 if beta > 0 else 1
-    iq = ic
-    igamma = (1 - beta / phi) ** 2 if (beta > 0 and phi > 0) else 1
+    ifac = get_inclination_factors(beta, phi)
 
-    qu = (
-        Sc * ic * c * bf["Nc"]
-        + iq * q * bf["Nq"]
-        + 0.5 * Sgamma * igamma * gamma * B * bf["Ngamma"]
-    )
+    S1 = sc * ifac["ic"] * c * bf["Nc"]
+    S2 = ifac["iq"] * q * bf["Nq"]
+    S3 = 0.5 * sgamma * ifac["igamma"] * gamma_eff * B_eff * bf["Ngamma"]
 
     return {
-        "qu": qu,
+        "S1": S1, "S2": S2, "S3": S3,
+        "qu": S1 + S2 + S3,
         "factors": {
             **bf,
-            "Sc": Sc,
-            "Sgamma": Sgamma,
-            "ic": ic,
-            "iq": iq,
-            "igamma": igamma,
+            "Fcs": sc, "Fqs": 1.0, "Fgs": sgamma,
+            "Fcd": 1.0, "Fqd": 1.0, "Fgd": 1.0,
+            "Fci": ifac["ic"], "Fqi": ifac["iq"], "Fgi": ifac["igamma"],
         },
     }
 
 
-def calculate_rne_consideration(
-    c: float, q: float, gamma: float,
-    B: float, L: float, phi: float, beta: float,
-    is_cohesive: bool,
-) -> dict:
-    """
-    Consideración RNE: cálculos especiales para suelos cohesivos y friccionantes.
-    Suelo cohesivo (φ < 20°): Solo el término de cohesión con Nc = 5.14
-    Suelo friccionante (φ ≥ 20°): Términos 2 y 3 (sin cohesión)
-    """
-    if B <= 0 or L <= 0:
-        raise ValueError("B y L deben ser mayores a 0 para la consideración RNE.")
+# ═══════════════════════════════════════════════════════════════
+# 4. APLICACIÓN DE CRITERIOS — General / RNE / RNE Corregido
+# ═══════════════════════════════════════════════════════════════
+#
+# El tipo de suelo se decide por el φ del estrato de fundación:
+#   φ ≤ 20°  →  COHESIVO  (criterio del curso)
+#   φ > 20°  →  FRICCIONANTE
+#
+# | Criterio       | Cohesivo (φ ≤ 20°) | Friccionante (φ > 20°) |
+# |----------------|---------------------|-------------------------|
+# | General        | S1 + S2 + S3        | S1 + S2 + S3            |
+# | RNE            | S1                  | S2 + S3                 |
+# | RNE Corregido  | S1 + S2             | S2 + S3                 |
 
-    Sc = 1 + 0.2 * (B / L)
-    Sgamma = 1 - 0.2 * (B / L)
-    ic = (1 - beta / 90) ** 2 if beta > 0 else 1
-    iq = ic
-    igamma = (1 - beta / phi) ** 2 if (beta > 0 and phi > 0) else 1
+CRITERIA = ("general", "rne", "rne_corrected")
 
-    if is_cohesive:
-        qult_rne = Sc * ic * c * 5.14
-        qult_rne_corrected = qult_rne + iq * q * 1  # Nq = 1 para corrección
-        return {"qultRNE": qult_rne, "qultRNECorrected": qult_rne_corrected}
-    else:
-        bf = get_rne_bearing_factors(phi)
-        F2 = iq * q * bf["Nq"]
-        F3 = 0.5 * Sgamma * igamma * gamma * B * bf["Ngamma"]
-        return {"qultRNE": F2 + F3, "qultRNECorrected": F2 + F3}
+
+def apply_criterion(S1: float, S2: float, S3: float, soil_type: str, criterion: str) -> float:
+    """
+    Aplica el criterio de combinación de sumandos.
+
+    Args:
+        S1, S2, S3: sumandos del método elegido
+        soil_type: "Coh" o "Fri"
+        criterion: "general" | "rne" | "rne_corrected"
+
+    Returns:
+        qu correspondiente al criterio
+    """
+    if criterion == "general":
+        return S1 + S2 + S3
+
+    is_cohesive = (soil_type == "Coh")
+
+    if criterion == "rne":
+        return S1 if is_cohesive else (S2 + S3)
+
+    if criterion == "rne_corrected":
+        return (S1 + S2) if is_cohesive else (S2 + S3)
+
+    raise ValueError(f"Criterio desconocido: {criterion}")
+
+
+def soil_type_from_phi(phi: float) -> str:
+    """Clasificación cohesivo/friccionante por φ del estrato de fundación."""
+    return "Coh" if phi <= 20.0 else "Fri"
