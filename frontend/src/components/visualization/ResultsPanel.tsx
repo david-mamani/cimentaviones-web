@@ -8,7 +8,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
-import 'github-markdown-css/github-markdown.css';
 
 const METHOD_LABELS: Record<string, string> = {
   terzaghi: 'Terzaghi clásico',
@@ -71,7 +70,7 @@ export default function ResultsPanel() {
 
         {/* Resolución paso a paso (markdown del motor) */}
         {result.resolution_md && (
-          <div className="markdown-body lucid-md" style={{
+          <div className="lucid-md" style={{
             fontFamily: 'var(--lucid-font-serif)',
             fontSize: 16,
             lineHeight: 1.6,
@@ -117,7 +116,8 @@ export default function ResultsPanel() {
         )}
       </div>
 
-      {/* Estilos específicos del markdown Lucid */}
+      {/* Estilos del markdown Lucid — todos los selectores tienen el
+          mismo prefijo .lucid-md para no chocar con CSS global. */}
       <style>{`
         .lucid-md h1, .lucid-md h2, .lucid-md h3, .lucid-md h4 {
           font-family: var(--lucid-font-serif);
@@ -127,14 +127,19 @@ export default function ResultsPanel() {
           line-height: 1.25;
           border-bottom: none;
           margin: 32px 0 12px;
+          background: transparent;
         }
         .lucid-md h1 { font-size: 28px; font-weight: 700; }
         .lucid-md h2 { font-size: 22px; }
         .lucid-md h3 { font-size: 18px; }
         .lucid-md h4 { font-size: 15px; }
 
-        .lucid-md p { font-family: var(--lucid-font-serif); margin: 0 0 14px; }
-        .lucid-md em { color: var(--lucid-ink-strong); }
+        .lucid-md p {
+          font-family: var(--lucid-font-serif);
+          color: var(--lucid-ink-body);
+          margin: 0 0 14px;
+        }
+        .lucid-md em { color: var(--lucid-ink-strong); font-style: italic; }
         .lucid-md strong { color: var(--lucid-ink-strong); font-weight: 600; }
 
         .lucid-md a {
@@ -157,23 +162,44 @@ export default function ResultsPanel() {
           padding: 1px 5px;
           border-radius: 4px;
           color: var(--lucid-ink-strong);
+          border: none;
         }
         .lucid-md pre {
           background: var(--lucid-surface-figure);
           border: 1px solid var(--lucid-rule-cream);
           border-radius: 6px;
           padding: 16px 20px;
-        }
-        .lucid-md pre code { background: transparent; padding: 0; }
-
-        .lucid-md table {
-          width: 100%;
-          border-collapse: collapse;
           margin: 14px 0;
+          overflow-x: auto;
+        }
+        .lucid-md pre code {
+          background: transparent;
+          padding: 0;
+          font-size: 13px;
+        }
+
+        /* ── Tablas (estilo table.lucid del design) ────────────────── */
+        .lucid-md table {
+          display: table;
+          width: 100%;
+          max-width: 100%;
+          border-collapse: collapse;
+          margin: 18px 0;
           background: var(--lucid-surface-page);
           border: 1px solid var(--lucid-rule-cream);
           border-radius: 6px;
           overflow: hidden;
+          color: var(--lucid-ink-body);
+        }
+        .lucid-md table thead {
+          background: var(--lucid-surface-figure);
+        }
+        .lucid-md table tr {
+          background: transparent;
+          border: none;
+        }
+        .lucid-md table tr:nth-child(2n) {
+          background: transparent;
         }
         .lucid-md table th {
           font-family: var(--lucid-font-sans);
@@ -185,17 +211,27 @@ export default function ResultsPanel() {
           padding: 10px 14px;
           text-align: left;
           background: var(--lucid-surface-figure);
+          border: none;
           border-bottom: 1px solid var(--lucid-rule-cream);
         }
         .lucid-md table td {
-          padding: 10px 14px;
+          padding: 12px 14px;
           font-family: var(--lucid-font-serif);
-          font-size: 14px;
+          font-size: 15px;
           color: var(--lucid-ink-body);
+          background: var(--lucid-surface-page);
+          border: none;
           border-bottom: 1px solid var(--lucid-rule-white);
           font-variant-numeric: tabular-nums;
         }
-        .lucid-md table tr:last-child td { border-bottom: none; }
+        .lucid-md table td:first-child {
+          font-family: var(--lucid-font-sans);
+          font-size: 12px;
+          color: var(--lucid-ink-muted);
+        }
+        .lucid-md table tbody tr:last-child td { border-bottom: none; }
+        .lucid-md table td em,
+        .lucid-md table td strong { color: var(--lucid-ink-strong); }
 
         .lucid-md blockquote {
           border-left: 2px solid var(--lucid-rule-cream);
@@ -203,6 +239,7 @@ export default function ResultsPanel() {
           color: var(--lucid-ink-muted);
           font-style: italic;
           margin: 16px 0;
+          background: transparent;
         }
 
         /* KaTeX display ecuaciones — eq-card Lucid */
@@ -214,13 +251,15 @@ export default function ResultsPanel() {
           margin: 16px 0;
           overflow-x: auto;
         }
-        .lucid-md .katex { font-size: 1.05em; }
+        .lucid-md .katex-display > .katex { color: var(--lucid-ink-strong); }
+        .lucid-md .katex { font-size: 1.05em; color: var(--lucid-ink-strong); }
 
         .lucid-md ul, .lucid-md ol {
           padding-left: 28px;
           margin: 0 0 14px;
+          color: var(--lucid-ink-body);
         }
-        .lucid-md li { margin-bottom: 6px; }
+        .lucid-md li { margin-bottom: 6px; color: var(--lucid-ink-body); }
       `}</style>
     </div>
   );
