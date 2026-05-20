@@ -26,7 +26,7 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(43, 43, 43, 0.35)',
+        background: 'var(--lucid-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9999,
       }}

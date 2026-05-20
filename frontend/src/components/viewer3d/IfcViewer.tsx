@@ -729,7 +729,7 @@ export default function IfcViewer() {
   }, []);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#fafaf7' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'var(--lucid-surface-page-warm)' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
       {/* Toolbar Lucid */}
@@ -778,7 +778,7 @@ export default function IfcViewer() {
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(255, 255, 255, 0.85)',
+          background: 'var(--lucid-overlay)',
           color: 'var(--lucid-ink-strong)',
           fontFamily: 'var(--lucid-font-serif)',
           fontSize: 15,
@@ -803,8 +803,8 @@ export default function IfcViewer() {
           position: 'absolute', bottom: 16, left: 16, right: 16,
           padding: '10px 14px',
           background: 'var(--lucid-tint-coral)',
-          border: '1px solid #efd9cd',
-          color: '#b5563f',
+          border: '1px solid var(--lucid-acc-coral-border)',
+          color: 'var(--lucid-acc-coral-text)',
           fontFamily: 'var(--lucid-font-serif)',
           fontSize: 13,
           borderRadius: 6,

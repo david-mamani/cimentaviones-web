@@ -38,7 +38,7 @@ export default function AppShell() {
       flexDirection: 'column',
       height: '100vh',
       overflow: 'hidden',
-      background: '#fafaf7',
+      background: 'var(--lucid-surface-page-warm)',
     }}>
       {/* Toolbar */}
       <Toolbar

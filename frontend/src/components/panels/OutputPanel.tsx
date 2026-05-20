@@ -73,7 +73,7 @@ export default function OutputPanel() {
         }}>
           <p style={{
             fontFamily: 'var(--lucid-font-sans)',
-            fontSize: 10, fontWeight: 600, color: '#b5563f',
+            fontSize: 10, fontWeight: 600, color: 'var(--lucid-acc-coral-text)',
             textTransform: 'uppercase', letterSpacing: '0.08em',
             marginBottom: 6,
           }}>
@@ -82,7 +82,7 @@ export default function OutputPanel() {
           {errors.map((e, i) => (
             <p key={i} style={{
               fontFamily: 'var(--lucid-font-serif)',
-              fontSize: 12, color: '#b5563f', marginBottom: 4, lineHeight: 1.4,
+              fontSize: 12, color: 'var(--lucid-acc-coral-text)', marginBottom: 4, lineHeight: 1.4,
             }}>
               · {e}
             </p>
@@ -131,17 +131,17 @@ function CalculateSection() {
         disabled={isCalculating}
         style={{
           width: '100%', padding: '10px 0',
-          background: isCalculating ? 'var(--lucid-surface-figure)' : 'var(--lucid-ink-strong)',
+          background: isCalculating ? 'var(--lucid-surface-figure)' : 'var(--lucid-button-primary-bg)',
           border: 'none', borderRadius: 999,
-          color: isCalculating ? 'var(--lucid-ink-muted)' : '#fff',
+          color: isCalculating ? 'var(--lucid-ink-muted)' : 'var(--lucid-button-primary-fg)',
           fontSize: 13, fontWeight: 500,
           fontFamily: 'var(--lucid-font-sans)',
           cursor: isCalculating ? 'wait' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
         }}
-        onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = '#000'; }}
-        onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--lucid-ink-strong)'; }}
+        onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--lucid-button-primary-bg-hover)'; }}
+        onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--lucid-button-primary-bg)'; }}
       >
         {isCalculating
           ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
@@ -163,7 +163,7 @@ function CalculateSection() {
           border: '1px solid var(--lucid-rule-cream)',
           borderRadius: 999,
           padding: 2,
-          background: '#fff',
+          background: 'var(--lucid-surface-page)',
         }}>
           {(['general', 'rne', 'rne_corrected'] as CriterionKey[]).map((c) => {
             const isActive = selectedCriterion === c;
@@ -176,7 +176,7 @@ function CalculateSection() {
                   background: isActive ? 'var(--lucid-ink-strong)' : 'transparent',
                   border: 'none',
                   borderRadius: 999,
-                  color: isActive ? '#fff' : 'var(--lucid-ink-body)',
+                  color: isActive ? 'var(--lucid-ink-invert)' : 'var(--lucid-ink-body)',
                   fontSize: 11,
                   fontFamily: 'var(--lucid-font-serif)',
                   cursor: 'pointer',
@@ -223,9 +223,9 @@ function QuickResultSection({ result, method, criterion }: {
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '3px 10px',
-            background: result.soilType === 'Coh' ? '#eef4fa' : 'var(--lucid-tint-coral)',
-            color: result.soilType === 'Coh' ? '#3a6989' : '#b5563f',
-            border: `1px solid ${result.soilType === 'Coh' ? '#d5e2ec' : '#efd9cd'}`,
+            background: result.soilType === 'Coh' ? 'var(--lucid-acc-slate-bg)' : 'var(--lucid-tint-coral)',
+            color: result.soilType === 'Coh' ? 'var(--lucid-acc-slate-text)' : 'var(--lucid-acc-coral-text)',
+            border: `1px solid ${result.soilType === 'Coh' ? 'var(--lucid-acc-slate-border)' : 'var(--lucid-acc-coral-border)'}`,
             borderRadius: 999,
             fontFamily: 'var(--lucid-font-sans)',
             fontSize: 11, fontWeight: 500,
@@ -336,9 +336,9 @@ function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo 
                 padding: '4px 10px',
                 fontFamily: 'var(--lucid-font-sans)',
                 fontSize: 11, fontWeight: 500,
-                background: ec.valid ? '#ecf5ec' : 'var(--lucid-tint-coral)',
-                color: ec.valid ? '#3d7045' : '#b5563f',
-                border: `1px solid ${ec.valid ? '#d5e6d5' : '#efd9cd'}`,
+                background: ec.valid ? 'var(--lucid-acc-sage-bg)' : 'var(--lucid-tint-coral)',
+                color: ec.valid ? 'var(--lucid-acc-sage-text)' : 'var(--lucid-acc-coral-text)',
+                border: `1px solid ${ec.valid ? 'var(--lucid-acc-sage-border)' : 'var(--lucid-acc-coral-border)'}`,
                 borderRadius: 999,
               }}>
                 {ec.valid ? 'Diseño válido' : 'Falla — FS insuficiente'}
@@ -777,15 +777,15 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             width: '100%', padding: '10px 0',
             fontFamily: 'var(--lucid-font-sans)',
             fontSize: 13, fontWeight: 500,
-            background: pdfLoading ? 'var(--lucid-surface-figure)' : 'var(--lucid-ink-strong)',
-            border: 'none', color: pdfLoading ? 'var(--lucid-ink-muted)' : '#fff',
+            background: pdfLoading ? 'var(--lucid-surface-figure)' : 'var(--lucid-button-primary-bg)',
+            border: 'none', color: pdfLoading ? 'var(--lucid-ink-muted)' : 'var(--lucid-button-primary-fg)',
             borderRadius: 4,
             cursor: pdfLoading ? 'wait' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
           }}
-          onMouseEnter={(e) => { if (!pdfLoading) e.currentTarget.style.background = '#000'; }}
-          onMouseLeave={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--lucid-ink-strong)'; }}
+          onMouseEnter={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--lucid-button-primary-bg-hover)'; }}
+          onMouseLeave={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--lucid-button-primary-bg)'; }}
         >
           {pdfLoading ? 'Generando PDF...' : 'Exportar PDF'}
         </button>
@@ -808,7 +808,7 @@ function ExportBtn({ label, onClick }: { label: string; onClick: () => void }) {
         padding: '7px 0',
         fontFamily: 'var(--lucid-font-sans)',
         fontSize: 11,
-        background: '#fff',
+        background: 'var(--lucid-surface-page)',
         border: '1px solid var(--lucid-rule-cream)',
         borderRadius: 3,
         color: 'var(--lucid-ink-strong)',
@@ -817,7 +817,7 @@ function ExportBtn({ label, onClick }: { label: string; onClick: () => void }) {
         transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-page)'; }}
     >
       {label}
     </button>

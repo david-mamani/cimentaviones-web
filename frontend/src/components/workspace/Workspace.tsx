@@ -121,7 +121,7 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
     <div ref={containerRef} style={{
       flex: 1,
       display: 'flex',
-      background: '#fafaf7',
+      background: 'var(--lucid-surface-page-warm)',
       overflow: 'hidden',
     }}>
       {/* Left slot */}

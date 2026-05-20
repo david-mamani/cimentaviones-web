@@ -144,7 +144,7 @@ export default function Viewer2D() {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', background: '#fafaf7', cursor: isPanning ? 'grabbing' : 'default' }}
+      style={{ width: '100%', height: '100%', background: 'var(--lucid-surface-page-warm)', cursor: isPanning ? 'grabbing' : 'default' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

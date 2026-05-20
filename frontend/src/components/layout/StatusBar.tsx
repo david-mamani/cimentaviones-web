@@ -51,7 +51,7 @@ export default function StatusBar() {
       )}
       {errors.length > 0 && (
         <span style={{
-          color: '#b5563f',
+          color: 'var(--lucid-acc-coral-text)',
           fontFamily: 'var(--lucid-font-sans)',
           fontSize: 11,
         }}>

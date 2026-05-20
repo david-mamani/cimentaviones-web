@@ -44,7 +44,7 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(43, 43, 43, 0.35)',
+        background: 'var(--lucid-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9999,
       }}
@@ -124,11 +124,11 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
             marginTop: 14,
             padding: '10px 14px',
             background: 'var(--lucid-tint-coral)',
-            border: '1px solid #efd9cd',
+            border: '1px solid var(--lucid-acc-coral-border)',
             borderRadius: 4,
             fontFamily: 'var(--lucid-font-serif)',
             fontSize: 12, fontStyle: 'italic',
-            color: '#b5563f',
+            color: 'var(--lucid-acc-coral-text)',
             lineHeight: 1.5,
           }}>
             Las unidades de entrada y salida son diferentes. Los resultados se convertirán automáticamente; en el PDF se incluirá una sección de conversión.
@@ -212,7 +212,7 @@ function UnitSection({ title, subtitle, config, preset, onPreset }: {
               style={{
                 flex: 1,
                 padding: '6px 8px',
-                background: isActive ? '#fff' : 'transparent',
+                background: isActive ? 'var(--lucid-surface-page)' : 'transparent',
                 boxShadow: isActive ? '0 0 0 1px var(--lucid-rule-cream) inset' : 'none',
                 border: 'none',
                 borderRadius: 3,
@@ -286,7 +286,7 @@ function UnitDropdown({ label, value, options, last }: {
         value={value}
         disabled
         style={{
-          background: '#fff',
+          background: 'var(--lucid-surface-page)',
           border: '1px solid var(--lucid-rule-cream)',
           borderRadius: 3,
           color: 'var(--lucid-ink-strong)',

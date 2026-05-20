@@ -34,7 +34,7 @@ export default function FoundationDesignTab() {
       display: 'flex',
       width: '100%',
       height: '100%',
-      background: '#fafaf7',
+      background: 'var(--lucid-surface-page-warm)',
       overflow: 'hidden',
     }}>
       {/* ─── Lado izquierdo: vista en planta ─── */}
@@ -54,11 +54,11 @@ export default function FoundationDesignTab() {
           textTransform: 'uppercase',
           letterSpacing: '0.10em',
           color: 'var(--lucid-ink-strong)',
-          background: '#fff',
+          background: 'var(--lucid-surface-page)',
         }}>
           Vista en planta
         </div>
-        <div style={{ flex: 1, padding: 24, minHeight: 0, background: '#fafaf7' }}>
+        <div style={{ flex: 1, padding: 24, minHeight: 0, background: 'var(--lucid-surface-page-warm)' }}>
           <FoundationPlanView
             B={f.B}
             L={isCircular ? f.B : f.L}
@@ -197,7 +197,7 @@ export default function FoundationDesignTab() {
 const selectStyle: React.CSSProperties = {
   width: '100%',
   padding: '6px 10px',
-  background: '#fff',
+  background: 'var(--lucid-surface-page)',
   border: '1px solid var(--lucid-rule-cream)',
   borderRadius: 3,
   color: 'var(--lucid-ink-strong)',
@@ -270,12 +270,12 @@ function Note({ children, variant }: { children: React.ReactNode; variant?: 'war
         marginTop: 8,
         padding: '8px 12px',
         background: 'var(--lucid-tint-coral)',
-        border: '1px solid #efd9cd',
+        border: '1px solid var(--lucid-acc-coral-border)',
         borderRadius: 4,
         fontFamily: 'var(--lucid-font-serif)',
         fontSize: 12,
         lineHeight: 1.5,
-        color: '#b5563f',
+        color: 'var(--lucid-acc-coral-text)',
       }}>
         {children}
       </div>

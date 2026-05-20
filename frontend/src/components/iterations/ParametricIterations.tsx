@@ -186,20 +186,20 @@ export default function ParametricIterations() {
     });
   };
 
-  // Lucid chart colors (light/dark mantienen, pero Lucid es la nueva base)
-  void isLight; // theme toggle reserved
-  const chartText = '#4a4a4a';
-  const chartAxisLabel = '#4a4a4a';
-  const chartAxisLine = '#c8c8c8';
-  const chartGrid = '#e8e8e8';
-  const chartMinorGrid = '#f3eed7';
-  const chartTick = '#8a8a8a';
-  const chartAxisText = '#8a8a8a';
-  const chartPlotBg = '#ffffff';
-  const chartPaperBg = '#f8f5e8';
-  const chartLegendBg = 'rgba(255,255,255,0.95)';
-  const chartLegendBorder = '#d6d0bf';
-  const chartLegendText = '#4a4a4a';
+  // Plotly chart colors — theme-aware (Plotly SVG no resuelve CSS vars,
+  // así que las leemos a mano según el modo activo).
+  const chartText        = isLight ? '#4a4a4a' : '#cccccc';
+  const chartAxisLabel   = isLight ? '#4a4a4a' : '#cccccc';
+  const chartAxisLine    = isLight ? '#c8c8c8' : '#555555';
+  const chartGrid        = isLight ? '#e8e8e8' : '#2a2a2a';
+  const chartMinorGrid   = isLight ? '#f3eed7' : '#1e1e1e';
+  const chartTick        = isLight ? '#8a8a8a' : '#999999';
+  const chartAxisText    = isLight ? '#8a8a8a' : '#888888';
+  const chartPlotBg      = isLight ? '#ffffff' : '#1e1e1e';
+  const chartPaperBg     = isLight ? '#f8f5e8' : '#2b2b2b';
+  const chartLegendBg    = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(43,43,43,0.92)';
+  const chartLegendBorder = isLight ? '#d6d0bf' : '#444444';
+  const chartLegendText  = isLight ? '#4a4a4a' : '#bbbbbb';
 
   const layout: Partial<Plotly.Layout> = {
     xaxis: {
@@ -319,7 +319,7 @@ export default function ParametricIterations() {
           <div style={{
             marginBottom: 12, marginLeft: 24,
             padding: '8px 12px',
-            background: '#fff',
+            background: 'var(--lucid-surface-page)',
             border: '1px solid var(--lucid-rule-cream)',
             borderRadius: 4,
             fontFamily: 'var(--lucid-font-serif)',
@@ -354,8 +354,8 @@ export default function ParametricIterations() {
           disabled={(!config.varyB && !config.varyDf) || loading}
           style={{
             width: '100%', padding: '11px 0',
-            background: loading ? 'var(--lucid-surface-figure-deep)' : 'var(--lucid-ink-strong)',
-            color: loading ? 'var(--lucid-ink-muted)' : '#fff',
+            background: loading ? 'var(--lucid-surface-figure-deep)' : 'var(--lucid-button-primary-bg)',
+            color: loading ? 'var(--lucid-ink-muted)' : 'var(--lucid-button-primary-fg)',
             border: 'none', borderRadius: 4,
             fontFamily: 'var(--lucid-font-sans)', fontSize: 13, fontWeight: 500,
             cursor: loading ? 'wait' : 'pointer',
@@ -419,14 +419,14 @@ export default function ParametricIterations() {
                 style={{
                   marginLeft: 'auto',
                   padding: '5px 12px',
-                  background: '#fff', border: '1px solid var(--lucid-rule-cream)',
+                  background: 'var(--lucid-surface-page)', border: '1px solid var(--lucid-rule-cream)',
                   borderRadius: 4,
                   fontFamily: 'var(--lucid-font-sans)', fontSize: 11,
                   color: 'var(--lucid-ink-body)', cursor: 'pointer',
                   transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure-deep)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-page)'; }}
                 title="Copiar gráfico como imagen"
               >
                 Copiar gráfico
@@ -434,7 +434,7 @@ export default function ParametricIterations() {
             </div>
 
             {/* Plotly Chart */}
-            <div style={{ height: chartHeight, background: '#fff', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: chartHeight, background: 'var(--lucid-surface-page)', borderRadius: 4, overflow: 'hidden' }}>
               <Plot
                 data={getTraces() as any[]}
                 layout={{ ...layout, height: chartHeight }}
@@ -459,7 +459,7 @@ export default function ParametricIterations() {
 
           {/* Annotations — log Lucid */}
           <div style={{
-            background: '#fff',
+            background: 'var(--lucid-surface-page)',
             border: '1px solid var(--lucid-rule-cream)',
             borderRadius: 6,
             padding: '14px 18px',
@@ -527,7 +527,7 @@ export default function ParametricIterations() {
                 onClick={handleCopyTable}
                 style={{
                   padding: '5px 14px',
-                  background: '#fff', border: '1px solid var(--lucid-rule-cream)',
+                  background: 'var(--lucid-surface-page)', border: '1px solid var(--lucid-rule-cream)',
                   borderRadius: 4,
                   fontFamily: 'var(--lucid-font-sans)', fontSize: 11,
                   color: 'var(--lucid-ink-strong)', cursor: 'pointer',
@@ -536,7 +536,7 @@ export default function ParametricIterations() {
                 Copiar tabla
               </button>
             </div>
-            <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid var(--lucid-rule-cream)', borderRadius: 4 }}>
+            <div style={{ overflowX: 'auto', background: 'var(--lucid-surface-page)', border: '1px solid var(--lucid-rule-cream)', borderRadius: 4 }}>
               {(() => {
                 if (!iterResult || !iterResult.matrix.length || !iterResult.matrix[0]) return null;
                 const bValues = iterResult.matrix[0].map(cell => cell.B);
@@ -544,23 +544,39 @@ export default function ParametricIterations() {
                 const metricU = chartMetric === 'qa' ? 'tnf/m²' : 'tnf';
                 const metricName = chartMetric === 'qa' ? 'Q adm' : 'Q max';
 
+                // NOTA: Esta tabla es para visualizacion ademas de copy-paste
+                // a Word/Excel. Usamos tokens Lucid para integrarse al tema; al
+                // copiar a Word los colores de tema se pegan tal cual. Si se
+                // requiere un azul-Word fijo se sugiere copiar el screenshot.
+                const thBg = 'var(--lucid-acc-slate-bg)';
+                const thColor = 'var(--lucid-acc-slate-text)';
+                const cellBorder = '1px solid var(--lucid-rule-cream)';
+                const tdColor = 'var(--lucid-ink-body)';
                 return (
-                  <table ref={summaryTableRef} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 12, color: 'black', fontFamily: 'Arial, sans-serif' }}>
+                  <table
+                    ref={summaryTableRef}
+                    style={{
+                      width: '100%', borderCollapse: 'collapse', textAlign: 'center',
+                      fontSize: 12, color: tdColor,
+                      fontFamily: 'var(--lucid-font-serif)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
                     <thead>
                       <tr>
                         {dfValues.map((df, i) => (
-                          <th key={`df-${i}`} colSpan={2} style={{ border: '1px solid black', padding: '4px', backgroundColor: '#87CEEB', fontWeight: 'bold' }}>
-                            Para un Df = {df.toFixed(2)} m
+                          <th key={`df-${i}`} colSpan={2} style={{ border: cellBorder, padding: '6px', background: thBg, color: thColor, fontWeight: 600, fontFamily: 'var(--lucid-font-serif)' }}>
+                            Para un Dƒ = {df.toFixed(2)} m
                           </th>
                         ))}
                       </tr>
                       <tr>
                         {dfValues.map((_, i) => (
                           <React.Fragment key={`sub-${i}`}>
-                            <th style={{ border: '1px solid black', padding: '4px', backgroundColor: '#87CEEB', fontWeight: 'bold' }}>
+                            <th style={{ border: cellBorder, padding: '6px', background: thBg, color: thColor, fontFamily: 'var(--lucid-font-sans)', fontSize: 11, fontWeight: 500 }}>
                               B (m)
                             </th>
-                            <th style={{ border: '1px solid black', padding: '4px', backgroundColor: '#87CEEB', fontWeight: 'bold' }}>
+                            <th style={{ border: cellBorder, padding: '6px', background: thBg, color: thColor, fontFamily: 'var(--lucid-font-sans)', fontSize: 11, fontWeight: 500 }}>
                               {metricName} ({metricU})
                             </th>
                           </React.Fragment>
@@ -572,14 +588,14 @@ export default function ParametricIterations() {
                         <tr key={`row-${bi}`}>
                           {dfValues.map((_df, di) => {
                             const cell = iterResult.matrix[di][bi];
-                            if (!cell) return <React.Fragment key={`empty-${di}-${bi}`}><td style={{border:'1px solid black'}}>-</td><td style={{border:'1px solid black'}}>-</td></React.Fragment>;
+                            if (!cell) return <React.Fragment key={`empty-${di}-${bi}`}><td style={{ border: cellBorder, color: tdColor }}>—</td><td style={{ border: cellBorder, color: tdColor }}>—</td></React.Fragment>;
                             const val = chartMetric === 'qa' ? cell.result.qa : cell.Qmax;
                             return (
                               <React.Fragment key={`cell-${di}-${bi}`}>
-                                <td style={{ border: '1px solid black', padding: '4px' }}>
+                                <td style={{ border: cellBorder, padding: '6px', color: tdColor }}>
                                   {cell.B.toFixed(2)}
                                 </td>
-                                <td style={{ border: '1px solid black', padding: '4px' }}>
+                                <td style={{ border: cellBorder, padding: '6px', color: 'var(--lucid-ink-strong)' }}>
                                   {toMetric(val, chartMetric === 'qa' ? 'pressure' : 'force').toFixed(2)}
                                 </td>
                               </React.Fragment>
@@ -624,7 +640,7 @@ function ExportIterBtn({ label, onClick }: { label: string; onClick: () => void 
       onClick={onClick}
       style={{
         padding: '10px 0',
-        background: '#fff', border: '1px solid var(--lucid-rule-cream)',
+        background: 'var(--lucid-surface-page)', border: '1px solid var(--lucid-rule-cream)',
         borderRadius: 4,
         fontFamily: 'var(--lucid-font-sans)', fontSize: 12,
         color: 'var(--lucid-ink-strong)', cursor: 'pointer',
@@ -632,7 +648,7 @@ function ExportIterBtn({ label, onClick }: { label: string; onClick: () => void 
         transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-page)'; }}
     >
       {label}
     </button>

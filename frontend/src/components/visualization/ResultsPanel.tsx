@@ -37,7 +37,7 @@ export default function ResultsPanel() {
 
   return (
     <div style={{
-      background: '#fafaf7',
+      background: 'var(--lucid-surface-page-warm)',
       minHeight: '100%',
       padding: '32px 40px 80px',
       overflow: 'auto',
@@ -170,7 +170,7 @@ export default function ResultsPanel() {
           width: 100%;
           border-collapse: collapse;
           margin: 14px 0;
-          background: #fff;
+          background: var(--lucid-surface-page);
           border: 1px solid var(--lucid-rule-cream);
           border-radius: 6px;
           overflow: hidden;

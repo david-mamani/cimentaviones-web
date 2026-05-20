@@ -7,27 +7,8 @@
 @import url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css');
 
 /* ─── Lucid Explainer tokens — minimalist explainer-style design system.
-   Cream-on-white surfaces, serif display, sans labels, no shadows.
-   Used by Toolbar and other progressively-migrated surfaces.
-   Independent of the dark/light theme so the design is preview-stable. ─── */
-:root {
-  --lucid-surface-page: #ffffff;
-  --lucid-surface-figure: #f8f5e8;
-  --lucid-surface-figure-deep: #f3eed7;
-  --lucid-tint-coral: #fbece6;
-
-  --lucid-ink-strong: #2b2b2b;
-  --lucid-ink-body: #4a4a4a;
-  --lucid-ink-muted: #8a8a8a;
-  --lucid-ink-faint: #b8b8b8;
-  --lucid-rule-white: #e8e8e8;
-  --lucid-rule-cream: #d6d0bf;
-
-  --lucid-acc-coral: #e8654a;
-
-  --lucid-font-serif: "Crimson Pro", "EB Garamond", Georgia, serif;
-  --lucid-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
+   Theme-aware: dark mode defaults below, light mode overrides in .light-mode.
+   Cream-on-white in light mode; dark grays + coral accent in dark mode. ─── */
 
 /* ─── Dark Mode (default) — Photoshop Grays ─── */
 :root {
@@ -92,6 +73,43 @@
   --svg-water: #7a9eb8;
   --svg-stroke: #444444;
 
+  /* ─── Lucid tokens — DARK variant (default) ─── */
+  --lucid-surface-page: #2b2b2b;
+  --lucid-surface-page-warm: #232323;
+  --lucid-surface-figure: #333333;
+  --lucid-surface-figure-deep: #3a3a3a;
+  --lucid-tint-coral: rgba(232, 101, 74, 0.14);
+
+  --lucid-ink-strong: #e8e8e8;
+  --lucid-ink-body: rgba(255, 255, 255, 0.70);
+  --lucid-ink-muted: rgba(255, 255, 255, 0.45);
+  --lucid-ink-faint: rgba(255, 255, 255, 0.28);
+  --lucid-ink-invert: #2b2b2b;
+
+  --lucid-rule-white: rgba(255, 255, 255, 0.08);
+  --lucid-rule-cream: rgba(255, 255, 255, 0.16);
+
+  --lucid-acc-coral: #e8654a;
+  --lucid-acc-coral-text: #f4a89a;
+  --lucid-acc-coral-border: rgba(232, 101, 74, 0.35);
+
+  --lucid-acc-slate-bg: rgba(168, 197, 214, 0.12);
+  --lucid-acc-slate-text: #a8c5d6;
+  --lucid-acc-slate-border: rgba(168, 197, 214, 0.30);
+
+  --lucid-acc-sage-bg: rgba(126, 196, 136, 0.12);
+  --lucid-acc-sage-text: #a8d4a8;
+  --lucid-acc-sage-border: rgba(126, 196, 136, 0.30);
+
+  --lucid-button-primary-bg: #e8e8e8;
+  --lucid-button-primary-bg-hover: #ffffff;
+  --lucid-button-primary-fg: #2b2b2b;
+
+  --lucid-overlay: rgba(0, 0, 0, 0.55);
+
+  --lucid-font-serif: "Crimson Pro", "EB Garamond", Georgia, serif;
+  --lucid-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
   color-scheme: dark;
 }
 
@@ -141,6 +159,40 @@
   --svg-water: #6a8fa8;
   --svg-stroke: #c4bdb3;
 
+  /* ─── Lucid tokens — LIGHT variant (cream-on-white) ─── */
+  --lucid-surface-page: #ffffff;
+  --lucid-surface-page-warm: #fafaf7;
+  --lucid-surface-figure: #f8f5e8;
+  --lucid-surface-figure-deep: #f3eed7;
+  --lucid-tint-coral: #fbece6;
+
+  --lucid-ink-strong: #2b2b2b;
+  --lucid-ink-body: #4a4a4a;
+  --lucid-ink-muted: #8a8a8a;
+  --lucid-ink-faint: #b8b8b8;
+  --lucid-ink-invert: #ffffff;
+
+  --lucid-rule-white: #e8e8e8;
+  --lucid-rule-cream: #d6d0bf;
+
+  --lucid-acc-coral: #e8654a;
+  --lucid-acc-coral-text: #b5563f;
+  --lucid-acc-coral-border: #efd9cd;
+
+  --lucid-acc-slate-bg: #eef4fa;
+  --lucid-acc-slate-text: #3a6989;
+  --lucid-acc-slate-border: #d5e2ec;
+
+  --lucid-acc-sage-bg: #ecf5ec;
+  --lucid-acc-sage-text: #3d7045;
+  --lucid-acc-sage-border: #d5e6d5;
+
+  --lucid-button-primary-bg: #2b2b2b;
+  --lucid-button-primary-bg-hover: #000000;
+  --lucid-button-primary-fg: #ffffff;
+
+  --lucid-overlay: rgba(43, 43, 43, 0.35);
+
   color-scheme: light;
 }
 
@@ -181,7 +233,7 @@ body {
 .cad-input {
   width: 100%;
   padding: 6px 10px;
-  background: #fff;
+  background: var(--lucid-surface-page);
   border: 1px solid var(--lucid-rule-cream);
   border-radius: 3px;
   color: var(--lucid-ink-strong);
@@ -314,7 +366,7 @@ body {
   width: 13px;
   height: 13px;
   border: 1.5px solid var(--lucid-ink-strong);
-  background: #fff;
+  background: var(--lucid-surface-page);
   border-radius: 2px;
   cursor: pointer;
   position: relative;
@@ -333,7 +385,7 @@ body {
   top: 0;
   width: 5px;
   height: 9px;
-  border: solid #fff;
+  border: solid var(--lucid-ink-invert);
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
 }
@@ -368,7 +420,7 @@ body {
   display: flex;
   gap: 0;
   padding: 0 20px;
-  background: #fafaf7;
+  background: var(--lucid-surface-page-warm);
   border-bottom: 1px solid var(--lucid-rule-white);
   min-height: 36px;
   overflow-x: auto;
@@ -449,7 +501,7 @@ body {
 }
 
 .stratum-input:focus {
-  background: #fff;
+  background: var(--lucid-surface-page);
   border-color: var(--lucid-ink-strong);
 }
 

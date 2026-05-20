@@ -362,7 +362,7 @@ function QuickDesignSection() {
             style={{
               flex: 1,
               padding: '6px 10px',
-              background: f.type === t.value ? '#fff' : 'transparent',
+              background: f.type === t.value ? 'var(--lucid-surface-page)' : 'transparent',
               border: 'none',
               boxShadow: f.type === t.value ? '0 0 0 1px var(--lucid-rule-cream) inset' : 'none',
               borderRadius: 3,
@@ -412,7 +412,7 @@ function QuickDesignSection() {
         onClick={() => addTab?.('foundation-design')}
         style={{
           width: '100%', marginTop: 8, padding: '8px 10px',
-          background: '#fff',
+          background: 'var(--lucid-surface-page)',
           border: '1px solid var(--lucid-rule-cream)',
           borderRadius: 4,
           color: 'var(--lucid-ink-strong)',
@@ -426,7 +426,7 @@ function QuickDesignSection() {
           e.currentTarget.style.borderColor = 'var(--lucid-ink-strong)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = '#fff';
+          e.currentTarget.style.background = 'var(--lucid-surface-page)';
           e.currentTarget.style.borderColor = 'var(--lucid-rule-cream)';
         }}
         title="Abrir ventana de Diseño de Cimentación (excentricidades, vista en planta)"
@@ -488,7 +488,7 @@ function SolutionSection() {
               title={isBlocked ? 'Terzaghi no aplica para cimentaciones rectangulares' : undefined}
               style={{
                 flex: 1, padding: '6px 4px',
-                background: isActive ? '#fff' : 'transparent',
+                background: isActive ? 'var(--lucid-surface-page)' : 'transparent',
                 boxShadow: isActive ? '0 0 0 1px var(--lucid-rule-cream) inset' : 'none',
                 border: 'none',
                 borderRadius: 3,
