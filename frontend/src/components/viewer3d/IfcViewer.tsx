@@ -729,66 +729,43 @@ export default function IfcViewer() {
   }, []);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'var(--bg-viewport)' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#fafaf7' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
-      {/* Toolbar */}
+      {/* Toolbar Lucid */}
       <div style={{
-        position: 'absolute', top: 8, right: showSettings ? 248 : 8,
-        display: 'flex', gap: 4, transition: 'right 0.2s ease',
+        position: 'absolute', top: 16, right: showSettings ? 256 : 16,
+        display: 'flex', gap: 6, transition: 'right 0.2s ease', zIndex: 5,
       }}>
         <button
           onClick={handleExportIFC}
           style={{
-            padding: '4px 10px', height: 28,
-            background: 'var(--accent)', border: 'none',
-            color: 'var(--bg-base)', cursor: 'pointer', fontSize: 11,
-            fontFamily: 'var(--font-sans)', fontWeight: 500,
-            borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4,
-            transition: 'all var(--transition-fast)',
+            padding: '5px 14px', height: 30,
+            background: 'var(--lucid-surface-page)',
+            border: '1.5px solid var(--lucid-ink-strong)',
+            color: 'var(--lucid-ink-strong)',
+            cursor: 'pointer',
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 13,
+            borderRadius: 999,
+            display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-page)'; }}
           title="Exportar IFC (Revit, ArchiCAD, BlenderBIM)"
         >
           Exportar IFC
         </button>
-        <button
-          onClick={() => loadModel()}
-          style={{
-            width: 28, height: 28,
-            background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
-            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13,
-            borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          title="Recargar modelo"
-        >
-          ↻
-        </button>
-        <button
-          onClick={handleResetCamera}
-          style={{
-            width: 28, height: 28,
-            background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
-            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14,
-            borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          title="Vista inicial"
-        >
-          ⌂
-        </button>
-        <button
+        <V3Tool onClick={() => loadModel()} title="Recargar modelo">↻</V3Tool>
+        <V3Tool onClick={handleResetCamera} title="Vista inicial">⌂</V3Tool>
+        <V3Tool
           onClick={() => setShowSettings(!showSettings)}
-          style={{
-            width: 28, height: 28,
-            background: showSettings ? 'var(--accent)' : 'var(--bg-surface-2)',
-            border: `1px solid ${showSettings ? 'var(--accent)' : 'var(--border)'}`,
-            color: showSettings ? 'var(--bg-base)' : 'var(--text-secondary)',
-            cursor: 'pointer', fontSize: 13,
-            borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
+          active={showSettings}
           title="Configuración de visualización"
         >
           ⚙
-        </button>
+        </V3Tool>
       </div>
 
       {/* Settings Panel */}
@@ -801,16 +778,21 @@ export default function IfcViewer() {
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 14,
+          background: 'rgba(255, 255, 255, 0.85)',
+          color: 'var(--lucid-ink-strong)',
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 15,
+          fontStyle: 'italic',
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{
-              width: 32, height: 32, margin: '0 auto 8px',
-              border: '3px solid var(--bg-surface-3)', borderTopColor: 'var(--accent)',
+              width: 36, height: 36, margin: '0 auto 12px',
+              border: '2px solid var(--lucid-rule-cream)',
+              borderTopColor: 'var(--lucid-acc-coral)',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }} />
-            Generando modelo IFC...
+            Generando modelo IFC…
           </div>
         </div>
       )}
@@ -818,20 +800,28 @@ export default function IfcViewer() {
       {/* Error message */}
       {error && (
         <div style={{
-          position: 'absolute', bottom: 8, left: 8, right: 8,
-          padding: '8px 12px', background: 'var(--accent)',
-          color: 'var(--bg-base)', fontSize: 12, borderRadius: 'var(--radius-md)',
+          position: 'absolute', bottom: 16, left: 16, right: 16,
+          padding: '10px 14px',
+          background: 'var(--lucid-tint-coral)',
+          border: '1px solid #efd9cd',
+          color: '#b5563f',
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 13,
+          borderRadius: 6,
         }}>
-          ⚠ {error}
+          {error}
         </div>
       )}
 
       {/* Help text */}
       <div style={{
-        position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)',
-        fontSize: 10, color: 'var(--text-muted)', pointerEvents: 'none',
+        position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+        fontFamily: 'var(--lucid-font-serif)',
+        fontStyle: 'italic',
+        fontSize: 11, color: 'var(--lucid-ink-muted)',
+        pointerEvents: 'none',
       }}>
-        Izq: rotar · Der: mover · Scroll: zoom
+        Izquierdo: rotar · derecho: mover · scroll: zoom
       </div>
 
       <style>{`
@@ -840,5 +830,41 @@ export default function IfcViewer() {
         }
       `}</style>
     </div>
+  );
+}
+
+function V3Tool({ children, onClick, active, title }: {
+  children: React.ReactNode; onClick: () => void; active?: boolean; title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        width: 30, height: 30,
+        background: active ? 'var(--lucid-surface-figure)' : 'var(--lucid-surface-page)',
+        border: '1px solid var(--lucid-rule-cream)',
+        color: active ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-body)',
+        cursor: 'pointer',
+        fontSize: 14,
+        borderRadius: 4,
+        display: 'grid', placeItems: 'center',
+        transition: 'background 160ms cubic-bezier(0.4,0,0.2,1), color 160ms cubic-bezier(0.4,0,0.2,1)',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'var(--lucid-surface-figure)';
+          e.currentTarget.style.color = 'var(--lucid-ink-strong)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'var(--lucid-surface-page)';
+          e.currentTarget.style.color = 'var(--lucid-ink-body)';
+        }
+      }}
+    >
+      {children}
+    </button>
   );
 }

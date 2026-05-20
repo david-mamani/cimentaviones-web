@@ -67,15 +67,25 @@ export default function OutputPanel() {
 
       {errors.length > 0 && (
         <div style={{
-          padding: 10,
-          background: 'var(--accent-bg)',
-          borderBottom: '1px solid var(--border)',
+          padding: '12px 14px',
+          background: 'var(--lucid-tint-coral)',
+          borderBottom: '1px solid var(--lucid-rule-white)',
         }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--error)', marginBottom: 4 }}>
-            ⚠ Errores de validación
+          <p style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 10, fontWeight: 600, color: '#b5563f',
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+            marginBottom: 6,
+          }}>
+            Errores de validación
           </p>
           {errors.map((e, i) => (
-            <p key={i} style={{ fontSize: 10, color: 'var(--error)', marginBottom: 2 }}>• {e}</p>
+            <p key={i} style={{
+              fontFamily: 'var(--lucid-font-serif)',
+              fontSize: 12, color: '#b5563f', marginBottom: 4, lineHeight: 1.4,
+            }}>
+              · {e}
+            </p>
           ))}
         </div>
       )}
@@ -112,62 +122,71 @@ function CalculateSection() {
 
   return (
     <div style={{
-      padding: 10,
-      borderBottom: '1px solid var(--border)',
-      background: 'var(--bg-surface-2)',
+      padding: '14px 14px 16px',
+      borderBottom: '1px solid var(--lucid-rule-white)',
+      background: 'var(--lucid-surface-page)',
     }}>
       <button
         onClick={() => triggerCalculateWithValidation()}
         disabled={isCalculating}
         style={{
-          width: '100%', padding: '9px 0',
-          background: isCalculating ? 'var(--bg-surface-3)' : 'var(--accent)',
-          border: 'none', borderRadius: 20,
-          color: isCalculating ? 'var(--text-secondary)' : 'var(--bg-base)',
-          fontSize: 12, fontWeight: 700,
-          fontFamily: 'var(--font-sans)',
+          width: '100%', padding: '10px 0',
+          background: isCalculating ? 'var(--lucid-surface-figure)' : 'var(--lucid-ink-strong)',
+          border: 'none', borderRadius: 999,
+          color: isCalculating ? 'var(--lucid-ink-muted)' : '#fff',
+          fontSize: 13, fontWeight: 500,
+          fontFamily: 'var(--lucid-font-sans)',
           cursor: isCalculating ? 'wait' : 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          transition: 'all var(--transition-fast)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
         }}
-        onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent-hover)'; }}
-        onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent)'; }}
+        onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = '#000'; }}
+        onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--lucid-ink-strong)'; }}
       >
         {isCalculating
-          ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-          : <Play size={14} />}
+          ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+          : <Play size={12} fill="currentColor" style={{ color: 'var(--lucid-acc-coral)' }} />}
         {isCalculating ? 'Calculando...' : 'Calcular'}
       </button>
 
-      {/* Selector de criterio */}
-      <div style={{ marginTop: 10 }}>
+      {/* Selector de criterio — Lucid pill group */}
+      <div style={{ marginTop: 14 }}>
         <div style={{
-          fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
-          textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4,
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 10, fontWeight: 600, color: 'var(--lucid-ink-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 8,
         }}>
           Criterio a mostrar
         </div>
-        <div style={{ display: 'flex', gap: 3 }}>
-          {(['general', 'rne', 'rne_corrected'] as CriterionKey[]).map((c) => (
-            <button
-              key={c}
-              onClick={() => setSelectedCriterion(c)}
-              style={{
-                flex: 1, padding: '5px 4px',
-                background: selectedCriterion === c ? 'var(--accent-bg)' : 'var(--bg-surface-1)',
-                border: `1px solid ${selectedCriterion === c ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-sm)',
-                color: selectedCriterion === c ? 'var(--accent)' : 'var(--text-primary)',
-                fontSize: 9,
-                fontWeight: selectedCriterion === c ? 600 : 500,
-                fontFamily: 'var(--font-sans)',
-                cursor: 'pointer',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              {CRITERION_LABELS[c]}
-            </button>
-          ))}
+        <div style={{
+          display: 'flex',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 999,
+          padding: 2,
+          background: '#fff',
+        }}>
+          {(['general', 'rne', 'rne_corrected'] as CriterionKey[]).map((c) => {
+            const isActive = selectedCriterion === c;
+            return (
+              <button
+                key={c}
+                onClick={() => setSelectedCriterion(c)}
+                style={{
+                  flex: 1, padding: '5px 8px',
+                  background: isActive ? 'var(--lucid-ink-strong)' : 'transparent',
+                  border: 'none',
+                  borderRadius: 999,
+                  color: isActive ? '#fff' : 'var(--lucid-ink-body)',
+                  fontSize: 11,
+                  fontFamily: 'var(--lucid-font-serif)',
+                  cursor: 'pointer',
+                  transition: 'all 160ms cubic-bezier(0.4,0,0.2,1)',
+                }}
+              >
+                {CRITERION_LABELS[c]}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -195,57 +214,80 @@ function QuickResultSection({ result, method, criterion }: {
   const qa_net = qnet / (qu > 0 ? (qu / qa) : 1);
 
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Resultados — {METHOD_LABELS[method]} / {CRITERION_LABELS[criterion]}
       </div>
-      <div style={{ padding: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+      <div style={{ padding: '8px 14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{
-            fontSize: 9, fontWeight: 700, padding: '3px 8px',
-            background: result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.12)' : 'var(--accent-bg)',
-            color: result.soilType === 'Coh' ? 'var(--info)' : 'var(--accent)',
-            border: `1px solid ${result.soilType === 'Coh' ? 'rgba(93, 173, 226, 0.25)' : 'var(--border-accent)'}`,
-            borderRadius: 'var(--radius-sm)',
-            textTransform: 'uppercase', letterSpacing: 0.5,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '3px 10px',
+            background: result.soilType === 'Coh' ? '#eef4fa' : 'var(--lucid-tint-coral)',
+            color: result.soilType === 'Coh' ? '#3a6989' : '#b5563f',
+            border: `1px solid ${result.soilType === 'Coh' ? '#d5e2ec' : '#efd9cd'}`,
+            borderRadius: 999,
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 11, fontWeight: 500,
           }}>
             {result.soilType === 'Coh' ? 'Cohesivo' : 'Friccionante'}
           </span>
-          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+          <span style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 11, color: 'var(--lucid-ink-muted)',
+          }}>
             Estrato {result.designStratumIndex + 1}
           </span>
         </div>
 
-        <div style={{ textAlign: 'center', padding: '8px 0 12px' }}>
+        {/* Gran número Lucid: eyebrow + serif XL + unidad sans muted */}
+        <div style={{ textAlign: 'center', padding: '14px 0 18px' }}>
           <div style={{
-            fontSize: 9, color: 'var(--text-muted)',
-            textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4,
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 10, fontWeight: 600, color: 'var(--lucid-ink-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6,
           }}>
             Capacidad admisible
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+          <div style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 48, fontWeight: 400, color: 'var(--lucid-ink-strong)',
+            letterSpacing: '-0.02em', lineHeight: 1,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
             {fmt3(qa / G)}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>t/m²</div>
+          <div style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 11, color: 'var(--lucid-ink-muted)', marginTop: 6,
+          }}>
+            t/m²
+          </div>
         </div>
 
         <ResultRow label="qu" value={qu / G} unit="t/m²" />
         <ResultRow label="qneta" value={qnet / G} unit="t/m²" />
         <ResultRow label="qa_neta" value={qa_net / G} unit="t/m²" />
-        <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+        <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '8px 0' }} />
         <ResultRow label="Q_max" value={Qmax / G} unit="tnf" accent />
 
-        <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+        <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '10px 0' }} />
         <div style={{
-          fontSize: 9, color: 'var(--text-muted)', marginBottom: 4,
-          textTransform: 'uppercase', letterSpacing: 0.5,
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 10, fontWeight: 600, color: 'var(--lucid-ink-muted)',
+          marginBottom: 6,
+          textTransform: 'uppercase', letterSpacing: '0.08em',
         }}>
           Sumandos
         </div>
-        <div style={{ display: 'flex', gap: 12, fontSize: 10, fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>S₁={fmt3(S1 / G)}</span>
-          <span style={{ color: 'var(--text-secondary)' }}>S₂={fmt3(S2 / G)}</span>
-          <span style={{ color: 'var(--text-secondary)' }}>S₃={fmt3(S3 / G)}</span>
+        <div style={{
+          display: 'flex', gap: 14,
+          fontFamily: 'var(--lucid-font-serif)', fontSize: 12,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          <span style={{ color: 'var(--lucid-ink-body)' }}>S₁ = {fmt3(S1 / G)}</span>
+          <span style={{ color: 'var(--lucid-ink-body)' }}>S₂ = {fmt3(S2 / G)}</span>
+          <span style={{ color: 'var(--lucid-ink-body)' }}>S₃ = {fmt3(S3 / G)}</span>
         </div>
       </div>
     </div>
@@ -258,42 +300,48 @@ function QuickResultSection({ result, method, criterion }: {
 function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo }) {
   const ec = eccentricity;
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Excentricidad
       </div>
-      <div style={{ padding: 10 }}>
+      <div style={{ padding: '8px 14px 16px' }}>
         <div style={{
-          fontSize: 9, color: 'var(--text-muted)', marginBottom: 6,
-          textTransform: 'uppercase', letterSpacing: 0.5,
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 11, color: 'var(--lucid-ink-muted)', marginBottom: 10,
         }}>
-          Régimen: <strong style={{ color: 'var(--text-primary)' }}>{ec.regime}</strong>
+          Régimen: <strong style={{
+            color: 'var(--lucid-ink-strong)',
+            fontFamily: 'var(--lucid-font-serif)',
+            fontStyle: 'italic',
+            fontWeight: 500,
+          }}>{ec.regime}</strong>
         </div>
         <ResultRow label="B'" value={ec.B_eff} unit="m" />
         <ResultRow label="L'" value={ec.L_eff} unit="m" />
         <ResultRow label="A'" value={ec.A_eff} unit="m²" />
         {ec.qmax != null && (
           <>
-            <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+            <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '8px 0' }} />
             <ResultRow label="q_max" value={ec.qmax / G} unit="t/m²" />
             <ResultRow label="q_min" value={ec.qmin != null ? ec.qmin / G : 0} unit="t/m²" />
           </>
         )}
         {ec.FS_real != null && (
           <>
-            <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+            <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '8px 0' }} />
             <ResultRow label="FS_real" value={ec.FS_real} unit="" accent />
-            <div style={{ marginTop: 6 }}>
+            <div style={{ marginTop: 8 }}>
               <span style={{
-                display: 'inline-block', padding: '3px 8px',
-                fontSize: 10, fontWeight: 700,
-                background: ec.valid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: ec.valid ? 'var(--success, #22c55e)' : 'var(--error, #ef4444)',
-                border: `1px solid ${ec.valid ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-                borderRadius: 'var(--radius-sm)',
-                textTransform: 'uppercase', letterSpacing: 0.5,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px',
+                fontFamily: 'var(--lucid-font-sans)',
+                fontSize: 11, fontWeight: 500,
+                background: ec.valid ? '#ecf5ec' : 'var(--lucid-tint-coral)',
+                color: ec.valid ? '#3d7045' : '#b5563f',
+                border: `1px solid ${ec.valid ? '#d5e6d5' : '#efd9cd'}`,
+                borderRadius: 999,
               }}>
-                {ec.valid ? '✓ Diseño Válido' : '✗ Falla — FS Insuficiente'}
+                {ec.valid ? 'Diseño válido' : 'Falla — FS insuficiente'}
               </span>
             </div>
           </>
@@ -309,18 +357,35 @@ function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo 
 function FactorsSection({ result }: { result: CalculationResult }) {
   const bf = result.bearingFactors;
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Factores
       </div>
-      <div style={{ padding: 10 }}>
-        <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: 'var(--text-primary)' }}>Nc={fmt3(bf.Nc)}</span>
-          <span style={{ color: 'var(--text-primary)' }}>Nq={fmt3(bf.Nq)}</span>
-          <span style={{ color: 'var(--text-primary)' }}>Nγ={fmt3(bf.Ngamma)}</span>
+      <div style={{ padding: '8px 14px 16px' }}>
+        <div style={{
+          display: 'flex', gap: 16,
+          fontFamily: 'var(--lucid-font-serif)', fontSize: 13,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          <span style={{ color: 'var(--lucid-ink-strong)' }}>
+            <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>Nc</em> = {fmt3(bf.Nc)}
+          </span>
+          <span style={{ color: 'var(--lucid-ink-strong)' }}>
+            <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>Nq</em> = {fmt3(bf.Nq)}
+          </span>
+          <span style={{ color: 'var(--lucid-ink-strong)' }}>
+            <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>Nγ</em> = {fmt3(bf.Ngamma)}
+          </span>
         </div>
-        <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-secondary)' }}>
-          q = {fmt3(result.q / G)} t/m² · γeff = {fmt3(result.gammaEffective / G)} t/m³
+        <div style={{
+          marginTop: 8,
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 12, color: 'var(--lucid-ink-body)',
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>q</em> = {fmt3(result.q / G)} t/m²
+          {' · '}
+          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>γ</em><sub>eff</sub> = {fmt3(result.gammaEffective / G)} t/m³
         </div>
       </div>
     </div>
@@ -332,16 +397,18 @@ function FactorsSection({ result }: { result: CalculationResult }) {
  * ═══════════════════════════════════════════════ */
 function WarningsSection({ warnings }: { warnings: string[] }) {
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Advertencias ({warnings.length})
       </div>
-      <div style={{ padding: 10 }}>
+      <div style={{ padding: '8px 14px 16px' }}>
         {warnings.map((w, i) => (
           <div key={i} style={{
-            fontSize: 10, color: 'var(--warning, #f59e0b)', marginBottom: 4,
-            paddingLeft: 8, borderLeft: '2px solid var(--warning, #f59e0b)',
-            lineHeight: 1.4,
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 12, color: 'var(--lucid-ink-body)',
+            marginBottom: 6,
+            paddingLeft: 10, borderLeft: '2px solid var(--lucid-acc-coral)',
+            lineHeight: 1.5,
           }}>
             {w}
           </div>
@@ -358,11 +425,11 @@ function RNESection({ result }: { result: CalculationResult }) {
   if (!result.rneConsideration) return null;
   const rne = result.rneConsideration;
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Consideración RNE (método activo)
       </div>
-      <div style={{ padding: 10 }}>
+      <div style={{ padding: '8px 14px 16px' }}>
         <ResultRow label="qu RNE" value={rne.qultRNE / G} unit="t/m²" />
         <ResultRow label="qa RNE" value={rne.qadmRNE / G} unit="t/m²" />
         <ResultRow label="qu RNE corr." value={rne.qultRNECorrected / G} unit="t/m²" />
@@ -379,16 +446,33 @@ function ResultRow({ label, value, unit, accent }: {
 }) {
   return (
     <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '3px 0', fontSize: 11,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+      padding: '4px 0',
     }}>
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span style={{
-        fontFamily: 'var(--font-mono)',
-        color: accent ? 'var(--accent)' : 'var(--text-primary)',
-        fontWeight: accent ? 700 : 500,
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 11,
+        color: 'var(--lucid-ink-muted)',
       }}>
-        {fmt3(value)} <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{unit}</span>
+        {label}
+      </span>
+      <span style={{
+        fontFamily: 'var(--lucid-font-serif)',
+        color: accent ? 'var(--lucid-acc-coral)' : 'var(--lucid-ink-strong)',
+        fontSize: accent ? 15 : 14,
+        fontWeight: accent ? 600 : 400,
+        fontVariantNumeric: 'tabular-nums',
+        textAlign: 'right',
+      }}>
+        {fmt3(value)}
+        <span style={{
+          fontSize: 11,
+          color: 'var(--lucid-ink-muted)',
+          fontFamily: 'var(--lucid-font-sans)',
+          marginLeft: 4,
+        }}>
+          {unit}
+        </span>
       </span>
     </div>
   );
@@ -646,17 +730,18 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
   }, [foundation, result]);
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)' }}>
+    <div style={{ borderTop: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>Exportar</div>
 
-      <div style={{ padding: '10px 10px 6px' }}>
+      <div style={{ padding: '8px 14px 6px' }}>
         <p style={{
-          fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
-          textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6,
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 10, fontWeight: 600, color: 'var(--lucid-ink-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 8,
         }}>
           Opciones del PDF
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {[
             { key: 'include_calculations', label: 'Ecuaciones y cálculos' },
             { key: 'include_strata', label: 'Datos de estratos' },
@@ -666,8 +751,11 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
             { key: 'include_charts', label: 'Gráfico de iteraciones' },
           ].map(({ key, label }) => (
             <label key={key} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+              fontFamily: 'var(--lucid-font-sans)',
+              fontSize: 12, color: 'var(--lucid-ink-body)',
+              cursor: 'pointer', padding: '2px 0',
+              userSelect: 'none',
             }}>
               <input
                 type="checkbox"
@@ -681,51 +769,57 @@ function ExportSection({ foundation, strata, conditions, method, result }: {
         </div>
       </div>
 
-      <div style={{ padding: '8px 10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ padding: '12px 14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button
           onClick={handleExportPDF}
           disabled={pdfLoading}
           style={{
-            width: '100%', padding: '8px 0', fontSize: 11, fontWeight: 600,
-            background: pdfLoading ? 'var(--bg-surface-3)' : 'var(--accent)',
-            border: 'none', color: 'var(--bg-base)',
-            borderRadius: 20, cursor: pdfLoading ? 'wait' : 'pointer',
-            fontFamily: 'var(--font-sans)',
-            transition: 'all var(--transition-fast)',
+            width: '100%', padding: '10px 0',
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 13, fontWeight: 500,
+            background: pdfLoading ? 'var(--lucid-surface-figure)' : 'var(--lucid-ink-strong)',
+            border: 'none', color: pdfLoading ? 'var(--lucid-ink-muted)' : '#fff',
+            borderRadius: 4,
+            cursor: pdfLoading ? 'wait' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
           }}
-          onMouseEnter={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--accent-hover)'; }}
-          onMouseLeave={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--accent)'; }}
+          onMouseEnter={(e) => { if (!pdfLoading) e.currentTarget.style.background = '#000'; }}
+          onMouseLeave={(e) => { if (!pdfLoading) e.currentTarget.style.background = 'var(--lucid-ink-strong)'; }}
         >
-          {pdfLoading ? '⏳ Generando PDF...' : '📄 Exportar PDF'}
+          {pdfLoading ? 'Generando PDF...' : 'Exportar PDF'}
         </button>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
-          <ExportBtn icon="📁" label="IFC" onClick={handleExportIFC} />
-          <ExportBtn icon="📊" label="CSV" onClick={handleExportCSV} />
-          <ExportBtn icon="📋" label="TXT" onClick={handleExportTXT} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+          <ExportBtn label="IFC" onClick={handleExportIFC} />
+          <ExportBtn label="CSV" onClick={handleExportCSV} />
+          <ExportBtn label="TXT" onClick={handleExportTXT} />
         </div>
       </div>
     </div>
   );
 }
 
-function ExportBtn({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+function ExportBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       style={{
-        padding: '6px 0', fontSize: 10, fontWeight: 500,
-        background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-sm)',
-        color: 'var(--text-secondary)', cursor: 'pointer',
-        fontFamily: 'var(--font-sans)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-        transition: 'all var(--transition-fast)',
+        padding: '7px 0',
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 11,
+        background: '#fff',
+        border: '1px solid var(--lucid-rule-cream)',
+        borderRadius: 3,
+        color: 'var(--lucid-ink-strong)',
+        cursor: 'pointer',
+        display: 'grid', placeItems: 'center',
+        transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-3)'; e.currentTarget.style.borderColor = 'var(--border-active)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface-2)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
     >
-      {icon} {label}
+      {label}
     </button>
   );
 }

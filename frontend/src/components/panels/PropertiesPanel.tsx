@@ -85,14 +85,14 @@ function StrataSection({ settlementEnabled }: { settlementEnabled: boolean }) {
             <tr>
               {headers.map((h, i) => (
                 <th key={i} style={{
-                  padding: '4px 2px',
-                  fontSize: 9,
-                  fontWeight: 600,
-                  color: 'var(--text-muted)',
+                  padding: '6px 2px',
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: 'var(--lucid-ink-muted)',
                   textAlign: 'center',
-                  borderBottom: '1px solid var(--border)',
-                  fontFamily: 'var(--font-sans)',
-                  letterSpacing: 0.3,
+                  borderBottom: '1px solid var(--lucid-rule-white)',
+                  fontFamily: 'var(--lucid-font-sans)',
+                  letterSpacing: '0.04em',
                 }}>
                   {h}
                 </th>
@@ -111,7 +111,7 @@ function StrataSection({ settlementEnabled }: { settlementEnabled: boolean }) {
                       onChange={(e) => setStrataColor(i, e.target.value)}
                       style={{
                         width: 14, height: 14, padding: 0,
-                        border: '1px solid var(--border)', background: 'none',
+                        border: '1px solid var(--lucid-rule-cream)', background: 'none',
                         cursor: 'pointer', borderRadius: '50%',
                       }}
                     />
@@ -162,12 +162,19 @@ function StrataSection({ settlementEnabled }: { settlementEnabled: boolean }) {
                         onClick={() => removeStratum(s.id)}
                         style={{
                           background: 'none', border: 'none',
-                          color: 'var(--text-muted)', cursor: 'pointer',
-                          padding: 2, display: 'flex', borderRadius: 'var(--radius-sm)',
+                          color: 'var(--lucid-ink-faint)', cursor: 'pointer',
+                          padding: 2, display: 'grid', placeItems: 'center', borderRadius: 3,
+                          transition: 'color 160ms cubic-bezier(0.4,0,0.2,1), background 160ms cubic-bezier(0.4,0,0.2,1)',
                         }}
                         title="Eliminar estrato"
-                        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = 'var(--lucid-acc-coral)';
+                          e.currentTarget.style.background = 'var(--lucid-tint-coral)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = 'var(--lucid-ink-faint)';
+                          e.currentTarget.style.background = 'transparent';
+                        }}
                       >
                         <X size={11} />
                       </button>
@@ -183,25 +190,27 @@ function StrataSection({ settlementEnabled }: { settlementEnabled: boolean }) {
       <button
         onClick={addStratum}
         style={{
-          width: '100%', marginTop: 8, padding: '6px 0',
-          background: 'var(--bg-surface-2)',
-          border: '1px dashed var(--border-active)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500,
-          fontFamily: 'var(--font-sans)', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-          transition: 'all var(--transition-fast)',
+          width: '100%', marginTop: 10, padding: '8px 0',
+          background: 'transparent',
+          border: '1px dashed var(--lucid-rule-cream)',
+          borderRadius: 4,
+          color: 'var(--lucid-ink-muted)', fontSize: 12,
+          fontFamily: 'var(--lucid-font-sans)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          transition: 'border-color 160ms cubic-bezier(0.4,0,0.2,1), color 160ms cubic-bezier(0.4,0,0.2,1), background 160ms cubic-bezier(0.4,0,0.2,1)',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--accent)';
-          e.currentTarget.style.color = 'var(--accent)';
+          e.currentTarget.style.borderColor = 'var(--lucid-ink-strong)';
+          e.currentTarget.style.color = 'var(--lucid-ink-strong)';
+          e.currentTarget.style.background = 'var(--lucid-surface-figure)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border-active)';
-          e.currentTarget.style.color = 'var(--text-secondary)';
+          e.currentTarget.style.borderColor = 'var(--lucid-rule-cream)';
+          e.currentTarget.style.color = 'var(--lucid-ink-muted)';
+          e.currentTarget.style.background = 'transparent';
         }}
       >
-        <Plus size={14} /> Agregar estrato
+        <Plus size={13} /> Agregar estrato
       </button>
     </Section>
   );
@@ -336,23 +345,32 @@ function QuickDesignSection() {
 
   return (
     <Section title="Geometría Rápida" open={open} onToggle={() => setOpen(!open)}>
-      {/* Type cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+      {/* Type segmented control (Lucid pill group) */}
+      <div style={{
+        display: 'flex',
+        background: 'var(--lucid-surface-figure)',
+        border: '1px solid var(--lucid-rule-cream)',
+        borderRadius: 4,
+        padding: 2,
+        gap: 2,
+        marginBottom: 10,
+      }}>
         {TYPES.map(t => (
           <button
             key={t.value}
             onClick={() => setType(t.value)}
             style={{
-              padding: '8px 4px',
-              background: f.type === t.value ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
-              border: `1px solid ${f.type === t.value ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 'var(--radius-md)',
-              color: f.type === t.value ? 'var(--accent)' : 'var(--text-primary)',
-              fontSize: 10,
-              fontWeight: f.type === t.value ? 600 : 500,
-              fontFamily: 'var(--font-sans)',
+              flex: 1,
+              padding: '6px 10px',
+              background: f.type === t.value ? '#fff' : 'transparent',
+              border: 'none',
+              boxShadow: f.type === t.value ? '0 0 0 1px var(--lucid-rule-cream) inset' : 'none',
+              borderRadius: 3,
+              color: f.type === t.value ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-body)',
+              fontSize: 13,
+              fontFamily: 'var(--lucid-font-serif)',
               cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
+              transition: 'all 160ms cubic-bezier(0.4,0,0.2,1)',
             }}
           >
             {t.label}
@@ -393,26 +411,28 @@ function QuickDesignSection() {
       <button
         onClick={() => addTab?.('foundation-design')}
         style={{
-          width: '100%', marginTop: 4, padding: '7px 8px',
-          background: 'var(--bg-surface-2)',
-          border: '1px solid var(--border-active)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500,
-          fontFamily: 'var(--font-sans)', cursor: 'pointer',
+          width: '100%', marginTop: 8, padding: '8px 10px',
+          background: '#fff',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 4,
+          color: 'var(--lucid-ink-strong)',
+          fontSize: 12,
+          fontFamily: 'var(--lucid-font-sans)', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          transition: 'all var(--transition-fast)',
+          transition: 'background 160ms cubic-bezier(0.4,0,0.2,1), border-color 160ms cubic-bezier(0.4,0,0.2,1)',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--accent)';
-          e.currentTarget.style.color = 'var(--accent)';
+          e.currentTarget.style.background = 'var(--lucid-surface-figure)';
+          e.currentTarget.style.borderColor = 'var(--lucid-ink-strong)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border-active)';
-          e.currentTarget.style.color = 'var(--text-secondary)';
+          e.currentTarget.style.background = '#fff';
+          e.currentTarget.style.borderColor = 'var(--lucid-rule-cream)';
         }}
         title="Abrir ventana de Diseño de Cimentación (excentricidades, vista en planta)"
       >
-        <Frame size={13} /> Abrir Diseño de Cimentación
+        <Frame size={13} style={{ color: 'var(--lucid-acc-coral)' }} />
+        Abrir Diseño de Cimentación
       </button>
     </Section>
   );
@@ -442,13 +462,25 @@ function SolutionSection() {
           onChange={(v) => setParam('FS', v)} />
       </PropRow>
 
-      <div style={{ marginTop: 6, fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
-                    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>
+      <div style={{
+        marginTop: 10, fontSize: 10, fontWeight: 600,
+        color: 'var(--lucid-ink-muted)',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
+        fontFamily: 'var(--lucid-font-sans)',
+      }}>
         Método
       </div>
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{
+        display: 'flex',
+        background: 'var(--lucid-surface-figure)',
+        border: '1px solid var(--lucid-rule-cream)',
+        borderRadius: 4,
+        padding: 2,
+        gap: 2,
+      }}>
         {METHODS.map(m => {
           const isBlocked = m.value === 'terzaghi' && isRectangular;
+          const isActive = method === m.value;
           return (
             <button
               key={m.value}
@@ -456,16 +488,18 @@ function SolutionSection() {
               title={isBlocked ? 'Terzaghi no aplica para cimentaciones rectangulares' : undefined}
               style={{
                 flex: 1, padding: '6px 4px',
-                background: method === m.value ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
-                border: `1px solid ${method === m.value ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-sm)',
-                color: isBlocked ? 'var(--text-muted)' : method === m.value ? 'var(--accent)' : 'var(--text-primary)',
-                fontSize: 10,
-                fontWeight: method === m.value ? 600 : 500,
-                fontFamily: 'var(--font-sans)',
+                background: isActive ? '#fff' : 'transparent',
+                boxShadow: isActive ? '0 0 0 1px var(--lucid-rule-cream) inset' : 'none',
+                border: 'none',
+                borderRadius: 3,
+                color: isBlocked
+                  ? 'var(--lucid-ink-faint)'
+                  : isActive ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-body)',
+                fontSize: 12,
+                fontFamily: 'var(--lucid-font-serif)',
                 cursor: isBlocked ? 'not-allowed' : 'pointer',
                 opacity: isBlocked ? 0.5 : 1,
-                transition: 'all var(--transition-fast)',
+                transition: 'all 160ms cubic-bezier(0.4,0,0.2,1)',
               }}
             >
               {m.label}
@@ -487,15 +521,14 @@ function SolutionSection() {
 function SectionGroupHeader({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      padding: '6px 12px',
-      background: 'var(--bg-surface-2)',
-      borderTop: '1px solid var(--border)',
-      borderBottom: '1px solid var(--border)',
-      fontSize: 9,
-      fontWeight: 700,
-      color: 'var(--accent)',
+      padding: '14px 14px 6px',
+      background: 'var(--lucid-surface-page)',
+      fontFamily: 'var(--lucid-font-sans)',
+      fontSize: 10,
+      fontWeight: 600,
+      color: 'var(--lucid-ink-muted)',
       textTransform: 'uppercase',
-      letterSpacing: 1,
+      letterSpacing: '0.12em',
     }}>
       {children}
     </div>
@@ -507,14 +540,26 @@ function Section({ title, open, onToggle, children }: {
 }) {
   return (
     <div>
-      <div className="section-header" onClick={onToggle}>
+      <div
+        className="section-header"
+        onClick={onToggle}
+        style={{ justifyContent: 'space-between', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}
+      >
         <span style={{
-          display: 'flex', alignItems: 'center',
-          color: 'var(--text-muted)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 11,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+        }}>
+          {title}
+        </span>
+        <span style={{
+          display: 'grid', placeItems: 'center',
+          color: 'var(--lucid-ink-muted)',
         }}>
           {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </span>
-        {title}
       </div>
       {open && <div className="section-content">{children}</div>}
     </div>
@@ -523,8 +568,15 @@ function Section({ title, open, onToggle, children }: {
 
 function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-      <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 110, flexShrink: 0 }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <span style={{
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 11,
+        color: 'var(--lucid-ink-body)',
+        minWidth: 110, flexShrink: 0,
+      }}>
+        {label}
+      </span>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );
@@ -533,16 +585,20 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
 const checkboxLabelStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 6,
-  fontSize: 11,
+  gap: 8,
+  fontFamily: 'var(--lucid-font-sans)',
+  fontSize: 12,
   cursor: 'pointer',
-  color: 'var(--text-secondary)',
+  color: 'var(--lucid-ink-body)',
+  padding: '4px 0',
+  userSelect: 'none',
 };
 
 const hintStyle: React.CSSProperties = {
   marginTop: 6,
-  fontSize: 9,
-  color: 'var(--text-muted)',
+  fontFamily: 'var(--lucid-font-sans)',
+  fontSize: 10,
+  color: 'var(--lucid-ink-muted)',
   fontStyle: 'italic',
-  lineHeight: 1.3,
+  lineHeight: 1.4,
 };

@@ -64,22 +64,25 @@ export default function CollapsiblePanel({
         onClick={onToggle}
         style={{
           width: 28,
-          background: 'var(--bg-surface-1)',
-          borderLeft: side === 'right' ? '1px solid var(--border)' : undefined,
-          borderRight: side === 'left' ? '1px solid var(--border)' : undefined,
+          background: 'var(--lucid-surface-page)',
+          borderLeft: side === 'right' ? '1px solid var(--lucid-rule-white)' : undefined,
+          borderRight: side === 'left' ? '1px solid var(--lucid-rule-white)' : undefined,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           writingMode: 'vertical-lr',
+          fontFamily: 'var(--lucid-font-sans)',
           fontSize: 10,
-          fontWeight: 500,
-          color: 'var(--text-secondary)',
-          letterSpacing: 1,
+          fontWeight: 600,
+          color: 'var(--lucid-ink-muted)',
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
           flexShrink: 0,
-          transition: 'background var(--transition-fast)',
+          transition: 'color 160ms cubic-bezier(0.4,0,0.2,1)',
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--lucid-ink-strong)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--lucid-ink-muted)'; }}
       >
         {title}
       </div>
@@ -89,9 +92,9 @@ export default function CollapsiblePanel({
   return (
     <div style={{
       width,
-      background: 'var(--bg-surface-1)',
-      borderLeft: side === 'right' ? '1px solid var(--border)' : undefined,
-      borderRight: side === 'left' ? '1px solid var(--border)' : undefined,
+      background: 'var(--lucid-surface-page)',
+      borderLeft: side === 'right' ? '1px solid var(--lucid-rule-white)' : undefined,
+      borderRight: side === 'left' ? '1px solid var(--lucid-rule-white)' : undefined,
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
@@ -100,21 +103,22 @@ export default function CollapsiblePanel({
     }}>
       {/* Header */}
       <div style={{
-        height: 28,
-        background: 'var(--bg-surface-1)',
-        borderBottom: '1px solid var(--border)',
+        height: 32,
+        background: 'var(--lucid-surface-page)',
+        borderBottom: '1px solid var(--lucid-rule-white)',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 10px',
+        padding: '0 14px',
         gap: 6,
         flexShrink: 0,
       }}>
         <span style={{
+          fontFamily: 'var(--lucid-font-sans)',
           fontSize: 10,
           fontWeight: 600,
-          color: 'var(--text-secondary)',
+          color: 'var(--lucid-ink-muted)',
           textTransform: 'uppercase',
-          letterSpacing: 0.8,
+          letterSpacing: '0.12em',
           flex: 1,
         }}>
           {title}
@@ -124,17 +128,17 @@ export default function CollapsiblePanel({
           style={{
             background: 'none',
             border: 'none',
-            color: 'var(--text-muted)',
+            color: 'var(--lucid-ink-muted)',
             cursor: 'pointer',
             padding: 2,
             display: 'flex',
             alignItems: 'center',
-            borderRadius: 'var(--radius-sm)',
-            transition: 'color var(--transition-fast)',
+            borderRadius: 4,
+            transition: 'color 160ms cubic-bezier(0.4,0,0.2,1)',
           }}
           title={`Colapsar ${title}`}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--lucid-ink-strong)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--lucid-ink-muted)'; }}
         >
           {side === 'left' ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>

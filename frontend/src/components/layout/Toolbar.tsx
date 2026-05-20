@@ -84,23 +84,36 @@ export default function Toolbar({
         display: 'flex',
         alignItems: 'center',
         gap: 2,
-        padding: '0 12px',
+        padding: '0 14px',
         height: 44,
-        background: 'var(--bg-surface-1)',
-        borderBottom: '1px solid var(--border)',
+        background: 'var(--lucid-surface-page)',
+        borderBottom: '1px solid var(--lucid-rule-white)',
         flexShrink: 0,
       }}>
-        {/* Logo */}
-        <img
-          src={lightMode ? '/assets/ucsm_logo_light.png' : '/assets/ucsm_logo_dark.png'}
-          alt="UCSM"
-          style={{
-            height: 24,
-            width: 'auto',
-            flexShrink: 0,
-            objectFit: 'contain',
-          }}
-        />
+        {/* Brand — logo + serif name + sans tag */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginRight: 6 }}>
+          <img
+            src={lightMode ? '/assets/ucsm_logo_light.png' : '/assets/ucsm_logo_dark.png'}
+            alt="UCSM"
+            style={{ height: 24, width: 'auto', objectFit: 'contain' }}
+          />
+          <span style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--lucid-ink-strong)',
+            letterSpacing: '-0.01em',
+          }}>
+            Cimentaciones
+          </span>
+          <span style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 11,
+            color: 'var(--lucid-ink-muted)',
+          }}>
+            / UCSM
+          </span>
+        </div>
 
         <Sep />
 
@@ -110,29 +123,33 @@ export default function Toolbar({
 
         <Sep />
 
-        {/* Calculate — Pill accent button */}
+        {/* Calculate — Lucid pill: white bg, ink-strong hairline, serif, coral play icon */}
         <button
           onClick={handleCalculate}
           disabled={isCalculating}
           title="Ejecutar cálculo"
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '5px 16px',
-            background: isCalculating ? 'var(--bg-surface-3)' : 'var(--accent)',
-            border: 'none',
-            borderRadius: 20,
-            color: isCalculating ? 'var(--text-secondary)' : 'var(--bg-base)',
-            fontSize: 11,
-            fontWeight: 600,
-            fontFamily: 'var(--font-sans)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 18px',
+            background: isCalculating ? 'var(--lucid-surface-figure)' : 'var(--lucid-surface-page)',
+            border: `1.5px solid ${isCalculating ? 'var(--lucid-rule-cream)' : 'var(--lucid-ink-strong)'}`,
+            borderRadius: 999,
+            color: isCalculating ? 'var(--lucid-ink-muted)' : 'var(--lucid-ink-strong)',
+            fontSize: 14,
+            fontWeight: 500,
+            fontFamily: 'var(--lucid-font-serif)',
             cursor: isCalculating ? 'not-allowed' : 'pointer',
-            transition: 'all var(--transition-fast)',
+            transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
+            margin: '0 6px',
             opacity: isCalculating ? 0.7 : 1,
           }}
-          onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent-hover)'; }}
-          onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--accent)'; }}
+          onMouseEnter={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
+          onMouseLeave={(e) => { if (!isCalculating) e.currentTarget.style.background = 'var(--lucid-surface-page)'; }}
         >
-          {isCalculating ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={14} />}
+          {isCalculating
+            ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite', color: 'var(--lucid-ink-muted)' }} />
+            : <Play size={13} fill="currentColor" style={{ color: 'var(--lucid-acc-coral)' }} />
+          }
           {isCalculating ? 'Calculando...' : 'Calcular'}
         </button>
         <ToolBtn icon={<RotateCcw size={15} />} title="Resetear todo" onClick={reset} />
@@ -215,19 +232,29 @@ function ToolBtn({ icon, title, active, onClick, disabled }: {
       title={title}
       disabled={disabled}
       style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 32, height: 32,
-        background: active ? 'var(--bg-surface-3)' : 'transparent',
-        border: '1px solid ' + (active ? 'var(--border-active)' : 'transparent'),
-        borderRadius: 'var(--radius-sm)',
-        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        display: 'grid', placeItems: 'center',
+        width: 30, height: 30,
+        background: active ? 'var(--lucid-surface-figure)' : 'transparent',
+        border: 'none',
+        borderRadius: 4,
+        color: active ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-muted)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
-        transition: 'all var(--transition-fast)',
+        transition: 'background 160ms cubic-bezier(0.4,0,0.2,1), color 160ms cubic-bezier(0.4,0,0.2,1)',
         flexShrink: 0,
       }}
-      onMouseEnter={(e) => { if (!disabled && !active) { e.currentTarget.style.background = 'var(--bg-surface-2)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
-      onMouseLeave={(e) => { if (!disabled && !active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
+      onMouseEnter={(e) => {
+        if (!disabled && !active) {
+          e.currentTarget.style.background = 'var(--lucid-surface-figure)';
+          e.currentTarget.style.color = 'var(--lucid-ink-strong)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled && !active) {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = 'var(--lucid-ink-muted)';
+        }
+      }}
     >
       {icon}
     </button>
@@ -235,5 +262,5 @@ function ToolBtn({ icon, title, active, onClick, disabled }: {
 }
 
 function Sep() {
-  return <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 8px', flexShrink: 0 }} />;
+  return <div style={{ width: 1, height: 20, background: 'var(--lucid-rule-white)', margin: '0 4px', flexShrink: 0 }} />;
 }

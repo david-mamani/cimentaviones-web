@@ -34,7 +34,7 @@ export default function FoundationDesignTab() {
       display: 'flex',
       width: '100%',
       height: '100%',
-      background: 'var(--bg-viewport)',
+      background: '#fafaf7',
       overflow: 'hidden',
     }}>
       {/* ─── Lado izquierdo: vista en planta ─── */}
@@ -43,20 +43,22 @@ export default function FoundationDesignTab() {
         display: 'flex',
         flexDirection: 'column',
         minWidth: 0,
-        borderRight: '1px solid var(--border)',
+        borderRight: '1px solid var(--lucid-rule-white)',
       }}>
         <div style={{
-          padding: '8px 14px',
-          borderBottom: '1px solid var(--border)',
+          padding: '12px 18px',
+          borderBottom: '1px solid var(--lucid-rule-white)',
+          fontFamily: 'var(--lucid-font-sans)',
           fontSize: 11,
           fontWeight: 600,
           textTransform: 'uppercase',
-          letterSpacing: 0.6,
-          color: 'var(--text-muted)',
+          letterSpacing: '0.10em',
+          color: 'var(--lucid-ink-strong)',
+          background: '#fff',
         }}>
-          Vista en Planta
+          Vista en planta
         </div>
-        <div style={{ flex: 1, padding: 24, minHeight: 0 }}>
+        <div style={{ flex: 1, padding: 24, minHeight: 0, background: '#fafaf7' }}>
           <FoundationPlanView
             B={f.B}
             L={isCircular ? f.B : f.L}
@@ -68,10 +70,10 @@ export default function FoundationDesignTab() {
 
       {/* ─── Lado derecho: inputs ─── */}
       <div style={{
-        width: 320,
+        width: 360,
         flexShrink: 0,
         overflowY: 'auto',
-        background: 'var(--bg-surface-1)',
+        background: 'var(--lucid-surface-page)',
       }}>
         {/* ─ Geometría ─ */}
         <SectionTitle>Geometría</SectionTitle>
@@ -194,38 +196,41 @@ export default function FoundationDesignTab() {
 
 const selectStyle: React.CSSProperties = {
   width: '100%',
-  padding: '4px 6px',
-  background: 'var(--bg-surface-2)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
-  color: 'var(--text-primary)',
-  fontSize: 11,
-  fontFamily: 'var(--font-sans)',
+  padding: '6px 10px',
+  background: '#fff',
+  border: '1px solid var(--lucid-rule-cream)',
+  borderRadius: 3,
+  color: 'var(--lucid-ink-strong)',
+  fontSize: 14,
+  fontFamily: 'var(--lucid-font-serif)',
   cursor: 'pointer',
 };
 
 const checkRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 6,
-  fontSize: 11,
+  gap: 8,
+  fontFamily: 'var(--lucid-font-sans)',
+  fontSize: 12,
   cursor: 'pointer',
-  color: 'var(--text-secondary)',
-  marginBottom: 6,
+  color: 'var(--lucid-ink-body)',
+  marginBottom: 8,
+  padding: '4px 0',
+  userSelect: 'none',
 };
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      padding: '8px 14px',
-      borderBottom: '1px solid var(--border)',
-      borderTop: '1px solid var(--border)',
-      fontSize: 10,
-      fontWeight: 700,
+      padding: '12px 18px',
+      borderTop: '1px solid var(--lucid-rule-white)',
+      fontFamily: 'var(--lucid-font-sans)',
+      fontSize: 11,
+      fontWeight: 600,
       textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      color: 'var(--text-muted)',
-      background: 'var(--bg-surface-2)',
+      letterSpacing: '0.10em',
+      color: 'var(--lucid-ink-strong)',
+      background: 'var(--lucid-surface-page)',
     }}>
       {children}
     </div>
@@ -233,7 +238,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function SectionBody({ children }: { children: React.ReactNode }) {
-  return <div style={{ padding: 12 }}>{children}</div>;
+  return <div style={{ padding: '8px 18px 16px' }}>{children}</div>;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -241,32 +246,49 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: 8,
-      marginBottom: 6,
+      gap: 10,
+      marginBottom: 8,
     }}>
       <span style={{
-        fontSize: 11,
-        color: 'var(--text-secondary)',
-        minWidth: 90,
+        fontFamily: 'var(--lucid-font-serif)',
+        fontSize: 14,
+        color: 'var(--lucid-ink-body)',
+        minWidth: 80,
         flexShrink: 0,
-      }}>{label}</span>
+      }}>
+        {label}
+      </span>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );
 }
 
 function Note({ children, variant }: { children: React.ReactNode; variant?: 'warn' }) {
+  if (variant === 'warn') {
+    return (
+      <div style={{
+        marginTop: 8,
+        padding: '8px 12px',
+        background: 'var(--lucid-tint-coral)',
+        border: '1px solid #efd9cd',
+        borderRadius: 4,
+        fontFamily: 'var(--lucid-font-serif)',
+        fontSize: 12,
+        lineHeight: 1.5,
+        color: '#b5563f',
+      }}>
+        {children}
+      </div>
+    );
+  }
   return (
     <div style={{
-      marginTop: 6,
-      fontSize: 10,
-      lineHeight: 1.4,
-      color: variant === 'warn' ? 'var(--warning, #f59e0b)' : 'var(--text-muted)',
-      fontStyle: variant === 'warn' ? 'normal' : 'italic',
-      padding: variant === 'warn' ? '4px 6px' : 0,
-      background: variant === 'warn' ? 'rgba(245, 158, 11, 0.10)' : undefined,
-      border: variant === 'warn' ? '1px solid rgba(245, 158, 11, 0.30)' : undefined,
-      borderRadius: variant === 'warn' ? 'var(--radius-sm)' : undefined,
+      marginTop: 8,
+      fontFamily: 'var(--lucid-font-serif)',
+      fontSize: 12,
+      lineHeight: 1.5,
+      color: 'var(--lucid-ink-muted)',
+      fontStyle: 'italic',
     }}>
       {children}
     </div>

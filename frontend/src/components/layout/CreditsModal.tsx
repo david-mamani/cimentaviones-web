@@ -26,66 +26,104 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.5)',
+        background: 'rgba(43, 43, 43, 0.35)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9999,
-        backdropFilter: 'blur(12px)',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'var(--bg-surface-1)',
-          border: '1px solid var(--border-active)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '28px 32px',
-          width: 380,
+          background: 'var(--lucid-surface-page)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 6,
+          padding: '32px 36px',
+          width: 420,
           maxWidth: '90vw',
-          boxShadow: 'var(--shadow-lg)',
           textAlign: 'center',
         }}
       >
-
+        <div style={{
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 10, fontWeight: 600,
+          letterSpacing: '0.14em', textTransform: 'uppercase',
+          color: 'var(--lucid-ink-muted)',
+          marginBottom: 8,
+        }}>
+          Créditos
+        </div>
 
         <h2 style={{
-          fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
-          marginBottom: 4, fontFamily: 'var(--font-sans)',
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 24, fontWeight: 700,
+          color: 'var(--lucid-ink-strong)',
+          marginBottom: 4,
+          letterSpacing: '-0.01em',
         }}>
-          Cimentaciones Web
+          Cimentaciones <em style={{ color: 'var(--lucid-acc-coral)', fontStyle: 'italic', fontWeight: 600 }}>Web</em>
         </h2>
-        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>
-          Versión 1.1 — Motor de Análisis Geotécnico
+        <p style={{
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 13, fontStyle: 'italic',
+          color: 'var(--lucid-ink-muted)',
+          marginBottom: 24,
+        }}>
+          Versión 1.1 — Motor de análisis geotécnico
         </p>
 
         <div style={{
-          background: 'var(--bg-surface-2)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 16px',
-          marginBottom: 16,
+          background: 'var(--lucid-surface-figure)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 6,
+          padding: '18px 20px',
+          marginBottom: 14,
         }}>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 10, fontWeight: 600,
+            color: 'var(--lucid-ink-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.12em',
+            marginBottom: 10,
+          }}>
             Desarrollado por
           </p>
-          <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 15, color: 'var(--lucid-ink-strong)',
+            marginBottom: 4,
+          }}>
             David Mamani
           </p>
-          <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 4 }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 15, color: 'var(--lucid-ink-strong)',
+          }}>
             Gaudy Platero
           </p>
-          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 12, fontStyle: 'italic',
+            color: 'var(--lucid-ink-muted)',
+            marginTop: 6,
+          }}>
             Ingeniería Civil
           </p>
         </div>
 
         <div style={{
-          background: 'var(--bg-surface-2)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 16px',
+          background: 'var(--lucid-surface-figure)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 6,
+          padding: '18px 20px',
           marginBottom: 20,
         }}>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 600 }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 10, fontWeight: 600,
+            color: 'var(--lucid-ink-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.12em',
+            marginBottom: 10,
+          }}>
             Universidad
           </p>
           <img
@@ -95,40 +133,53 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
               height: 60,
               width: 'auto',
               objectFit: 'contain',
-              margin: '0 auto 8px',
+              margin: '0 auto 10px',
               display: 'block',
             }}
           />
-          <p style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 14, color: 'var(--lucid-ink-strong)',
+          }}>
             Universidad Católica de Santa María
           </p>
-          <p style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+          <p style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 12, fontStyle: 'italic',
+            color: 'var(--lucid-ink-muted)',
+            marginTop: 4,
+          }}>
             Arequipa, Perú
           </p>
         </div>
 
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
-          Análisis de capacidad portante según Terzaghi, Meyerhof/Hansen (Das), y RNE E.050.
+        <p style={{
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 12, fontStyle: 'italic',
+          color: 'var(--lucid-ink-muted)',
+          marginBottom: 24,
+          lineHeight: 1.5,
+        }}>
+          Análisis de capacidad portante según Terzaghi, Meyerhof/Hansen (Das) y RNE E.050.
           <br />
-          Visualización BIM con IFC2X3 • Gráficos con Plotly.js
-        </div>
+          Visualización BIM con IFC2X3 · gráficos con Plotly.js.
+        </p>
 
         <button
           onClick={onClose}
           style={{
-            padding: '6px 24px',
-            background: 'var(--accent)',
-            border: 'none',
-            color: 'var(--bg-base)',
-            fontSize: 12,
-            fontWeight: 600,
-            borderRadius: 20,
+            padding: '8px 28px',
+            background: 'var(--lucid-surface-page)',
+            border: '1.5px solid var(--lucid-ink-strong)',
+            color: 'var(--lucid-ink-strong)',
+            fontSize: 14,
+            fontFamily: 'var(--lucid-font-serif)',
+            borderRadius: 999,
             cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-            transition: 'background var(--transition-fast)',
+            transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-hover)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--accent)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-page)'; }}
         >
           Cerrar
         </button>

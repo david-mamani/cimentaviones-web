@@ -186,19 +186,20 @@ export default function ParametricIterations() {
     });
   };
 
-  // Theme-aware chart colors (only bg, text, grid — NOT chart data)
-  const chartText = isLight ? '#4a4540' : '#ccc';
-  const chartAxisLabel = isLight ? '#6b6358' : '#aaa';
-  const chartAxisLine = isLight ? '#c4bdb3' : '#555';
-  const chartGrid = isLight ? '#e8e3db' : '#2a2a2a';
-  const chartMinorGrid = isLight ? '#f0ebe3' : '#1e1e1e';
-  const chartTick = isLight ? '#8a8279' : '#999';
-  const chartAxisText = isLight ? '#8a8279' : '#888';
-  const chartPlotBg = isLight ? '#f7f3ed' : '#141414';
-  const chartPaperBg = isLight ? '#f0ebe3' : '#111111';
-  const chartLegendBg = isLight ? 'rgba(240,235,227,0.95)' : 'rgba(20,20,20,0.9)';
-  const chartLegendBorder = isLight ? '#c4bdb3' : '#444';
-  const chartLegendText = isLight ? '#6b6358' : '#bbb';
+  // Lucid chart colors (light/dark mantienen, pero Lucid es la nueva base)
+  void isLight; // theme toggle reserved
+  const chartText = '#4a4a4a';
+  const chartAxisLabel = '#4a4a4a';
+  const chartAxisLine = '#c8c8c8';
+  const chartGrid = '#e8e8e8';
+  const chartMinorGrid = '#f3eed7';
+  const chartTick = '#8a8a8a';
+  const chartAxisText = '#8a8a8a';
+  const chartPlotBg = '#ffffff';
+  const chartPaperBg = '#f8f5e8';
+  const chartLegendBg = 'rgba(255,255,255,0.95)';
+  const chartLegendBorder = '#d6d0bf';
+  const chartLegendText = '#4a4a4a';
 
   const layout: Partial<Plotly.Layout> = {
     xaxis: {
@@ -257,161 +258,285 @@ export default function ParametricIterations() {
   };
 
   return (
-    <div>
-      {/* Config */}
-      <div style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
-        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          Configuración de Iteraciones
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      {/* Eyebrow + Title */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 10, fontWeight: 600,
+          letterSpacing: '0.14em', textTransform: 'uppercase',
+          color: 'var(--lucid-ink-muted)',
+          marginBottom: 6,
+        }}>
+          Iteraciones paramétricas
+        </div>
+        <h2 style={{
+          fontFamily: 'var(--lucid-font-serif)',
+          fontSize: 22, fontWeight: 600,
+          color: 'var(--lucid-ink-strong)',
+          margin: 0, letterSpacing: '-0.01em',
+        }}>
+          Variación de <em style={{ color: 'var(--lucid-acc-coral)', fontStyle: 'italic' }}>B</em> y{' '}
+          <em style={{ color: 'var(--lucid-acc-coral)', fontStyle: 'italic' }}>Dƒ</em>
+        </h2>
+      </div>
+
+      {/* Config — figure card */}
+      <div style={{
+        background: 'var(--lucid-surface-figure)',
+        border: '1px solid var(--lucid-rule-cream)',
+        borderRadius: 6,
+        padding: '20px 24px',
+        marginBottom: 20,
+      }}>
+        <p style={{
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 11, fontWeight: 600, color: 'var(--lucid-ink-muted)',
+          marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.10em',
+        }}>
+          Configuración
         </p>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer', marginBottom: 6 }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontFamily: 'var(--lucid-font-sans)', fontSize: 13,
+          color: 'var(--lucid-ink-strong)', cursor: 'pointer', marginBottom: 8,
+        }}>
           <input type="checkbox" className="cad-checkbox" checked={config.varyB}
             onChange={(e) => setConfig({ ...config, varyB: e.target.checked })} />
           Variación de base (B)
         </label>
         {config.varyB && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8, marginLeft: 20 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12, marginLeft: 24 }}>
             <IterField label="Inicio" value={config.bStart} onChange={(v) => setConfig({ ...config, bStart: v })} />
             <IterField label="Final" value={config.bEnd} onChange={(v) => setConfig({ ...config, bEnd: v })} />
             <IterField label="ΔB" value={config.bStep} onChange={(v) => setConfig({ ...config, bStep: v })} />
           </div>
         )}
 
-        {/* L info for rectangular foundations */}
+        {/* L info — Lucid note */}
         {config.varyB && foundation.type === 'rectangular' && (
           <div style={{
-            marginBottom: 8, marginLeft: 20, padding: '5px 8px',
-            background: 'rgba(192, 57, 43, 0.08)', border: '1px solid rgba(192, 57, 43, 0.2)',
-            borderRadius: 'var(--radius-sm)', fontSize: 10, color: 'var(--text-secondary)',
+            marginBottom: 12, marginLeft: 24,
+            padding: '8px 12px',
+            background: '#fff',
+            border: '1px solid var(--lucid-rule-cream)',
+            borderRadius: 4,
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 13, fontStyle: 'italic', color: 'var(--lucid-ink-body)',
           }}>
             {lbLocked
-              ? `📐 L = ${lbRatio} × B (L varía automáticamente con B)`
-              : `📐 L = ${foundation.L.toFixed(2)} m (fijo durante iteraciones)`
+              ? `L = ${lbRatio} × B (varía automáticamente con B)`
+              : `L = ${foundation.L.toFixed(2)} m (fijo durante iteraciones)`
             }
           </div>
         )}
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer', marginBottom: 6 }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontFamily: 'var(--lucid-font-sans)', fontSize: 13,
+          color: 'var(--lucid-ink-strong)', cursor: 'pointer', marginBottom: 8,
+        }}>
           <input type="checkbox" className="cad-checkbox" checked={config.varyDf}
             onChange={(e) => setConfig({ ...config, varyDf: e.target.checked })} />
-          Variación de desplante (Df)
+          Variación de desplante (Dƒ)
         </label>
         {config.varyDf && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8, marginLeft: 20 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12, marginLeft: 24 }}>
             <IterField label="Inicio" value={config.dfStart} onChange={(v) => setConfig({ ...config, dfStart: v })} />
             <IterField label="Final" value={config.dfEnd} onChange={(v) => setConfig({ ...config, dfEnd: v })} />
-            <IterField label="ΔDf" value={config.dfStep} onChange={(v) => setConfig({ ...config, dfStep: v })} />
+            <IterField label="ΔDƒ" value={config.dfStep} onChange={(v) => setConfig({ ...config, dfStep: v })} />
           </div>
         )}
 
         <button
-          className="cad-btn cad-btn-accent"
           onClick={handleRun}
           disabled={(!config.varyB && !config.varyDf) || loading}
-          style={{ width: '100%', padding: '6px 0', fontSize: 11 }}
+          style={{
+            width: '100%', padding: '11px 0',
+            background: loading ? 'var(--lucid-surface-figure-deep)' : 'var(--lucid-ink-strong)',
+            color: loading ? 'var(--lucid-ink-muted)' : '#fff',
+            border: 'none', borderRadius: 4,
+            fontFamily: 'var(--lucid-font-sans)', fontSize: 13, fontWeight: 500,
+            cursor: loading ? 'wait' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            marginTop: 8,
+            transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
+          }}
         >
-          {loading ? '⏳ Calculando...' : '▶ Ejecutar Iteraciones'}
+          <span style={{
+            display: 'inline-grid', placeItems: 'center',
+            color: loading ? 'var(--lucid-ink-muted)' : 'var(--lucid-acc-coral)',
+            fontSize: 14,
+          }}>
+            ▶
+          </span>
+          {loading ? 'Calculando…' : 'Ejecutar iteraciones'}
         </button>
       </div>
 
       {/* Results */}
       {iterResult && (
-        <div style={{ padding: 12 }}>
-          {/* Metric toggle & Copy Chart */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 8, alignItems: 'center' }}>
-            <button
-              className={chartMetric === 'qa' ? 'cad-btn cad-btn-accent' : 'cad-btn'}
-              onClick={() => setChartMetric('qa')}
-              style={{ flex: 1, fontSize: 10 }}
-            >
-              q_adm (tnf/m²)
-            </button>
-            <button
-              className={chartMetric === 'Qmax' ? 'cad-btn cad-btn-accent' : 'cad-btn'}
-              onClick={() => setChartMetric('Qmax')}
-              style={{ flex: 1, fontSize: 10 }}
-            >
-              Q_max (tnf)
-            </button>
-            <button
-              className="cad-btn"
-              onClick={handleCopyChart}
-              style={{ padding: '6px 12px', fontSize: 10, flexShrink: 0 }}
-              title="Copiar gráfico como imagen"
-            >
-              📸 Copiar Gráfico
-            </button>
-          </div>
-
-          {/* Plotly Chart */}
-          <div style={{ height: chartHeight, marginBottom: 0 }}>
-            <Plot
-              data={getTraces() as any[]}
-              layout={{ ...layout, height: chartHeight }}
-              config={plotConfig}
-              useResizeHandler
-              onInitialized={(_figure: any, graphDiv: any) => { plotRef.current = graphDiv; }}
-              style={{ width: '100%', height: '100%' }}
-            />
-          </div>
-
-          {/* Resize handle */}
-          <div
-            onMouseDown={onResizeStart}
-            style={{
-              height: 7, cursor: 'ns-resize', marginBottom: 8,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'var(--bg-viewport)',
-            }}
-          >
-            <div style={{ width: 36, height: 3, borderRadius: 2, background: 'var(--bg-elevated)' }} />
-          </div>
-
-          {/* Annotations */}
+        <div>
+          {/* Chart card */}
           <div style={{
-            maxHeight: 200, overflowY: 'auto',
-            background: 'var(--bg-surface-1)', border: '1px solid var(--border)', padding: 8,
+            background: 'var(--lucid-surface-figure)',
+            border: '1px solid var(--lucid-rule-cream)',
+            borderRadius: 6,
+            padding: '20px 24px',
+            marginBottom: 18,
           }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
+            {/* Chart tabs + copy */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 14, alignItems: 'center' }}>
+              <button
+                onClick={() => setChartMetric('qa')}
+                style={{
+                  padding: '6px 18px',
+                  background: 'transparent', border: 'none',
+                  fontFamily: 'var(--lucid-font-serif)', fontSize: 14,
+                  color: chartMetric === 'qa' ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-muted)',
+                  borderBottom: `2px solid ${chartMetric === 'qa' ? 'var(--lucid-acc-coral)' : 'transparent'}`,
+                  cursor: 'pointer',
+                }}
+              >
+                q<sub>adm</sub> (tnf/m²)
+              </button>
+              <button
+                onClick={() => setChartMetric('Qmax')}
+                style={{
+                  padding: '6px 18px',
+                  background: 'transparent', border: 'none',
+                  fontFamily: 'var(--lucid-font-serif)', fontSize: 14,
+                  color: chartMetric === 'Qmax' ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-muted)',
+                  borderBottom: `2px solid ${chartMetric === 'Qmax' ? 'var(--lucid-acc-coral)' : 'transparent'}`,
+                  cursor: 'pointer',
+                }}
+              >
+                Q<sub>max</sub> (tnf)
+              </button>
+              <button
+                onClick={handleCopyChart}
+                style={{
+                  marginLeft: 'auto',
+                  padding: '5px 12px',
+                  background: '#fff', border: '1px solid var(--lucid-rule-cream)',
+                  borderRadius: 4,
+                  fontFamily: 'var(--lucid-font-sans)', fontSize: 11,
+                  color: 'var(--lucid-ink-body)', cursor: 'pointer',
+                  transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure-deep)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+                title="Copiar gráfico como imagen"
+              >
+                Copiar gráfico
+              </button>
+            </div>
+
+            {/* Plotly Chart */}
+            <div style={{ height: chartHeight, background: '#fff', borderRadius: 4, overflow: 'hidden' }}>
+              <Plot
+                data={getTraces() as any[]}
+                layout={{ ...layout, height: chartHeight }}
+                config={plotConfig}
+                useResizeHandler
+                onInitialized={(_figure: any, graphDiv: any) => { plotRef.current = graphDiv; }}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+
+            {/* Resize handle */}
+            <div
+              onMouseDown={onResizeStart}
+              style={{
+                height: 8, cursor: 'ns-resize', marginTop: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <div style={{ width: 32, height: 2, borderRadius: 2, background: 'var(--lucid-rule-cream)' }} />
+            </div>
+          </div>
+
+          {/* Annotations — log Lucid */}
+          <div style={{
+            background: '#fff',
+            border: '1px solid var(--lucid-rule-cream)',
+            borderRadius: 6,
+            padding: '14px 18px',
+            marginBottom: 18,
+            maxHeight: 220, overflowY: 'auto',
+          }}>
+            <p style={{
+              fontFamily: 'var(--lucid-font-sans)',
+              fontSize: 10, fontWeight: 600,
+              textTransform: 'uppercase', letterSpacing: '0.10em',
+              color: 'var(--lucid-ink-muted)',
+              marginBottom: 10,
+            }}>
               Anotaciones ({iterResult.annotations.length} cálculos)
             </p>
             {iterResult.annotations.map((ann, i) => (
-              <p key={i} style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginBottom: 1 }}>{ann}</p>
+              <p key={i} style={{
+                fontFamily: 'var(--font-mono)', fontSize: 11,
+                color: 'var(--lucid-ink-body)',
+                marginBottom: 2, lineHeight: 1.7,
+              }}>
+                {ann}
+              </p>
             ))}
           </div>
 
           {/* Export buttons */}
-          <div style={{ marginTop: 10 }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-              Exportar Iteraciones
-            </p>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button className="cad-btn" style={{ flex: 1, fontSize: 10 }}
-                onClick={() => exportJSON(iterResult, foundation, method)}>
-                📄 JSON
-              </button>
-              <button className="cad-btn" style={{ flex: 1, fontSize: 10 }}
-                onClick={() => exportCSV(iterResult)}>
-                📊 CSV
-              </button>
-              <button className="cad-btn" style={{ flex: 1, fontSize: 10 }}
-                onClick={() => exportTXT(iterResult, foundation, method)}>
-                📝 TXT
-              </button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24 }}>
+            <ExportIterBtn label="JSON" onClick={() => exportJSON(iterResult, foundation, method)} />
+            <ExportIterBtn label="CSV" onClick={() => exportCSV(iterResult)} />
+            <ExportIterBtn label="TXT" onClick={() => exportTXT(iterResult, foundation, method)} />
           </div>
 
           {/* Summary Table for Copy-Paste */}
-          <div style={{ marginTop: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, margin: 0 }}>
-                Tabla Resumen (Copiar y Pegar en Word)
-              </p>
-              <button className="cad-btn" style={{ fontSize: 10, padding: '4px 8px' }} onClick={handleCopyTable}>
-                📋 Copiar Tabla
+          <div style={{
+            background: 'var(--lucid-surface-figure)',
+            border: '1px solid var(--lucid-rule-cream)',
+            borderRadius: 6,
+            padding: '20px 24px',
+            marginBottom: 24,
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+              marginBottom: 14,
+            }}>
+              <div>
+                <p style={{
+                  fontFamily: 'var(--lucid-font-sans)',
+                  fontSize: 11, fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.10em',
+                  color: 'var(--lucid-ink-strong)',
+                  margin: 0,
+                }}>
+                  Tabla resumen
+                </p>
+                <span style={{
+                  fontFamily: 'var(--lucid-font-serif)',
+                  fontSize: 11, fontStyle: 'italic',
+                  color: 'var(--lucid-ink-muted)',
+                }}>
+                  Copiar y pegar en Word
+                </span>
+              </div>
+              <button
+                onClick={handleCopyTable}
+                style={{
+                  padding: '5px 14px',
+                  background: '#fff', border: '1px solid var(--lucid-rule-cream)',
+                  borderRadius: 4,
+                  fontFamily: 'var(--lucid-font-sans)', fontSize: 11,
+                  color: 'var(--lucid-ink-strong)', cursor: 'pointer',
+                }}
+              >
+                Copiar tabla
               </button>
             </div>
-            <div style={{ overflowX: 'auto', background: 'white', border: '1px solid var(--border)' }}>
+            <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid var(--lucid-rule-cream)', borderRadius: 4 }}>
               {(() => {
                 if (!iterResult || !iterResult.matrix.length || !iterResult.matrix[0]) return null;
                 const bValues = iterResult.matrix[0].map(cell => cell.B);
@@ -477,11 +602,40 @@ export default function ParametricIterations() {
 function IterField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div style={{ flex: 1 }}>
-      <span style={{ fontSize: 9, color: 'var(--text-muted)', display: 'block', marginBottom: 2 }}>{label}</span>
-      <CadNumericInput className="cad-input" value={value} step={0.1} min={0}
-        style={{ fontSize: 10 }}
-        onChange={onChange} />
+      <span style={{
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 10, color: 'var(--lucid-ink-muted)',
+        display: 'block', marginBottom: 4,
+      }}>
+        {label}
+      </span>
+      <CadNumericInput
+        className="cad-input"
+        value={value} step={0.1} min={0}
+        onChange={onChange}
+      />
     </div>
+  );
+}
+
+function ExportIterBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '10px 0',
+        background: '#fff', border: '1px solid var(--lucid-rule-cream)',
+        borderRadius: 4,
+        fontFamily: 'var(--lucid-font-sans)', fontSize: 12,
+        color: 'var(--lucid-ink-strong)', cursor: 'pointer',
+        display: 'grid', placeItems: 'center',
+        transition: 'background 160ms cubic-bezier(0.4,0,0.2,1)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-surface-figure)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+    >
+      {label}
+    </button>
   );
 }
 

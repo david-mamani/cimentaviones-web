@@ -20,35 +20,78 @@ export default function StatusBar() {
 
   return (
     <div style={{
-      height: 26,
-      background: 'var(--bg-surface-1)',
-      borderTop: '1px solid var(--border)',
+      height: 28,
+      background: 'var(--lucid-surface-page)',
+      borderTop: '1px solid var(--lucid-rule-white)',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 12px',
-      gap: 16,
+      padding: '0 16px',
+      gap: 18,
       fontSize: 11,
-      fontFamily: 'var(--font-mono)',
-      color: 'var(--text-secondary)',
+      fontFamily: 'var(--lucid-font-sans)',
+      color: 'var(--lucid-ink-muted)',
       flexShrink: 0,
     }}>
-      <span>Método: <strong style={{ color: 'var(--text-primary)' }}>{METHOD_LABELS[method]}</strong></span>
-      <span>FS: <strong style={{ color: 'var(--text-primary)' }}>{foundation.FS}</strong></span>
-      <span>B: <strong style={{ color: 'var(--text-primary)' }}>{foundation.B}m</strong></span>
-      <span>Df: <strong style={{ color: 'var(--text-primary)' }}>{foundation.Df}m</strong></span>
+      <StatusItem label="Método" value={METHOD_LABELS[method]} />
+      <StatusItem label="FS" value={String(foundation.FS)} />
+      <StatusItem label="B" value={`${foundation.B} m`} />
+      <StatusItem label="Df" value={`${foundation.Df} m`} />
       {result && (
         <>
-          <span style={{ color: 'var(--success)' }}>
+          <span style={{
+            fontFamily: 'var(--lucid-font-serif)',
+            fontSize: 13,
+            color: 'var(--lucid-acc-coral)',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
             qa = {(result.qa / G).toFixed(2)} t/m²
           </span>
-          <span>Estrato: {result.designStratumIndex + 1} ({result.soilType})</span>
+          <StatusItem label="Estrato" value={`${result.designStratumIndex + 1} (${result.soilType})`} />
         </>
       )}
       {errors.length > 0 && (
-        <span style={{ color: 'var(--error)' }}>⚠ {errors.length} error(es)</span>
+        <span style={{
+          color: '#b5563f',
+          fontFamily: 'var(--lucid-font-sans)',
+          fontSize: 11,
+        }}>
+          ⚠ {errors.length} error(es)
+        </span>
       )}
       <div style={{ flex: 1 }} />
-      <span style={{ color: 'var(--text-muted)' }}>UCSM — Ingeniería de cimentaciones — 2026</span>
+      <span style={{
+        color: 'var(--lucid-ink-faint)',
+        fontFamily: 'var(--lucid-font-serif)',
+        fontStyle: 'italic',
+        fontSize: 11,
+      }}>
+        UCSM · Ingeniería de cimentaciones · 2026
+      </span>
     </div>
+  );
+}
+
+function StatusItem({ label, value }: { label: string; value: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+      <span style={{
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 10,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        color: 'var(--lucid-ink-muted)',
+      }}>
+        {label}
+      </span>
+      <strong style={{
+        fontFamily: 'var(--lucid-font-serif)',
+        fontWeight: 500,
+        fontSize: 13,
+        color: 'var(--lucid-ink-strong)',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {value}
+      </strong>
+    </span>
   );
 }

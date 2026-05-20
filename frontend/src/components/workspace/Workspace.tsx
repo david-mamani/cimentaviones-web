@@ -121,7 +121,7 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
     <div ref={containerRef} style={{
       flex: 1,
       display: 'flex',
-      background: 'var(--bg-viewport)',
+      background: '#fafaf7',
       overflow: 'hidden',
     }}>
       {/* Left slot */}
@@ -148,13 +148,13 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
             onPointerUp={handleDividerUp}
             style={{
               width: 5,
-              background: 'var(--border)',
+              background: 'var(--lucid-rule-white)',
               cursor: 'col-resize',
               flexShrink: 0,
-              transition: isDragging.current ? 'none' : 'background var(--transition-fast)',
+              transition: isDragging.current ? 'none' : 'background 160ms cubic-bezier(0.4,0,0.2,1)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent)'; }}
-            onMouseLeave={(e) => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lucid-acc-coral)'; }}
+            onMouseLeave={(e) => { if (!isDragging.current) e.currentTarget.style.background = 'var(--lucid-rule-white)'; }}
           />
           <div
             style={{ flex: 1 - leftFraction, display: 'flex', flexDirection: 'column', minWidth: 0 }}
@@ -185,7 +185,9 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
     <>
       {/* Tab bar */}
       <div className="tab-bar" style={{
-        borderBottom: isActiveSlot ? '2px solid var(--accent)' : '1px solid var(--border)',
+        borderBottom: isActiveSlot
+          ? '1px solid var(--lucid-acc-coral)'
+          : '1px solid var(--lucid-rule-white)',
       }}>
         {tabs.map(tab => (
           <div
