@@ -19,7 +19,7 @@ Convención de dimensiones:
   - B_orig, L_orig: dimensiones físicas de la zapata. Se usan en los factores
     de profundidad (Df/B siempre con B original).
   - B_eff, L_eff: dimensiones efectivas (Meyerhof). Si hay excentricidad,
-    B_eff = B - 2·e1 y L_eff = L - 2·e2 (con intercambio si B_eff > L_eff).
+    B_eff = B - 2·e2 y L_eff = L - 2·e1 (con intercambio si B_eff > L_eff).
     Se usan en factores de forma y en el tercer sumando (S3 = ½·γ·B_eff·Nγ·…).
 """
 

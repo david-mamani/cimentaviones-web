@@ -67,11 +67,13 @@ def find_design_stratum(strata: list, effective_depth: float) -> dict:
 
 def _compute_effective_dimensions(B: float, L: float, e1: float, e2: float) -> dict:
     """
-    Dimensiones efectivas Meyerhof: B' = B - 2e1, L' = L - 2e2.
+    Dimensiones efectivas Meyerhof (convención profesor / RNE):
+      B' = B - 2·e2  (e2 = M2/Q, M2 sobre eje vertical → eccentricidad en B)
+      L' = L - 2·e1  (e1 = M1/Q, M1 sobre eje horizontal → eccentricidad en L)
     Si B' > L', se intercambian (B' siempre es la dimensión menor).
     """
-    B_eff = B - 2.0 * e1
-    L_eff = L - 2.0 * e2
+    B_eff = B - 2.0 * e2
+    L_eff = L - 2.0 * e1
 
     if B_eff <= 0 or L_eff <= 0:
         raise ValueError(
@@ -86,18 +88,37 @@ def _compute_effective_dimensions(B: float, L: float, e1: float, e2: float) -> d
 
 
 def _extreme_pressures_trapezoidal(Q: float, B: float, L: float, e1: float, e2: float) -> dict:
-    """qmax, qmin para régimen trapezoidal (kern central, e1≤B/6 y e2≤L/6)."""
+    """
+    qmax, qmin para régimen trapezoidal (dentro del rombo del kern).
+
+    Convención: e1 actúa en dirección L (→ término 6·e1/L);
+    e2 actúa en dirección B (→ término 6·e2/B).
+    """
     base = Q / (B * L)
-    term_e1 = 6.0 * e1 / B
-    term_e2 = 6.0 * e2 / L
+    term_e1 = 6.0 * e1 / L
+    term_e2 = 6.0 * e2 / B
     qmax = base * (1.0 + term_e1 + term_e2)
     qmin = base * (1.0 - term_e1 - term_e2)
     return {"qmax": qmax, "qmin": qmin}
 
 
-def _extreme_pressures_triangular(Q: float, B: float, L: float, e1: float) -> dict:
-    """qmax para régimen triangular (excentricidad en B, e1 > B/6); qmin = 0."""
-    qmax = 4.0 * Q / (3.0 * L * (B - 2.0 * e1))
+def _extreme_pressures_triangular_uniaxial(
+    Q: float, B: float, L: float, e: float, direction: str,
+) -> dict:
+    """
+    Régimen triangular para excentricidad UNIAXIAL fuera del kern.
+
+    Das Ec. 6.53:
+      - Excentricidad en B (direction="B", proveniente de e2): qmax = 4·Q / (3·L·(B − 2e))
+      - Excentricidad en L (direction="L", proveniente de e1): qmax = 4·Q / (3·B·(L − 2e))
+        (por simetría geométrica).
+    """
+    if direction == "B":
+        qmax = 4.0 * Q / (3.0 * L * (B - 2.0 * e))
+    elif direction == "L":
+        qmax = 4.0 * Q / (3.0 * B * (L - 2.0 * e))
+    else:
+        raise ValueError(f"direction debe ser 'B' o 'L', no {direction!r}")
     return {"qmax": qmax, "qmin": 0.0}
 
 
@@ -163,6 +184,11 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     strata = input_data["strata"]
     conditions = input_data["conditions"]
     method = input_data["method"]
+    # Criterio que el usuario elige para FS_real (Q_u sobre A_eff). Default
+    # "general" preserva el comportamiento legacy si el frontend no lo envía.
+    criterion = input_data.get("criterion", "general")
+    if criterion not in ("general", "rne", "rne_corrected"):
+        raise ValueError(f"Criterio desconocido: {criterion!r}")
 
     if not strata:
         raise ValueError("Se requiere al menos un estrato de suelo.")
@@ -175,7 +201,19 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     beta = foundation.get("beta", 0.0) or 0.0
     e1 = foundation.get("e1", 0.0) or 0.0
     e2 = foundation.get("e2", 0.0) or 0.0
+    M1 = foundation.get("M1")  # opcional
+    M2 = foundation.get("M2")  # opcional
     Q_applied = foundation.get("Q")  # opcional
+
+    # Derivar e1, e2 desde M1/Q, M2/Q si se proveen momentos y la
+    # excentricidad correspondiente está en 0 (convención profesor).
+    # e1 viene de M1 (sobre eje 1 horizontal) y reduce L.
+    # e2 viene de M2 (sobre eje 2 vertical) y reduce B.
+    if Q_applied and Q_applied > 0:
+        if M1 is not None and e1 == 0.0:
+            e1 = M1 / Q_applied
+        if M2 is not None and e2 == 0.0:
+            e2 = M2 / Q_applied
 
     if B <= 0:
         raise ValueError(f"El ancho B ({B}) debe ser mayor a 0.")
@@ -268,13 +306,20 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     B_eff, L_eff, A_eff = eff["B_eff"], eff["L_eff"], eff["A_eff"]
 
     if has_eccentricity:
-        in_kern = (e1 <= B / 6.0 + 1e-9) and (e2 <= L / 6.0 + 1e-9)
+        # Kern biaxial: ROMBO definido por (6·e1/L + 6·e2/B) ≤ 1, NO rectángulo.
+        # Convención del curso: e1 reduce L (eje 1 horizontal), e2 reduce B.
+        # Aunque e1 ≤ L/6 y e2 ≤ B/6 individualmente, si están en la zona
+        # exterior del rombo habrá levantamiento (qmin < 0). Mecánica de
+        # materiales clásica: q = Q/A ± (M1·y + M2·x)/(...).
+        kern_metric = (6.0 * e1 / L if L > 0 else 0.0) + (6.0 * e2 / B if B > 0 else 0.0)
+        in_kern = kern_metric <= 1.0 + 1e-9
         regime = "trapezoidal" if in_kern else "triangular"
         if not in_kern:
             warnings.append(
-                f"Excentricidad fuera del núcleo central (kern): "
-                f"e1={e1:.3f} (B/6={B/6:.3f}), e2={e2:.3f} (L/6={L/6:.3f}). "
-                f"Se produce levantamiento; distribución triangular."
+                f"Excentricidad fuera del kern central (rombo): "
+                f"6·e1/L + 6·e2/B = {kern_metric:.3f} > 1.0 "
+                f"(e1={e1:.3f}, L/6={L/6:.3f}; e2={e2:.3f}, B/6={B/6:.3f}). "
+                f"Se produce levantamiento."
             )
     else:
         regime = "uniforme"
@@ -294,6 +339,7 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
                 f"considerar excentricidad."
             )
         t_res = calculate_qu_terzaghi(c, q, gamma_effective, B, phi, f_type)
+        # Qmax legacy: para Terzaghi se usa B·L originales (sin excentricidad).
         method_blocks["terzaghi"] = _build_method_block(
             t_res, soil_type, FS, B, L
         )
@@ -305,18 +351,23 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     g_res = calculate_qu_general(
         c, q, gamma_effective, B, B_eff, L_eff, phi, beta, Df,
     )
-    method_blocks["general"] = _build_method_block(g_res, soil_type, FS, B, L)
+    # Qmax legacy con A' = B_eff·L_eff (Das paso 3: Qu = qu·A'). Sin
+    # excentricidad B_eff=B, L_eff=L y Qmax sigue siendo qa·B·L.
+    method_blocks["general"] = _build_method_block(g_res, soil_type, FS, B_eff, L_eff)
 
     r_res = calculate_qu_rne(
         c, q, gamma_effective, B_eff, L_eff, phi, beta,
     )
-    method_blocks["rne"] = _build_method_block(r_res, soil_type, FS, B, L)
+    method_blocks["rne"] = _build_method_block(r_res, soil_type, FS, B_eff, L_eff)
 
     # ── Bloque 11: presiones extremas y FS_real ────────────────────
     eccentricity_info = None
     if has_eccentricity or Q_applied is not None:
-        # Validar qu del método+criterio principal sobre el área efectiva
-        principal_qu = method_blocks[method]["criteria"]["general"]["qu"]
+        # FS_real se calcula con el qu del CRITERIO ELEGIDO por el usuario,
+        # NO siempre del criterio General. RNE Art. 22.2.1: la presión
+        # admisible deriva del FS sobre las ecuaciones del método/criterio
+        # aplicado. Default "general" preserva el comportamiento legacy.
+        principal_qu = method_blocks[method]["criteria"][criterion]["qu"]
         Qu = principal_qu * A_eff  # carga última total (kN si qu en kPa)
         FS_real = (Qu / Q_applied) if (Q_applied and Q_applied > 0) else None
 
@@ -324,15 +375,40 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         qmax = None
         qmin = None
         if Q_applied is not None and Q_applied > 0:
-            if regime == "triangular" and e1 > B / 6.0:
-                pr = _extreme_pressures_triangular(Q_applied, B, L, e1)
-            else:
+            if regime == "uniforme":
+                # Sin excentricidad: presión uniforme
+                p_unif = Q_applied / (B * L)
+                pr = {"qmax": p_unif, "qmin": p_unif}
+            elif regime == "trapezoidal":
                 pr = _extreme_pressures_trapezoidal(Q_applied, B, L, e1, e2)
-                if pr["qmin"] < 0 and regime == "trapezoidal":
+                if pr["qmin"] < 0:
                     warnings.append(
-                        f"qmin = {pr['qmin']:.2f} kPa < 0 con régimen trapezoidal. "
-                        f"Inconsistencia: verifique excentricidad y dimensiones."
+                        f"qmin = {pr['qmin']:.2f} kPa < 0 con régimen trapezoidal "
+                        f"(dentro del rombo del kern). Inconsistencia inesperada."
                     )
+            else:  # triangular (fuera del rombo del kern)
+                # Distinguir uniaxial en L, uniaxial en B, o biaxial fuera del kern.
+                # Convención: e1 actúa en L, e2 actúa en B.
+                # Das §6.12 solo provee fórmula cerrada para los casos uniaxiales.
+                if e1 > 1e-9 and e2 <= 1e-9:
+                    pr = _extreme_pressures_triangular_uniaxial(
+                        Q_applied, B, L, e1, "L"
+                    )
+                elif e2 > 1e-9 and e1 <= 1e-9:
+                    pr = _extreme_pressures_triangular_uniaxial(
+                        Q_applied, B, L, e2, "B"
+                    )
+                else:
+                    # Biaxial fuera del kern: el área en compresión es un
+                    # polígono irregular sin fórmula cerrada en Das (los
+                    # "casos" de Highter & Anders son para A', no para qmax).
+                    warnings.append(
+                        "Excentricidad biaxial fuera del kern central: la "
+                        "distribución de presiones es poligonal irregular y no "
+                        "tiene fórmula cerrada en Das. No se reportan qmax/qmin "
+                        "(requiere resolución numérica del área en compresión)."
+                    )
+                    pr = {"qmax": None, "qmin": None}
             qmax, qmin = pr["qmax"], pr["qmin"]
 
         valid = None
@@ -342,6 +418,7 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
         eccentricity_info = {
             "hasEccentricity": has_eccentricity,
             "e1": e1, "e2": e2,
+            "M1": M1, "M2": M2,
             "Q": Q_applied,
             "B_eff": B_eff, "L_eff": L_eff, "A_eff": A_eff,
             "regime": regime,
@@ -362,7 +439,10 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     qa = principal_general["qa"]
     qnet = qu - q
     qa_net = qnet / FS if FS > 0 else 0.0
-    Qmax = qa * B * L
+    # Qmax = qa · A'. Sin excentricidad A' = B·L (B_eff=B, L_eff=L).
+    # Para Terzaghi se mantiene B·L (no acepta excentricidad por decisión del curso).
+    area_for_qmax = B * L if method == "terzaghi" else B_eff * L_eff
+    Qmax = qa * area_for_qmax
 
     # rneConsideration: criterios RNE y RNE-Corregido aplicados al método elegido
     rne_qu = principal["criteria"]["rne"]["qu"]

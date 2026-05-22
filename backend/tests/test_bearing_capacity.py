@@ -284,7 +284,7 @@ class TestEccentricity:
         assert r["eccentricity"] is None
 
     def test_trapezoidal_regime_inside_kern(self):
-        """e1=0.2 < B/6≈0.33 y e2=0.1 < L/6=0.5 → trapezoidal."""
+        """e1=0.2 (reduce L) y e2=0.1 (reduce B), ambos dentro del rombo → trapezoidal."""
         data = {
             "foundation": {"type": "rectangular", "B": 2.0, "L": 3.0, "Df": 1.5,
                            "FS": 3.0, "beta": 0, "e1": 0.2, "e2": 0.1, "Q": 500},
@@ -295,19 +295,21 @@ class TestEccentricity:
         r = calculate_bearing_capacity(data)
         ec = r["eccentricity"]
         assert ec["regime"] == "trapezoidal"
-        assert ec["B_eff"] == pytest.approx(1.6, abs=0.01)
-        assert ec["L_eff"] == pytest.approx(2.8, abs=0.01)
-        assert ec["A_eff"] == pytest.approx(4.48, abs=0.01)
-        # qmax = (500/6)·(1 + 0.6 + 0.2) = 150.00
-        assert ec["qmax"] == pytest.approx(150.0, abs=0.5)
-        # qmin = (500/6)·(1 - 0.6 - 0.2) = 16.67
-        assert ec["qmin"] == pytest.approx(16.67, abs=0.5)
+        # B' = B - 2·e2 = 2 - 0.2 = 1.8;  L' = L - 2·e1 = 3 - 0.4 = 2.6
+        assert ec["B_eff"] == pytest.approx(1.8, abs=0.01)
+        assert ec["L_eff"] == pytest.approx(2.6, abs=0.01)
+        assert ec["A_eff"] == pytest.approx(4.68, abs=0.01)
+        # kern_metric = 6·0.2/3 + 6·0.1/2 = 0.4 + 0.3 = 0.7 → dentro
+        # qmax = (500/6)·(1 + 0.4 + 0.3) = 83.333·1.7 ≈ 141.67
+        assert ec["qmax"] == pytest.approx(141.67, abs=0.5)
+        # qmin = 83.333·0.3 = 25.0
+        assert ec["qmin"] == pytest.approx(25.0, abs=0.5)
         assert ec["FS_real"] is not None
         assert ec["FS_real"] > 3.0  # válido
         assert ec["valid"] is True
 
     def test_triangular_regime_outside_kern(self):
-        """e1=0.5 > B/6=0.333 → régimen triangular con warning."""
+        """e1=0.5 (reduce L) > L/6=0.333 → régimen triangular con warning."""
         data = {
             "foundation": {"type": "cuadrada", "B": 2.0, "L": 2.0, "Df": 1.0,
                            "FS": 3.0, "beta": 0, "e1": 0.5, "e2": 0.0, "Q": 200},
@@ -319,21 +321,42 @@ class TestEccentricity:
         ec = r["eccentricity"]
         assert ec["regime"] == "triangular"
         assert ec["qmin"] == 0.0
-        # qmax = 4·200 / (3 · 2 · (2 - 1)) = 800/6 = 133.33
+        # Uniaxial L: qmax = 4·Q / (3·B·(L − 2·e1)) = 4·200/(3·2·1) = 133.33
         assert ec["qmax"] == pytest.approx(133.33, abs=0.5)
         assert any("kern" in w.lower() or "núcleo" in w.lower() for w in r["warnings"])
 
     def test_eccentricity_too_large_raises(self):
-        """2·e1 ≥ B debe lanzar ValueError en el motor."""
+        """2·e1 ≥ L debe lanzar ValueError (e1 reduce L en la nueva convención)."""
         data = {
             "foundation": {"type": "rectangular", "B": 2.0, "L": 3.0, "Df": 1.0,
-                           "FS": 3.0, "beta": 0, "e1": 1.0, "e2": 0.0, "Q": 200},
+                           "FS": 3.0, "beta": 0, "e1": 1.5, "e2": 0.0, "Q": 200},
             "strata": [{"id": "1", "thickness": 5.0, "gamma": 18, "c": 10, "phi": 25, "gammaSat": 20}],
             "conditions": {"hasWaterTable": False, "waterTableDepth": 0, "hasBasement": False, "basementDepth": 0},
             "method": "general",
         }
         with pytest.raises(ValueError):
             calculate_bearing_capacity(data)
+
+    def test_moment_input_derives_eccentricity(self):
+        """Ejemplo del profesor: M1=3.5, M2=0.7, Q=20 ⇒ e1=0.175, e2=0.035."""
+        data = {
+            "foundation": {
+                "type": "rectangular", "B": 1.40, "L": 1.60, "Df": 1.0,
+                "FS": 3.0, "beta": 0,
+                "M1": 3.5 * 9.80665, "M2": 0.7 * 9.80665,  # tnf·m → kN·m
+                "Q": 20.0 * 9.80665,
+            },
+            "strata": [{"id": "1", "thickness": 3.0, "gamma": 18, "c": 10, "phi": 25, "gammaSat": 20}],
+            "conditions": {"hasWaterTable": False, "waterTableDepth": 0, "hasBasement": False, "basementDepth": 0},
+            "method": "general",
+        }
+        r = calculate_bearing_capacity(data)
+        ec = r["eccentricity"]
+        assert ec["e1"] == pytest.approx(0.175, abs=1e-3)
+        assert ec["e2"] == pytest.approx(0.035, abs=1e-3)
+        # B' = 1.40 - 2·0.035 = 1.33;  L' = 1.60 - 2·0.175 = 1.25 → swap (B' debe ser el menor)
+        assert ec["B_eff"] == pytest.approx(1.25, abs=1e-3)
+        assert ec["L_eff"] == pytest.approx(1.33, abs=1e-3)
 
 
 # ═══════════════════════════════════════════════════════════════

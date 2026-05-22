@@ -13,6 +13,7 @@ import type {
   CalculationResult,
   IterationResult,
   CriterionKey,
+  EccentricityInputMode,
 } from '../types/geotechnical';
 
 /** Genera un ID único para cada estrato */
@@ -51,6 +52,9 @@ interface FoundationState {
   lbLocked: boolean;   // L = k × B mode
   lbRatio: number;     // k value (default 2.0)
 
+  // Modo de entrada de excentricidad: 'M' (momentos) o 'e' (excentricidades)
+  eccentricityInputMode: EccentricityInputMode;
+
   // Iteration results (for PDF export)
   iterationResults: IterationResult | null;
 
@@ -86,6 +90,9 @@ interface FoundationState {
   setLbLocked: (locked: boolean) => void;
   setLbRatio: (ratio: number) => void;
 
+  // Acciones - modo de excentricidad
+  setEccentricityInputMode: (mode: EccentricityInputMode) => void;
+
   // Acciones - Cálculo
   calculate: () => void;
   setErrors: (errors: string[]) => void;
@@ -115,6 +122,7 @@ export interface ProjectData {
   method: CalculationMethod;
   lbLocked?: boolean;
   lbRatio?: number;
+  eccentricityInputMode?: EccentricityInputMode;
   iterationConfig?: IterationConfig;
   selectedCriterion?: CriterionKey;
 }
@@ -128,6 +136,8 @@ const defaultFoundation: FoundationParams = {
   beta: 0,
   e1: 0,
   e2: 0,
+  M1: null,
+  M2: null,
   Q: null,
 };
 
@@ -165,6 +175,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   selectedIds: [],
   lbLocked: false,
   lbRatio: 2.0,
+  eccentricityInputMode: 'M',
   iterationResults: null,
   iterationConfig: {
     varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
@@ -275,6 +286,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     });
   },
 
+  setEccentricityInputMode: (mode) => {
+    set({ eccentricityInputMode: mode, result: null });
+  },
+
   calculate: async () => {
     if (get().isCalculating) return;
     set({ isCalculating: true, errors: [] });
@@ -294,6 +309,19 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     }));
 
     const f = state.foundation;
+    const mode = state.eccentricityInputMode;
+    // En modo "M" enviamos M1, M2 (tnf·m → kN·m × G) y dejamos que el
+    // motor derive e1=M1/Q, e2=M2/Q. En modo "e" enviamos e1, e2 directos.
+    const eccentricityPayload =
+      mode === 'M'
+        ? {
+            e1: 0,
+            e2: 0,
+            ...(typeof f.M1 === 'number' && f.M1 > 0 ? { M1: f.M1 * G } : {}),
+            ...(typeof f.M2 === 'number' && f.M2 > 0 ? { M2: f.M2 * G } : {}),
+          }
+        : { e1: f.e1 ?? 0, e2: f.e2 ?? 0 };
+
     const foundationForAPI = {
       type: f.type,
       B: f.B,
@@ -301,8 +329,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       Df: f.Df,
       FS: f.FS,
       beta: f.beta,
-      e1: f.e1 ?? 0,
-      e2: f.e2 ?? 0,
+      ...eccentricityPayload,
       // Q: tnf → kN (multiplicar por G). Si no fue provista, se omite.
       ...(typeof f.Q === 'number' && f.Q > 0 ? { Q: f.Q * G } : {}),
     };
@@ -352,6 +379,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       errors: [],
       lbLocked: false,
       lbRatio: 2.0,
+      eccentricityInputMode: 'M',
       iterationResults: null,
       iterationConfig: {
         varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
@@ -369,6 +397,8 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       ...data.foundation,
       e1: data.foundation.e1 ?? 0,
       e2: data.foundation.e2 ?? 0,
+      M1: data.foundation.M1 ?? null,
+      M2: data.foundation.M2 ?? null,
       Q: data.foundation.Q ?? null,
     };
     const strataLoaded = data.strata.map((s) => ({
@@ -384,6 +414,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       selectedCriterion: data.selectedCriterion ?? 'general',
       lbLocked: data.lbLocked ?? false,
       lbRatio: data.lbRatio ?? 2.0,
+      eccentricityInputMode: data.eccentricityInputMode ?? 'M',
       iterationConfig: data.iterationConfig ?? {
         varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
         varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,

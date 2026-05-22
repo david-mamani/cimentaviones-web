@@ -64,6 +64,7 @@ export const foundationSchema = z.object({
       z.lte(45, 'El ángulo de inclinación β debe ser ≤ 45°'),
     ),
 
+  // Convención profesor / RNE: e1 reduce L, e2 reduce B.
   e1: z.number({ error: 'e1 debe ser un número' })
     .check(z.gte(0, 'La excentricidad e1 debe ser ≥ 0'))
     .default(0),
@@ -72,6 +73,8 @@ export const foundationSchema = z.object({
     .check(z.gte(0, 'La excentricidad e2 debe ser ≥ 0'))
     .default(0),
 
+  M1: z.number().check(z.gte(0, 'M1 ≥ 0')).nullable().optional(),
+  M2: z.number().check(z.gte(0, 'M2 ≥ 0')).nullable().optional(),
   Q: z.number().check(z.positive('La carga Q debe ser > 0')).nullable().optional(),
 }).refine(
   (data) => data.type !== 'rectangular' || data.L >= data.B,
@@ -80,15 +83,15 @@ export const foundationSchema = z.object({
     path: ['L'],
   }
 ).refine(
-  (data) => 2 * data.e1 < data.B,
+  (data) => 2 * data.e1 < data.L,
   {
-    message: 'La excentricidad e1 es demasiado grande: 2·e1 debe ser < B',
+    message: 'La excentricidad e1 es demasiado grande: 2·e1 debe ser < L',
     path: ['e1'],
   }
 ).refine(
-  (data) => 2 * data.e2 < data.L,
+  (data) => 2 * data.e2 < data.B,
   {
-    message: 'La excentricidad e2 es demasiado grande: 2·e2 debe ser < L',
+    message: 'La excentricidad e2 es demasiado grande: 2·e2 debe ser < B',
     path: ['e2'],
   }
 );

@@ -36,11 +36,22 @@ class FoundationParams(BaseModel):
     Df: float = Field(ge=0, description="Profundidad de desplante (m)")
     FS: float = Field(ge=1.0, le=10.0, description="Factor de seguridad")
     beta: float = Field(ge=0, le=45, description="Ángulo de inclinación de carga β (°)")
-    e1: float = Field(default=0.0, ge=0, description="Excentricidad en dirección B (m)")
-    e2: float = Field(default=0.0, ge=0, description="Excentricidad en dirección L (m)")
+    # Convención del curso (profesor / RNE):
+    #   e1 = M1/Q (M1 = M_x, momento sobre eje 1 horizontal) → reduce L
+    #   e2 = M2/Q (M2 = M_y, momento sobre eje 2 vertical)   → reduce B
+    e1: float = Field(default=0.0, ge=0, description="Excentricidad por M1/Q — reduce L (m)")
+    e2: float = Field(default=0.0, ge=0, description="Excentricidad por M2/Q — reduce B (m)")
+    M1: Optional[float] = Field(
+        default=None, ge=0,
+        description="Momento M1 = M_x sobre eje 1 horizontal (kN·m). Si se provee con Q, deriva e1 = M1/Q.",
+    )
+    M2: Optional[float] = Field(
+        default=None, ge=0,
+        description="Momento M2 = M_y sobre eje 2 vertical (kN·m). Si se provee con Q, deriva e2 = M2/Q.",
+    )
     Q: Optional[float] = Field(
         default=None, gt=0,
-        description="Carga vertical total aplicada (kN). Requerida para qmax/qmin y FS_real.",
+        description="Carga vertical total aplicada (kN). Requerida para qmax/qmin, FS_real y M→e.",
     )
 
     @model_validator(mode="after")
@@ -53,13 +64,21 @@ class FoundationParams(BaseModel):
 
     @model_validator(mode="after")
     def validate_eccentricity_in_dimensions(self):
-        if 2.0 * self.e1 >= self.B:
+        # Convención: e1 reduce L, e2 reduce B (profesor / RNE).
+        # Si el usuario envió M1/M2 con Q, derivamos e1 = M1/Q, e2 = M2/Q
+        # ANTES de validar (a menos que e1/e2 ya hayan sido provistas).
+        if self.Q and self.Q > 0:
+            if self.M1 is not None and self.e1 == 0.0:
+                self.e1 = self.M1 / self.Q
+            if self.M2 is not None and self.e2 == 0.0:
+                self.e2 = self.M2 / self.Q
+        if 2.0 * self.e1 >= self.L:
             raise ValueError(
-                f"Excentricidad e1 ({self.e1} m) demasiado grande: 2·e1 debe ser < B ({self.B} m)."
+                f"Excentricidad e1 ({self.e1} m) demasiado grande: 2·e1 debe ser < L ({self.L} m)."
             )
-        if 2.0 * self.e2 >= self.L:
+        if 2.0 * self.e2 >= self.B:
             raise ValueError(
-                f"Excentricidad e2 ({self.e2} m) demasiado grande: 2·e2 debe ser < L ({self.L} m)."
+                f"Excentricidad e2 ({self.e2} m) demasiado grande: 2·e2 debe ser < B ({self.B} m)."
             )
         return self
 
@@ -78,6 +97,7 @@ class CalculationInput(BaseModel):
     strata: list[Stratum] = Field(min_length=1, description="Al menos 1 estrato")
     conditions: SpecialConditions
     method: Literal["terzaghi", "general", "rne"]
+    criterion: Literal["general", "rne", "rne_corrected"] = "general"
     unit_config: Optional[dict] = None
 
     @model_validator(mode="after")

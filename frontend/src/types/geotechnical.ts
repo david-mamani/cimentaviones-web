@@ -30,6 +30,9 @@ export interface Stratum {
   mu_s?: number | null;// Relación de Poisson (adim.) — opcional
 }
 
+/** Modo de entrada de excentricidad */
+export type EccentricityInputMode = 'M' | 'e';
+
 /** Parámetros de cimentación */
 export interface FoundationParams {
   type: FoundationType;
@@ -38,8 +41,13 @@ export interface FoundationParams {
   Df: number;          // Profundidad de desplante (unidades de input: length)
   FS: number;          // Factor de seguridad
   beta: number;        // Ángulo de inclinación de carga β (°)
-  e1: number;          // Excentricidad en dirección B (m), default 0
-  e2: number;          // Excentricidad en dirección L (m), default 0
+  // Convención profesor / RNE:
+  //   e1 = M1/Q (M1 sobre eje 1 horizontal) → reduce L
+  //   e2 = M2/Q (M2 sobre eje 2 vertical)   → reduce B
+  e1: number;          // Excentricidad que reduce L (m), default 0
+  e2: number;          // Excentricidad que reduce B (m), default 0
+  M1?: number | null;  // Momento M1 = M_x (input: force·length, métrico tnf·m)
+  M2?: number | null;  // Momento M2 = M_y (input: force·length, métrico tnf·m)
   Q?: number | null;   // Carga aplicada (input: force, métrico tnf) — opcional
 }
 
@@ -112,8 +120,10 @@ export interface MethodCriteriaBlock {
 /** Información de excentricidad (bloque 11 del flujo) */
 export interface EccentricityInfo {
   hasEccentricity: boolean;
-  e1: number;
-  e2: number;
+  e1: number;          // reduce L
+  e2: number;          // reduce B
+  M1?: number | null;  // si el cálculo se hizo con momentos (kN·m, SI)
+  M2?: number | null;
   Q: number | null;
   B_eff: number;
   L_eff: number;

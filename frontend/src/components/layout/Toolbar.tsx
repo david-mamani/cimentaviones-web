@@ -159,7 +159,7 @@ export default function Toolbar({
         {/* View buttons — all visible as icons */}
         <ToolBtn icon={<Square size={15} />} title="Vista 2D" onClick={() => onOpenTab('2d')} />
         <ToolBtn icon={<Box size={15} />} title="Vista 3D" onClick={() => onOpenTab('3d')} />
-        <ToolBtn icon={<Frame size={15} />} title="Diseño de Cimentación" onClick={() => onOpenTab('foundation-design')} />
+        <ToolBtn icon={<Frame size={15} />} title="Excentricidad" onClick={() => onOpenTab('foundation-design')} />
         <ToolBtn
           icon={<SplitSquareHorizontal size={15} />}
           title={viewMode === 'split' ? 'Desactivar Split' : 'Activar Split'}

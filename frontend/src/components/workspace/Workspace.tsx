@@ -25,7 +25,7 @@ const TAB_LABELS: Record<TabType, string> = {
   '3d': 'Vista 3D',
   charts: 'Gráficas',
   results: 'Resultados',
-  'foundation-design': 'Diseño de Cimentación',
+  'foundation-design': 'Excentricidad',
 };
 
 interface WorkspaceProps {

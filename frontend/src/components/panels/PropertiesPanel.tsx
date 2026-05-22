@@ -429,10 +429,10 @@ function QuickDesignSection() {
           e.currentTarget.style.background = 'var(--lucid-surface-page)';
           e.currentTarget.style.borderColor = 'var(--lucid-rule-cream)';
         }}
-        title="Abrir ventana de Diseño de Cimentación (excentricidades, vista en planta)"
+        title="Abrir ventana de Excentricidad (M, e, vista en planta con ejes 1/2)"
       >
         <Frame size={13} style={{ color: 'var(--lucid-acc-coral)' }} />
-        Abrir Diseño de Cimentación
+        Abrir Excentricidad
       </button>
     </Section>
   );
