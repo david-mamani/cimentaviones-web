@@ -72,39 +72,77 @@ class TestFoxIf:
     def test_Df_zero_returns_1(self):
         """If(Df=0) = 1 para cualquier L/B y μ."""
         for lb in [1, 2, 5]:
-            for mu in [0.30, 0.40, 0.50]:
+            for mu in [0.0, 0.1, 0.30, 0.40, 0.50]:
                 r = If_factor(Df=0.0, B=1.0, L=lb * 1.0, mu_s=mu)
                 assert r["If"] == pytest.approx(1.0, abs=1e-9)
 
+    def test_table_has_5_mu_curves(self):
+        """La tabla debe cubrir las 5 curvas del gráfico Das."""
+        from calculos.settlement import FOX_MU_KEYS
+        assert FOX_MU_KEYS == [0.0, 0.1, 0.3, 0.4, 0.5]
+
     def test_lookup_exact_table_value(self):
-        """Df/B=1.0, L/B=1, μ=0.30 ⇒ 0.63 según la tabla."""
+        """Df/B=1.0, L/B=1, μ=0.30 ⇒ 0.65 según la tabla re-digitalizada."""
         r = If_factor(Df=1.0, B=1.0, L=1.0, mu_s=0.30)
-        assert r["If"] == pytest.approx(0.63, abs=1e-9)
+        assert r["If"] == pytest.approx(0.65, abs=1e-9)
+
+    def test_lookup_mu_zero(self):
+        """μ=0.0 — nueva fila agregada con la tabla expandida."""
+        r = If_factor(Df=1.0, B=1.0, L=1.0, mu_s=0.0)
+        assert r["If"] == pytest.approx(0.56, abs=1e-9)
 
     def test_interpolate_in_DfB(self):
-        """Df/B=0.5, L/B=1, μ=0.30 ⇒ entre 0.82 (0.4) y 0.74 (0.6)."""
-        r = If_factor(Df=0.5, B=1.0, L=1.0, mu_s=0.30)
-        # interp(0.5, 0.4→0.82, 0.6→0.74) = 0.78
-        assert r["If"] == pytest.approx(0.78, abs=1e-3)
+        """Df/B=0.60, L/B=1, μ=0.30 ⇒ entre 0.77 (0.50) y 0.71 (0.75).
+        interp_t = (0.60-0.50)/(0.75-0.50) = 0.40
+        If = 0.77 + 0.40·(0.71-0.77) = 0.746
+        """
+        r = If_factor(Df=0.60, B=1.0, L=1.0, mu_s=0.30)
+        assert r["If"] == pytest.approx(0.746, abs=1e-3)
 
     def test_clamp_DfB_above_2(self):
         """Df/B > 2 ⇒ se congela al valor de 2 y emite out_of_range."""
         r = If_factor(Df=10.0, B=1.0, L=1.0, mu_s=0.30)
-        # tabla en Df/B=2, L/B=1, μ=0.30 = 0.51
-        assert r["If"] == pytest.approx(0.51, abs=1e-9)
+        # nueva tabla en Df/B=2, L/B=1, μ=0.30 = 0.53
+        assert r["If"] == pytest.approx(0.53, abs=1e-9)
         assert r["out_of_range"] is True
 
     def test_clamp_LB_above_5(self):
         """L/B > 5 ⇒ congelado a L/B=5."""
         r = If_factor(Df=1.0, B=1.0, L=10.0, mu_s=0.30)
-        # tabla en Df/B=1, L/B=5, μ=0.30 = 0.74
-        assert r["If"] == pytest.approx(0.74, abs=1e-9)
+        # nueva tabla en Df/B=1, L/B=5, μ=0.30 = 0.77
+        assert r["If"] == pytest.approx(0.77, abs=1e-9)
         assert r["out_of_range"] is True
 
     def test_interp_in_mu(self):
-        """Df/B=1, L/B=1, μ=0.35 ⇒ entre 0.63 (0.30) y 0.67 (0.40)."""
+        """Df/B=1, L/B=1, μ=0.35 ⇒ entre 0.65 (0.30) y 0.70 (0.40).
+        interp_t = (0.35-0.30)/(0.40-0.30) = 0.5
+        If = 0.65 + 0.5·(0.70-0.65) = 0.675
+        """
         r = If_factor(Df=1.0, B=1.0, L=1.0, mu_s=0.35)
-        assert r["If"] == pytest.approx(0.65, abs=1e-3)
+        assert r["If"] == pytest.approx(0.675, abs=1e-3)
+
+    def test_monotone_in_LB(self):
+        """Para Df/B>0 fijo: mayor L/B ⇒ mayor If (menos castigo por empotramiento)."""
+        a = If_factor(Df=1.0, B=1.0, L=1.0, mu_s=0.30)["If"]
+        b = If_factor(Df=1.0, B=1.0, L=2.0, mu_s=0.30)["If"]
+        c = If_factor(Df=1.0, B=1.0, L=5.0, mu_s=0.30)["If"]
+        assert a < b < c
+
+    def test_monotone_in_mu(self):
+        """Para L/B y Df/B fijos: mayor μ ⇒ mayor If."""
+        prev = 0.0
+        for mu in [0.0, 0.1, 0.3, 0.4, 0.5]:
+            val = If_factor(Df=1.0, B=1.0, L=1.0, mu_s=mu)["If"]
+            assert val > prev
+            prev = val
+
+    def test_monotone_in_DfB(self):
+        """Mayor Df/B ⇒ menor If (mayor castigo por empotramiento)."""
+        prev = 1.01
+        for dfb in [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]:
+            val = If_factor(Df=dfb, B=1.0, L=1.0, mu_s=0.30)["If"]
+            assert val < prev
+            prev = val
 
 
 # ═══════════════════════════════════════════════════════════════
