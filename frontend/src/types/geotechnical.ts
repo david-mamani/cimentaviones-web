@@ -117,6 +117,141 @@ export interface MethodCriteriaBlock {
   criteria: Record<CriterionKey, EnrichedCriterionResult>;
 }
 
+/* ──────────────────────────────────────────────────────────────────
+ * Asentamientos (Steinbrenner + Fox + Cw + Sc)  — MOTOR_ASENTAMIENTOS.md
+ * ────────────────────────────────────────────────────────────────── */
+
+export type SettlementPoint = 'centro' | 'esquina';
+export type CwMethod = 'peck' | 'teng' | 'bowles' | 'off';
+
+export interface SettlementParams {
+  S_max: number;                // m (admisible)
+  point: SettlementPoint;
+  rigid: boolean;
+  H_rigid?: number | null;      // m (manual; null ⇒ auto)
+  Cw_method: CwMethod;
+  consolidation: boolean;
+  mu_s_override?: number | null;
+}
+
+export interface SettlementLayerContribution {
+  stratum_index: number;
+  Es: number;
+  h_eff: number;
+  weight: number;
+}
+
+export interface ConsolidationLayerResult {
+  stratum_index: number;
+  case: 'NC' | 'OC1' | 'OC2';
+  Sc: number;
+  Sc_mm: number;
+  Hc_used: number;
+  dsigma_av: number;
+  formula_used: string;
+  sigma_p0: number;
+  sigma_final?: number;
+  sigma_c?: number;
+}
+
+export interface ElasticSettlementBlock {
+  Se: number;
+  Se_mm: number;
+  Se_corr: number;
+  Se_corr_mm: number;
+  alpha: 1 | 4;
+  B_used: number;
+  m_prime: number;
+  n_prime: number;
+  point: SettlementPoint;
+  rigid: boolean;
+  rigid_factor: number | null;
+  Is: number;
+  F1: number;
+  F2: number;
+  A0: number;
+  A1: number;
+  A2: number;
+  arctan_correction_applied: boolean;
+  If: number;
+  Df_over_B: number;
+  L_over_B: number;
+  If_out_of_range: boolean;
+}
+
+export interface DesignBlock {
+  qadm_diseno: number;
+  criterio_gobernante: 'falla_por_corte' | 'asentamiento';
+  qadm_falla: number;
+  qadm_settlement: number;
+}
+
+export interface SettlementResult {
+  z_bar: number;
+  H: number;
+  H_auto_detected: boolean;
+  H_rigid_layer_index: number | null;
+  Es_eq: number;
+  Es_data: {
+    Es_eq: number;
+    h_total_used: number;
+    z_top: number;
+    z_bot: number;
+    layers: SettlementLayerContribution[];
+  };
+  mu_used: number;
+  mu_source: 'override' | 'estrato_bajo_base' | 'default';
+  Cw: number;
+  Cw_method: CwMethod;
+  Cw_label: string;
+  Cw_forced_max: boolean;
+  Cw_applied: boolean;
+  point: SettlementPoint;
+  rigid: boolean;
+  elastic: ElasticSettlementBlock | null;
+  Se: number | null;
+  Se_mm: number | null;
+  Se_corr: number | null;
+  Se_corr_mm: number | null;
+  consolidation_layers: ConsolidationLayerResult[];
+  Sc: number | null;
+  Sc_mm: number | null;
+  S_total: number | null;
+  S_total_mm: number | null;
+  S_max: number;
+  S_max_mm: number;
+  Se_ok: boolean | null;
+  qadm_settlement: number;
+  qadm_falla: number | null;
+  design: DesignBlock | null;
+  FS_real_falla: number | null;
+  q_aplicada_net?: number | null;
+  warnings: string[];
+}
+
+export interface SettlementIterationRow {
+  B: number;
+  L: number;
+  z_bar: number;
+  Es_eq: number;
+  mu_used: number;
+  Cw: number;
+  qadm_settlement: number;
+  qadm_falla: number | null;
+  qadm_diseno: number | null;
+  criterio_gobernante: 'falla_por_corte' | 'asentamiento' | null;
+  S_total_mm: number | null;
+  Se_ok: boolean | null;
+}
+
+export interface SettlementIterationResult {
+  rows: SettlementIterationRow[];
+  B_start: number;
+  B_end: number;
+  B_step: number;
+}
+
+
 /** Información de excentricidad (bloque 11 del flujo) */
 export interface EccentricityInfo {
   hasEccentricity: boolean;

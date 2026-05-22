@@ -11,7 +11,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { CalculationMethod, FoundationType } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
-import { ChevronDown, ChevronRight, Plus, X, Frame } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, X, Frame, ArrowDownToLine } from 'lucide-react';
 
 const TYPES: { value: FoundationType; label: string }[] = [
   { value: 'cuadrada', label: 'Cuadrada' },
@@ -433,6 +433,33 @@ function QuickDesignSection() {
       >
         <Frame size={13} style={{ color: 'var(--lucid-acc-coral)' }} />
         Abrir Excentricidad
+      </button>
+
+      <button
+        onClick={() => addTab?.('settlement')}
+        style={{
+          width: '100%', marginTop: 6, padding: '8px 10px',
+          background: 'var(--lucid-surface-page)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 4,
+          color: 'var(--lucid-ink-strong)',
+          fontSize: 12,
+          fontFamily: 'var(--lucid-font-sans)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          transition: 'background 160ms cubic-bezier(0.4,0,0.2,1), border-color 160ms cubic-bezier(0.4,0,0.2,1)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--lucid-surface-figure)';
+          e.currentTarget.style.borderColor = 'var(--lucid-ink-strong)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'var(--lucid-surface-page)';
+          e.currentTarget.style.borderColor = 'var(--lucid-rule-cream)';
+        }}
+        title="Abrir ventana de Asentamientos (Steinbrenner, Cw, qadm por S_max)"
+      >
+        <ArrowDownToLine size={13} style={{ color: 'var(--lucid-acc-coral)' }} />
+        Abrir Asentamientos
       </button>
     </Section>
   );

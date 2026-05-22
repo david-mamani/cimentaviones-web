@@ -14,6 +14,9 @@ import type {
   IterationResult,
   CriterionKey,
   EccentricityInputMode,
+  SettlementParams,
+  SettlementResult,
+  SettlementIterationResult,
 } from '../types/geotechnical';
 
 /** Genera un ID único para cada estrato */
@@ -55,6 +58,12 @@ interface FoundationState {
   // Modo de entrada de excentricidad: 'M' (momentos) o 'e' (excentricidades)
   eccentricityInputMode: EccentricityInputMode;
 
+  // Bloque de asentamientos
+  settlementParams: SettlementParams;
+  settlementResult: SettlementResult | null;
+  settlementIteration: SettlementIterationResult | null;
+  isCalculatingSettlement: boolean;
+
   // Iteration results (for PDF export)
   iterationResults: IterationResult | null;
 
@@ -92,6 +101,12 @@ interface FoundationState {
 
   // Acciones - modo de excentricidad
   setEccentricityInputMode: (mode: EccentricityInputMode) => void;
+
+  // Acciones - asentamientos
+  setSettlementParam: <K extends keyof SettlementParams>(key: K, value: SettlementParams[K]) => void;
+  calculateSettlement: () => void;
+  calculateSettlementIteration: (B_start: number, B_end: number, B_step: number) => void;
+  clearSettlement: () => void;
 
   // Acciones - Cálculo
   calculate: () => void;
@@ -148,6 +163,16 @@ const defaultConditions: SpecialConditions = {
   basementDepth: 0,
 };
 
+const defaultSettlementParams: SettlementParams = {
+  S_max: 0.025,           // 25 mm
+  point: 'centro',
+  rigid: false,
+  H_rigid: null,
+  Cw_method: 'peck',
+  consolidation: false,
+  mu_s_override: null,
+};
+
 function createDefaultStratum(): Stratum {
   return {
     id: generateId(),
@@ -176,6 +201,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   lbLocked: false,
   lbRatio: 2.0,
   eccentricityInputMode: 'M',
+  settlementParams: { ...defaultSettlementParams },
+  settlementResult: null,
+  settlementIteration: null,
+  isCalculatingSettlement: false,
   iterationResults: null,
   iterationConfig: {
     varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
@@ -290,6 +319,124 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     set({ eccentricityInputMode: mode, result: null });
   },
 
+  setSettlementParam: (key, value) => {
+    set((state) => ({
+      settlementParams: { ...state.settlementParams, [key]: value },
+      settlementResult: null,
+    }));
+  },
+
+  clearSettlement: () => set({
+    settlementResult: null,
+    settlementIteration: null,
+  }),
+
+  calculateSettlement: async () => {
+    if (get().isCalculatingSettlement) return;
+    set({ isCalculatingSettlement: true });
+    const state = get();
+
+    // Conversión Métrico → SI (igual que en calculate())
+    const strataForAPI = state.strata.map((s) => ({
+      id: s.id,
+      thickness: s.thickness,
+      gamma: s.gamma * G,
+      c: s.c * G,
+      phi: s.phi,
+      gammaSat: s.gammaSat * G,
+      ...(typeof s.Es === 'number' && s.Es > 0 ? { Es: s.Es * G } : {}),
+      ...(typeof s.mu_s === 'number' ? { mu_s: s.mu_s } : {}),
+    }));
+
+    const f = state.foundation;
+    const foundationForAPI: any = {
+      type: f.type,
+      B: f.B,
+      L: f.L,
+      Df: f.Df,
+      FS: f.FS,
+      beta: f.beta,
+      e1: f.e1 ?? 0,
+      e2: f.e2 ?? 0,
+    };
+    if (typeof f.Q === 'number' && f.Q > 0) {
+      foundationForAPI.Q = f.Q * G;
+    }
+
+    // qadm_falla (kPa) si ya hay resultado del bloque de capacidad
+    const qadm_falla_kPa = state.result?.qa ?? null;
+
+    try {
+      const response = await fetch('/api/calculate-settlement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          foundation: foundationForAPI,
+          strata: strataForAPI,
+          conditions: state.conditions,
+          settlement: state.settlementParams,
+          ...(qadm_falla_kPa ? { qadm_falla: qadm_falla_kPa } : {}),
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: 'Error del servidor' }));
+        throw new Error(err.detail || `Error ${response.status}`);
+      }
+      const result = await response.json();
+      set({ settlementResult: result, isCalculatingSettlement: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido en asentamientos';
+      set({
+        errors: [message],
+        settlementResult: null,
+        isCalculatingSettlement: false,
+      });
+    }
+  },
+
+  calculateSettlementIteration: async (B_start, B_end, B_step) => {
+    const state = get();
+    const strataForAPI = state.strata.map((s) => ({
+      id: s.id,
+      thickness: s.thickness,
+      gamma: s.gamma * G,
+      c: s.c * G,
+      phi: s.phi,
+      gammaSat: s.gammaSat * G,
+      ...(typeof s.Es === 'number' && s.Es > 0 ? { Es: s.Es * G } : {}),
+      ...(typeof s.mu_s === 'number' ? { mu_s: s.mu_s } : {}),
+    }));
+    const f = state.foundation;
+    const foundationForAPI: any = {
+      type: f.type, B: f.B, L: f.L, Df: f.Df, FS: f.FS,
+      beta: f.beta, e1: f.e1 ?? 0, e2: f.e2 ?? 0,
+    };
+    const qadm_falla_kPa = state.result?.qa ?? null;
+    try {
+      const response = await fetch('/api/iterate-settlement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          foundation: foundationForAPI,
+          strata: strataForAPI,
+          conditions: state.conditions,
+          settlement: state.settlementParams,
+          B_start, B_end, B_step,
+          ...(qadm_falla_kPa ? { qadm_falla: qadm_falla_kPa } : {}),
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: 'Error del servidor' }));
+        throw new Error(err.detail || `Error ${response.status}`);
+      }
+      const data = await response.json();
+      set({ settlementIteration: data });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido en iteración asentamiento';
+      set({ errors: [message], settlementIteration: null });
+    }
+  },
+
   calculate: async () => {
     if (get().isCalculating) return;
     set({ isCalculating: true, errors: [] });
@@ -380,6 +527,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       lbLocked: false,
       lbRatio: 2.0,
       eccentricityInputMode: 'M',
+      settlementParams: { ...defaultSettlementParams },
+      settlementResult: null,
+      settlementIteration: null,
+      isCalculatingSettlement: false,
       iterationResults: null,
       iterationConfig: {
         varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,

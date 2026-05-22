@@ -13,7 +13,7 @@ import {
   Square, Box, SplitSquareHorizontal,
   BarChart3, Table2, Info,
   PanelLeft, PanelRight,
-  Sun, Moon, Loader2, Frame,
+  Sun, Moon, Loader2, Frame, ArrowDownToLine,
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -160,6 +160,7 @@ export default function Toolbar({
         <ToolBtn icon={<Square size={15} />} title="Vista 2D" onClick={() => onOpenTab('2d')} />
         <ToolBtn icon={<Box size={15} />} title="Vista 3D" onClick={() => onOpenTab('3d')} />
         <ToolBtn icon={<Frame size={15} />} title="Excentricidad" onClick={() => onOpenTab('foundation-design')} />
+        <ToolBtn icon={<ArrowDownToLine size={15} />} title="Asentamientos" onClick={() => onOpenTab('settlement')} />
         <ToolBtn
           icon={<SplitSquareHorizontal size={15} />}
           title={viewMode === 'split' ? 'Desactivar Split' : 'Activar Split'}

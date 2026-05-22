@@ -19,6 +19,15 @@ class Stratum(BaseModel):
     phi: float = Field(ge=0, le=50, description="Ángulo de fricción interna φ (°)")
     gammaSat: float = Field(gt=0, description="Peso unitario saturado γsat (SI)")
 
+    # Campos opcionales para asentamiento (Das §9)
+    Es: Optional[float] = Field(default=None, gt=0, description="Módulo de elasticidad (kPa)")
+    mu_s: Optional[float] = Field(default=None, ge=0.0, le=0.5, description="Poisson")
+    is_clay: bool = Field(default=False, description="Marca estrato como arcilla (activa Sc)")
+    Cc: Optional[float] = Field(default=None, gt=0, description="Índice de compresión")
+    Cs: Optional[float] = Field(default=None, gt=0, description="Índice de recompresión")
+    e0: Optional[float] = Field(default=None, gt=0, description="Relación de vacíos inicial")
+    sigma_c: Optional[float] = Field(default=None, gt=0, description="σ'c preconsolidación (kPa)")
+
     @model_validator(mode="after")
     def validate_gammaSat_gte_gamma(self):
         if self.gammaSat < self.gamma:
@@ -172,6 +181,62 @@ class IterationInput(BaseModel):
     """Input para iteraciones paramétricas."""
     base: CalculationInput
     config: IterationConfig
+
+
+# ──────────────────────────────────────────────────────────────────
+# Asentamientos
+# ──────────────────────────────────────────────────────────────────
+
+class SettlementParams(BaseModel):
+    """Parámetros del bloque de asentamientos (ver MOTOR_ASENTAMIENTOS.md §1.2)."""
+    S_max: float = Field(default=0.025, gt=0, description="Asentamiento admisible (m)")
+    point: Literal["centro", "esquina"] = "centro"
+    rigid: bool = False
+    H_rigid: Optional[float] = Field(default=None, gt=0, description="H manual (m)")
+    Cw_method: Literal["peck", "teng", "bowles", "off"] = "peck"
+    consolidation: bool = False
+    mu_s_override: Optional[float] = Field(default=None, ge=0.0, le=0.5)
+
+
+class SettlementInput(BaseModel):
+    """
+    Input del endpoint /api/calculate-settlement.
+
+    Combina los datos generales (estratos, condiciones, geometría) con
+    los parámetros propios del bloque de asentamientos.
+    """
+    foundation: FoundationParams
+    strata: list[Stratum] = Field(min_length=1)
+    conditions: SpecialConditions
+    settlement: SettlementParams = SettlementParams()
+    qadm_falla: Optional[float] = Field(
+        default=None, gt=0,
+        description="qadm por falla por corte (kPa NETA) — opcional, para min(falla, asent)",
+    )
+
+    @model_validator(mode="after")
+    def validate_strata_have_Es_for_settlement(self):
+        # Validación liviana: al menos los estratos dentro de Df_abs + 5B
+        # deberán tener Es. La validación dura se hace en el motor.
+        return self
+
+
+class SettlementIterationInput(BaseModel):
+    """Input para iteración paramétrica de qadm(B) en el bloque de asentamientos."""
+    foundation: FoundationParams
+    strata: list[Stratum] = Field(min_length=1)
+    conditions: SpecialConditions
+    settlement: SettlementParams = SettlementParams()
+    B_start: float = Field(gt=0)
+    B_end: float = Field(gt=0)
+    B_step: float = Field(gt=0)
+    qadm_falla: Optional[float] = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.B_end < self.B_start:
+            raise ValueError(f"B_end ({self.B_end}) debe ser ≥ B_start ({self.B_start})")
+        return self
 
 
 class UnitConfigEntry(BaseModel):

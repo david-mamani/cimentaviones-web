@@ -11,6 +11,7 @@ import ParametricIterations from '../iterations/ParametricIterations';
 import IfcViewer from '../viewer3d/IfcViewer';
 import Viewer2D from '../viewer2d/Viewer2D';
 import FoundationDesignTab from '../foundation-design/FoundationDesignTab';
+import SettlementTab from '../settlement/SettlementTab';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { TabType } from '../../store/workspaceStore';
 
@@ -26,6 +27,7 @@ const TAB_LABELS: Record<TabType, string> = {
   charts: 'Gráficas',
   results: 'Resultados',
   'foundation-design': 'Excentricidad',
+  settlement: 'Asentamientos',
 };
 
 interface WorkspaceProps {
@@ -257,6 +259,8 @@ function TabContent({ type }: { type: TabType; tabId: string }) {
       );
     case 'foundation-design':
       return <FoundationDesignTab />;
+    case 'settlement':
+      return <SettlementTab />;
     default:
       return null;
   }

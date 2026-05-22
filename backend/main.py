@@ -20,9 +20,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from models import CalculationInput, IterationInput, IFCExportInput, PDFExportInput
+from models import (
+    CalculationInput, IterationInput, IFCExportInput, PDFExportInput,
+    SettlementInput, SettlementIterationInput,
+)
 from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
+from calculos.settlement import calculate_total_settlement, iterate_qadm_vs_B
 from services.ifc_generator import generate_ifc
 from services.latex_generator import generate_latex, compile_latex_to_pdf
 
@@ -160,6 +164,104 @@ def export_pdf(input_data: PDFExportInput):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generando PDF: {str(e)}")
+
+
+@app.post("/api/calculate-settlement")
+def calculate_settlement_endpoint(input_data: SettlementInput):
+    """
+    Cálculo del bloque de asentamientos (Steinbrenner + Fox + Cw + Sc).
+
+    Ver `MOTOR_ASENTAMIENTOS.md` para el contrato detallado.
+    """
+    try:
+        raw = input_data.model_dump()
+        f = raw["foundation"]
+        Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
+        Df_abs = f["Df"] + Ds
+
+        # q aplicada NETA: q_total − γ·Df. Usamos γ del estrato bajo la base
+        # como aproximación. Si Q no se provee, se omite el cálculo de S_total.
+        q_net = None
+        if isinstance(f.get("Q"), (int, float)) and f["Q"] > 0:
+            # área = B·L (Meyerhof B' NO acopla con asentamiento, D A.13)
+            area = f["B"] * f["L"]
+            q_total = f["Q"] / area
+            # γ promedio en [0, Df_abs] (aproximación)
+            depth = 0.0
+            gamma_sum = 0.0
+            depth_sum = 0.0
+            for s in raw["strata"]:
+                top = depth
+                bot = depth + s["thickness"]
+                depth = bot
+                if top >= Df_abs:
+                    break
+                h = min(bot, Df_abs) - top
+                if h > 0:
+                    gamma_sum += s["gamma"] * h
+                    depth_sum += h
+            gamma_avg = (gamma_sum / depth_sum) if depth_sum > 0 else 18.0
+            q_net = q_total - gamma_avg * Df_abs
+            if q_net < 0:
+                q_net = 0.0
+
+        result = calculate_total_settlement(
+            foundation=f,
+            strata=raw["strata"],
+            Df_abs=Df_abs,
+            settlement_params=raw["settlement"],
+            conditions=raw["conditions"],
+            qadm_falla=raw.get("qadm_falla"),
+            q_aplicada_net=q_net,
+        )
+        result["q_aplicada_net"] = q_net
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en asentamiento: {str(e)}")
+
+
+@app.post("/api/iterate-settlement")
+def iterate_settlement_endpoint(input_data: SettlementIterationInput):
+    """
+    Iteración paramétrica qadm(B) del bloque de asentamientos.
+
+    Re-computa z̄ y Es_eq para cada B (D A.10).
+    """
+    try:
+        raw = input_data.model_dump()
+        f = raw["foundation"]
+        Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
+        Df_abs = f["Df"] + Ds
+
+        q_net = None
+        if isinstance(f.get("Q"), (int, float)) and f["Q"] > 0:
+            # q_aplicada varía con B (Q/(B·L)); para iteración mantenemos Q
+            # constante y dejamos que el motor recalcule el área por B.
+            # Aquí pasamos q_net = None para que iter no chequee S_total
+            # (la iteración se usa para qadm, no para S_total).
+            q_net = None
+
+        foundation_for_iter = {"L": f["L"], "Df": f["Df"]}
+
+        result = iterate_qadm_vs_B(
+            B_start=raw["B_start"],
+            B_end=raw["B_end"],
+            B_step=raw["B_step"],
+            foundation=foundation_for_iter,
+            strata=raw["strata"],
+            Df_abs=Df_abs,
+            settlement_params=raw["settlement"],
+            conditions=raw["conditions"],
+            qadm_falla_fn=(lambda B: raw["qadm_falla"]) if raw.get("qadm_falla") else None,
+            q_aplicada_net=q_net,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en iteración asentamiento: {str(e)}")
 
 
 @app.get("/api/health")
