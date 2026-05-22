@@ -1,21 +1,26 @@
 """
 Correcciones por nivel freático.
 
-Se distinguen 4 casos según la posición del nivel freático (Dw)
-respecto a la profundidad efectiva de la cimentación y el ancho B.
+Se distinguen 5 casos según la posición del nivel freático (Dw)
+respecto a la profundidad efectiva de la cimentación (Df_abs) y el ancho B:
+  Caso 0: sin NF (hasWaterTable = False)
+  Caso 1: Dw < Df_abs                          (NF arriba o sumergida)
+  Caso 2: |Dw - Df_abs| < 0.001                (NF al ras de la base)
+  Caso 3: Df_abs < Dw < Df_abs + B             (NF parcialmente bajo la base)
+  Caso 4: Dw >= Df_abs + B                     (NF profundo, sin efecto)
 
 γw = 9.81 kN/m³ (peso unitario del agua)
 γ' = γsat - γw  (peso unitario sumergido o efectivo)
 
-NOTA IMPORTANTE — Sobrecarga q:
-  q es la presión TOTAL (no efectiva) al nivel de la zapata.
-  Bajo el NF se usa γsat (peso total), NO γ' (peso sumergido).
-  γ' solo se usa para gammaEffective (tercer término de la ecuación).
+NOTA — Sobrecarga q en Caso 1:
+  Cuando el NF está sobre la base, q es presión EFECTIVA (Das Ec. 6.25):
+  γ_natural arriba del NF + γ' bajo el NF. La subpresión de poros no
+  contribuye a la resistencia friccional (Nq), por eso se descuenta.
 
-NOTA IMPORTANTE — Sótano con NF encima:
-  Cuando hay sótano de profundidad Ds y el NF está arriba del piso
-  del sótano (Dw < Ds), existe una columna de agua sin suelo entre
-  Dw y Ds que ejerce presión γw × (Ds - Dw) sobre la cimentación.
+NOTA — Sótano con NF arriba del sótano (Dw < Ds):
+  Por convención del curso, el sótano se asume drenado/utilizable.
+  No se suma una columna de agua libre γw·(Ds - Dw) a q. Si el problema
+  requiere modelar la columna de agua, debe agregarse fuera de este módulo.
 """
 
 GAMMA_W = 9.81  # kN/m³

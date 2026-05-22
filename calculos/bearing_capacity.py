@@ -125,12 +125,18 @@ def _build_method_block(method_result: dict, soil_type: str, FS: float,
       - criteria: {general: {qu, qa, …}, rne: {…}, rne_corrected: {…}}
     """
     S1, S2, S3 = method_result["S1"], method_result["S2"], method_result["S3"]
+    S1_phi0 = method_result.get("S1_phi0")
+    S2_phi0 = method_result.get("S2_phi0")
     criteria = {}
     for crit in CRITERIA:
-        qu_c = apply_criterion(S1, S2, S3, soil_type, crit)
+        qu_c = apply_criterion(
+            S1, S2, S3, soil_type, crit,
+            S1_phi0=S1_phi0, S2_phi0=S2_phi0,
+        )
         criteria[crit] = _enrich_pressure(qu_c, FS, B_for_area, L_for_area)
     return {
         "S1": S1, "S2": S2, "S3": S3,
+        "S1_phi0": S1_phi0, "S2_phi0": S2_phi0,
         "qu": method_result["qu"],  # ≡ criteria["general"]["qu"]
         "factors": method_result["factors"],
         "criteria": criteria,
@@ -246,8 +252,8 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
 
     if phi == 0 and beta > 0:
         warnings.append(
-            "φ=0° con β>0°: Fγi es indeterminado pero S3=0 (Nγ=0), por lo "
-            "que la inclinación no afecta el resultado del 3er sumando."
+            "φ=0° con β>0°: Fγi se reporta como 0 pero es irrelevante (Nγ=0 → "
+            "S3=0). Fci y Fqi sí se aplican normalmente (Meyerhof estándar)."
         )
 
     if beta > 0 and phi > 0 and beta >= phi:
@@ -276,15 +282,28 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     # ── Bloques 5+7+8: Sumandos por método ────────────────────────
     method_blocks = {}
 
-    # Terzaghi (omitido si rectangular)
+    # Terzaghi (omitido si rectangular).
+    # Convención del curso: Terzaghi NO maneja excentricidad — se calcula
+    # con B original (no B_eff). Si el usuario provee e1/e2, se ignoran y
+    # se emite warning.
     if f_type != "rectangular":
-        t_res = calculate_qu_terzaghi(c, q, gamma_effective, B_eff, phi, f_type)
+        if has_eccentricity and method == "terzaghi":
+            warnings.append(
+                f"Terzaghi no resuelve excentricidad (e1={e1}, e2={e2} ignorados). "
+                f"S3 se calcula con B original. Use Ecuación General o RNE para "
+                f"considerar excentricidad."
+            )
+        t_res = calculate_qu_terzaghi(c, q, gamma_effective, B, phi, f_type)
         method_blocks["terzaghi"] = _build_method_block(
             t_res, soil_type, FS, B, L
         )
 
+    # Hansen (factores de profundidad) usa Df relativo al piso del sótano,
+    # NO Df_abs. Razón física: el sótano es un volumen de aire, no hay masa
+    # de suelo que ofrezca resistencia al corte sobre la base de la zapata.
+    # La "superficie del terreno" matemática para Hansen es el fondo del sótano.
     g_res = calculate_qu_general(
-        c, q, gamma_effective, B, B_eff, L_eff, phi, beta, Df_abs,
+        c, q, gamma_effective, B, B_eff, L_eff, phi, beta, Df,
     )
     method_blocks["general"] = _build_method_block(g_res, soil_type, FS, B, L)
 

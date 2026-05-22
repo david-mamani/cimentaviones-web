@@ -36,10 +36,12 @@ class TestTerzaghiFactors:
         assert f["Ngamma"] == 0.00
 
     def test_phi_30(self):
+        # Valores tabulados (Das, Tabla del curso). Nγ = 19.13 en tabla
+        # (no 19.32 que daría la fórmula analítica Coduto/Bowles).
         f = get_terzaghi_bearing_factors(30)
         assert f["Nc"] == pytest.approx(37.16, abs=0.05)
         assert f["Nq"] == pytest.approx(22.46, abs=0.05)
-        assert f["Ngamma"] == pytest.approx(19.32, abs=0.05)
+        assert f["Ngamma"] == pytest.approx(19.13, abs=0.05)
 
     def test_monotonic(self):
         """A mayor φ, mayores factores."""
@@ -100,10 +102,11 @@ class TestInclinationFactors:
         assert f == {"ic": 1.0, "iq": 1.0, "igamma": 1.0}
 
     def test_phi_zero_beta_positive(self):
-        """φ=0 ∧ β>0: Fqi=1 (convención), Fγi=0 (irrelevante)."""
+        """φ=0 ∧ β>0: Meyerhof estándar Fci=Fqi=(1-β/90)²; Fγi=0 (irrelevante porque Nγ=0)."""
         f = get_inclination_factors(10, 0)
-        assert f["ic"] == pytest.approx((1 - 10/90) ** 2, abs=0.001)
-        assert f["iq"] == 1.0
+        expected = (1 - 10/90) ** 2
+        assert f["ic"] == pytest.approx(expected, abs=0.001)
+        assert f["iq"] == pytest.approx(expected, abs=0.001)
         assert f["igamma"] == 0.0
 
     def test_beta_lt_phi(self):
@@ -184,10 +187,10 @@ class TestBearingCapacity:
         assert r["soilType"] == "Coh"
 
     def test_sand_square_terzaghi(self):
-        """Arena pura (φ=30, c=0) cuadrada con Terzaghi.
+        """Arena pura (φ=30, c=0) cuadrada con Terzaghi (tabla del curso).
 
-        Con fórmula analítica: Nq≈22.46, Nc≈37.16, Nγ≈19.32
-        S2 = 19·22.46, S3 = 0.4·19·1.5·19.32, qu ≈ 646.9 kPa
+        Tabla Das φ=30: Nc=37.16, Nq=22.46, Nγ=19.13
+        S2 = 19·22.46 ≈ 426.74, S3 = 0.4·19·1.5·19.13 ≈ 218.08, qu ≈ 644.8 kPa
         """
         data = {
             "foundation": {"type": "cuadrada", "B": 1.5, "L": 1.5, "Df": 1.0, "FS": 3.0, "beta": 0},
@@ -199,8 +202,8 @@ class TestBearingCapacity:
         assert r["q"] == pytest.approx(19, abs=0.1)
         assert r["bearingFactors"]["Nc"] == pytest.approx(37.16, abs=0.05)
         assert r["bearingFactors"]["Nq"] == pytest.approx(22.46, abs=0.05)
-        assert r["bearingFactors"]["Ngamma"] == pytest.approx(19.32, abs=0.05)
-        assert r["qu"] == pytest.approx(646.9, abs=2)
+        assert r["bearingFactors"]["Ngamma"] == pytest.approx(19.13, abs=0.05)
+        assert r["qu"] == pytest.approx(644.8, abs=2)
         assert r["soilType"] == "Fri"
 
 

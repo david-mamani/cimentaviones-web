@@ -94,12 +94,15 @@ class CalculationInput(BaseModel):
                 f"Df_abs = Ds + Df ({Df_abs:.2f} m)"
             )
         # Validar β < φ del estrato de diseño (al nivel Df_abs)
+        # Criterio: el estrato de diseño es el primero cuya profundidad
+        # acumulada EXCEDE estrictamente Df_abs (= estrato debajo de la base).
+        # Debe coincidir con find_design_stratum() en calculos/bearing_capacity.py.
         if self.foundation.beta > 0:
             depth = 0.0
             design_phi = self.strata[-1].phi
             for stratum in self.strata:
                 depth += stratum.thickness
-                if depth >= Df_abs - 0.001:
+                if depth > Df_abs + 1e-6:
                     design_phi = stratum.phi
                     break
             if design_phi > 0 and self.foundation.beta >= design_phi:

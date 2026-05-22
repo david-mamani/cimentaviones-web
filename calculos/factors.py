@@ -2,7 +2,7 @@
 Factores de capacidad de carga Nc, Nq, Nγ por método.
 
 Tres conjuntos de factores:
-  1. Terzaghi (analítico, Das 8va ed.)
+  1. Terzaghi (tabla del curso — Das 8va ed., ver reference_tables.TERZAGHI_TABLE)
   2. Ecuación General (Vesic / Prandtl / Reissner)
   3. RNE E.050 (Norma peruana)
 
@@ -13,22 +13,21 @@ forma diferente.
 
 import math
 
+from .reference_tables import TERZAGHI_TABLE
+
 
 # ═══════════════════════════════════════════════════════════════
-# 1. TERZAGHI — Factores analíticos (Das 8ed)
+# 1. TERZAGHI — Factores desde TABLA del curso (interpolación lineal)
 # ═══════════════════════════════════════════════════════════════
 #
-# φ = 0°:
-#   Nc = 5.70, Nq = 1.00, Nγ = 0.00
-#
-# φ > 0°:
-#   Nq = e^(2·(3π/4 - φ/2)·tan φ) / (2·cos²(45° + φ/2))
-#   Nc = (Nq - 1) / tan φ
-#   Nγ = (Nq - 1) · tan(1.4·φ)
+# El curso prescribe usar la tabla tabulada (Das) en lugar de las fórmulas
+# analíticas. Para φ no entero, se interpola linealmente entre las filas
+# adyacentes φ_low = floor(φ) y φ_high = floor(φ) + 1.
 
 def get_terzaghi_bearing_factors(phi: float) -> dict:
     """
-    Calcula Nc, Nq, Nγ de Terzaghi analíticamente.
+    Obtiene Nc, Nq, Nγ de Terzaghi desde la tabla del curso, con
+    interpolación lineal entre filas enteras de φ.
 
     Args:
         phi: Ángulo de fricción interna (°), 0 ≤ phi ≤ 50
@@ -41,18 +40,22 @@ def get_terzaghi_bearing_factors(phi: float) -> dict:
             f"El ángulo de fricción φ={phi}° está fuera del rango válido [0°, 50°]."
         )
 
-    if phi == 0:
-        return {"Nc": 5.70, "Nq": 1.00, "Ngamma": 0.00}
+    phi_low = int(math.floor(phi))
+    if phi_low >= 50:
+        Nc, Nq, Ngamma = TERZAGHI_TABLE[50]
+        return {"Nc": Nc, "Nq": Nq, "Ngamma": Ngamma}
 
-    phi_rad = math.radians(phi)
-    cos_half = math.cos(math.radians(45 + phi / 2))
+    nc_low, nq_low, ny_low = TERZAGHI_TABLE[phi_low]
+    if phi == phi_low:
+        return {"Nc": nc_low, "Nq": nq_low, "Ngamma": ny_low}
 
-    exponent = 2.0 * (3.0 * math.pi / 4.0 - phi_rad / 2.0) * math.tan(phi_rad)
-    Nq = math.exp(exponent) / (2.0 * cos_half ** 2)
-    Nc = (Nq - 1.0) / math.tan(phi_rad)
-    Ngamma = (Nq - 1.0) * math.tan(1.4 * phi_rad)
-
-    return {"Nc": Nc, "Nq": Nq, "Ngamma": Ngamma}
+    nc_high, nq_high, ny_high = TERZAGHI_TABLE[phi_low + 1]
+    t = phi - phi_low
+    return {
+        "Nc":     nc_low + t * (nc_high - nc_low),
+        "Nq":     nq_low + t * (nq_high - nq_low),
+        "Ngamma": ny_low + t * (ny_high - ny_low),
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -112,32 +115,34 @@ def get_rne_bearing_factors(phi: float) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 4. FACTORES DE INCLINACIÓN DE CARGA — Meyerhof (1963)
+# 4. FACTORES DE INCLINACIÓN DE CARGA — Meyerhof (1963) estándar
 # ═══════════════════════════════════════════════════════════════
 #
-# β = 0°:  Fci = Fqi = Fγi = 1.0
-# β > 0°, φ > 0°:
-#   Fci = Fqi = (1 - β/90)²
-#   Fγi = (1 - β/φ)²        (requiere β < φ, ya validado aguas arriba)
-# β > 0°, φ = 0°:
-#   Fci = (1 - β/90)²
-#   Fqi = 1.0                (Nq=1, no es crítico; convención del flujo propuesto)
-#   Fγi = 0.0                (irrelevante: Nγ=0, S3=0 igual)
+# Das Tabla 6.3 — Meyerhof no distingue casos para Fci, Fqi:
+#   β = 0°:  Fci = Fqi = Fγi = 1.0
+#   β > 0°:  Fci = Fqi = (1 - β/90°)²            ← incondicional respecto a φ
+#
+# Para Fγi sí hay separación según φ:
+#   β > 0°, φ > 0°, β < φ:  Fγi = (1 - β/φ)²
+#   β ≥ φ con φ > 0°:        Fγi = 0    (condición inestable; ya validado aguas arriba)
+#   φ = 0°:                  Fγi = 0    (irrelevante: Nγ=0 → S3=0 igualmente)
 
 def get_inclination_factors(beta: float, phi: float) -> dict:
     """
-    Factores de inclinación de carga (β y φ en grados).
+    Factores de inclinación de carga (β y φ en grados). Meyerhof 1963.
     """
     if beta == 0:
         return {"ic": 1.0, "iq": 1.0, "igamma": 1.0}
 
     ic = (1.0 - beta / 90.0) ** 2
+    iq = ic  # Meyerhof: Fci = Fqi = (1-β/90)² incondicional (Das Tabla 6.3)
 
     if phi == 0:
-        return {"ic": ic, "iq": 1.0, "igamma": 0.0}
+        # Fγi irrelevante porque Nγ=0 → S3=0; se reporta 0 por convención.
+        return {"ic": ic, "iq": iq, "igamma": 0.0}
 
     if beta >= phi:
-        return {"ic": ic, "iq": ic, "igamma": 0.0}
+        return {"ic": ic, "iq": iq, "igamma": 0.0}
 
     igamma = (1.0 - beta / phi) ** 2
-    return {"ic": ic, "iq": ic, "igamma": igamma}
+    return {"ic": ic, "iq": iq, "igamma": igamma}

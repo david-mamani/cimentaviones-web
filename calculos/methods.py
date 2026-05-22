@@ -33,19 +33,17 @@ from .factors import (
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1. TERZAGHI — Cuadrada / Corrida / Circular
+# 1. TERZAGHI — Cuadrada (convención del curso)
 # ═══════════════════════════════════════════════════════════════
 #
-# Corrida:   qu = c·Nc + q·Nq + ½·γ·B·Nγ
-# Cuadrada:  qu = 1.3·c·Nc + q·Nq + 0.4·γ·B·Nγ
-# Circular:  qu = 1.3·c·Nc + q·Nq + 0.3·γ·B·Nγ
+# Cuadrada: qu = 1.3·c·Nc + q·Nq + 0.4·γ·B·Nγ
 #
 # Terzaghi no acepta rectangular en su formulación clásica.
+# El curso solo trabaja zapatas cuadrada (y rectangular vía Ec.General/RNE),
+# por eso TERZAGHI_COEFS contiene únicamente la entrada "cuadrada".
 
 TERZAGHI_COEFS = {
-    "franja":    {"c": 1.0, "gamma": 0.5},
     "cuadrada":  {"c": 1.3, "gamma": 0.4},
-    "circular":  {"c": 1.3, "gamma": 0.3},
 }
 
 
@@ -82,8 +80,15 @@ def calculate_qu_terzaghi(
     S2 = q * bf["Nq"]
     S3 = coefs["gamma"] * gamma_eff * B * bf["Ngamma"]
 
+    # Sumandos para criterio RNE en suelo Cohesivo (Art. 20.2 E.050):
+    # se fuerza φ=0 en los factores Nc, Nq. Para Terzaghi (tabla):
+    #   Nc(φ=0) = 5.70, Nq(φ=0) = 1.00, Nγ(φ=0) = 0 → S3_phi0 = 0
+    S1_phi0 = coefs["c"] * c * 5.70
+    S2_phi0 = q * 1.00
+
     return {
         "S1": S1, "S2": S2, "S3": S3,
+        "S1_phi0": S1_phi0, "S2_phi0": S2_phi0,
         "qu": S1 + S2 + S3,
         "factors": {
             **bf,
@@ -138,21 +143,21 @@ def _depth_factors_general(phi: float, Df: float, B: float, Nc: float) -> dict:
 
 
 def _shape_factors_general(phi: float, B_eff: float, L_eff: float, Nc: float, Nq: float) -> dict:
-    """Factores de forma DeBeer (Ec. General). Usa B_eff, L_eff."""
+    """
+    Factores de forma DeBeer (Ec. General). Usa B_eff, L_eff (Meyerhof).
+
+    Convención del curso: aplicar la fórmula general (sin caso especial φ=0).
+    Cuando φ=0:  Nq=1, Nc=5.14 → Fcs = 1 + (B'/L')·(1/5.14) ≈ 1 + 0.195·(B'/L'),
+                 que coincide con Das Tabla 4.2 (coef. 0.2). El "0.4" de Meyerhof
+                 no se usa.
+    Cuando φ=0:  tan(0)=0 → Fqs = 1 automático.
+    """
     if L_eff <= 0:
         return {"Fcs": 1.0, "Fqs": 1.0, "Fgs": 1.0}
 
     ratio = B_eff / L_eff
-
-    if phi == 0:
-        # DeBeer estricto para φ = 0
-        return {
-            "Fcs": 1.0 + 0.4 * ratio,
-            "Fqs": 1.0,
-            "Fgs": 1.0 - 0.4 * ratio,
-        }
-
     phi_rad = math.radians(phi)
+
     return {
         "Fcs": 1.0 + ratio * (Nq / Nc),
         "Fqs": 1.0 + ratio * math.tan(phi_rad),
@@ -191,8 +196,35 @@ def calculate_qu_general(
     S2 = q * bf["Nq"] * sf["Fqs"] * df_["Fqd"] * ifac["iq"]
     S3 = 0.5 * gamma_eff * B_eff * bf["Ngamma"] * sf["Fgs"] * df_["Fgd"] * ifac["igamma"]
 
+    # ── Sumandos para criterio RNE en suelo Cohesivo (Art. 20.2 E.050) ──
+    # Se fuerza φ=0 en TODOS los factores que dependen de φ:
+    #   Nc(φ=0) = 5.14, Nq(φ=0) = 1, Nγ(φ=0) = 0
+    #   Fcs(φ=0) = 1 + (B'/L')·(Nq/Nc) = 1 + (B'/L')·(1/5.14)
+    #   Fqs(φ=0) = 1 + (B'/L')·tan(0) = 1
+    #   Fcd(φ=0) = rama φ=0 de Hansen: 1 + 0.4·k (con k según Df/B)
+    #   Fqd(φ=0) = 1, Fγd(φ=0) = 1
+    #   Fci, Fqi: no dependen de φ (Meyerhof estándar)
+    Nc_phi0 = 5.14
+    Nq_phi0 = 1.0
+    if L_eff > 0:
+        Fcs_phi0 = 1.0 + (B_eff / L_eff) * (Nq_phi0 / Nc_phi0)
+    else:
+        Fcs_phi0 = 1.0
+    Fqs_phi0 = 1.0
+    if B_orig > 0:
+        ratio_phi0 = Df / B_orig
+        k_phi0 = ratio_phi0 if ratio_phi0 <= 1.0 else math.atan(ratio_phi0)
+        Fcd_phi0 = 1.0 + 0.4 * k_phi0
+    else:
+        Fcd_phi0 = 1.0
+    Fqd_phi0 = 1.0
+
+    S1_phi0 = c * Nc_phi0 * Fcs_phi0 * Fcd_phi0 * ifac["ic"]
+    S2_phi0 = q * Nq_phi0 * Fqs_phi0 * Fqd_phi0 * ifac["iq"]
+
     return {
         "S1": S1, "S2": S2, "S3": S3,
+        "S1_phi0": S1_phi0, "S2_phi0": S2_phi0,
         "qu": S1 + S2 + S3,
         "factors": {
             **bf,
@@ -248,8 +280,19 @@ def calculate_qu_rne(
     S2 = ifac["iq"] * q * bf["Nq"]
     S3 = 0.5 * sgamma * ifac["igamma"] * gamma_eff * B_eff * bf["Ngamma"]
 
+    # ── Sumandos para criterio RNE en suelo Cohesivo (Art. 20.2 E.050) ──
+    # Se fuerza φ=0:
+    #   Nc(φ=0) = 5.14, Nq(φ=0) = 1, Nγ(φ=0) = 0
+    #   sc, sγ no dependen de φ (siguen igual)
+    #   ic, iq no dependen de φ (Meyerhof estándar)
+    Nc_phi0 = 5.14
+    Nq_phi0 = 1.0
+    S1_phi0 = sc * ifac["ic"] * c * Nc_phi0
+    S2_phi0 = ifac["iq"] * q * Nq_phi0
+
     return {
         "S1": S1, "S2": S2, "S3": S3,
+        "S1_phi0": S1_phi0, "S2_phi0": S2_phi0,
         "qu": S1 + S2 + S3,
         "factors": {
             **bf,
@@ -268,23 +311,39 @@ def calculate_qu_rne(
 #   φ ≤ 20°  →  COHESIVO  (criterio del curso)
 #   φ > 20°  →  FRICCIONANTE
 #
-# | Criterio       | Cohesivo (φ ≤ 20°) | Friccionante (φ > 20°) |
-# |----------------|---------------------|-------------------------|
-# | General        | S1 + S2 + S3        | S1 + S2 + S3            |
-# | RNE            | S1                  | S2 + S3                 |
-# | RNE Corregido  | S1 + S2             | S2 + S3                 |
+# Reglas (RNE E.050 Art. 20.2 — para suelo Cohesivo, se FUERZA φ=0):
+#
+# | Criterio       | Cohesivo (φ ≤ 20°)      | Friccionante (φ > 20°)  |
+# |----------------|--------------------------|--------------------------|
+# | General        | S1 + S2 + S3 (φ real)    | S1 + S2 + S3            |
+# | RNE            | S1_φ=0                   | S2 + S3                 |
+# | RNE Corregido  | S1_φ=0 + S2_φ=0          | S2 + S3                 |
+#
+# S1_phi0, S2_phi0 son los sumandos recalculados con φ=0 forzado en Nc, Nq,
+# Fcs, Fqs, Fcd, Fqd. Se proveen como kwargs opcionales para preservar
+# compatibilidad con los tests legacy que solo pasan S1, S2, S3.
 
 CRITERIA = ("general", "rne", "rne_corrected")
 
 
-def apply_criterion(S1: float, S2: float, S3: float, soil_type: str, criterion: str) -> float:
+def apply_criterion(
+    S1: float, S2: float, S3: float,
+    soil_type: str, criterion: str,
+    S1_phi0: float = None, S2_phi0: float = None,
+) -> float:
     """
     Aplica el criterio de combinación de sumandos.
 
+    Para criterios RNE y RNE Corregido en suelo Cohesivo, se usan los
+    sumandos con φ=0 forzado (S1_phi0, S2_phi0) cuando se proveen, según
+    el Art. 20.2 de la Norma E.050. Si no se proveen, se usa el fallback
+    S1, S2 (comportamiento legacy, conserva compatibilidad de tests).
+
     Args:
-        S1, S2, S3: sumandos del método elegido
+        S1, S2, S3: sumandos del método elegido (con φ real)
         soil_type: "Coh" o "Fri"
         criterion: "general" | "rne" | "rne_corrected"
+        S1_phi0, S2_phi0: sumandos con φ=0 forzado (opcionales)
 
     Returns:
         qu correspondiente al criterio
@@ -294,11 +353,15 @@ def apply_criterion(S1: float, S2: float, S3: float, soil_type: str, criterion: 
 
     is_cohesive = (soil_type == "Coh")
 
+    # Fallback a sumandos reales si no se proveen los φ=0.
+    s1_use = S1_phi0 if S1_phi0 is not None else S1
+    s2_use = S2_phi0 if S2_phi0 is not None else S2
+
     if criterion == "rne":
-        return S1 if is_cohesive else (S2 + S3)
+        return s1_use if is_cohesive else (S2 + S3)
 
     if criterion == "rne_corrected":
-        return (S1 + S2) if is_cohesive else (S2 + S3)
+        return (s1_use + s2_use) if is_cohesive else (S2 + S3)
 
     raise ValueError(f"Criterio desconocido: {criterion}")
 
