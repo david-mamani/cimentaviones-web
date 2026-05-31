@@ -24,6 +24,7 @@
 import { useFoundationStore } from '../../store/foundationStore';
 import CadNumericInput from '../common/CadNumericInput';
 import FoundationPlanView from './FoundationPlanView';
+import type { EffectiveAreaMethod } from '../../types/geotechnical';
 
 export default function FoundationDesignTab() {
   const f = useFoundationStore((s) => s.foundation);
@@ -195,6 +196,37 @@ export default function FoundationDesignTab() {
               </Row>
             </>
           )}
+        </SectionBody>
+
+        {/* ─ Método del área efectiva ─ */}
+        <SectionTitle>Método del área efectiva</SectionTitle>
+        <SectionBody>
+          <div style={{
+            display: 'flex',
+            background: 'var(--lucid-surface-figure)',
+            border: '1px solid var(--lucid-rule-cream)',
+            borderRadius: 4,
+            padding: 2,
+            gap: 2,
+          }}>
+            <ModeBtn
+              active={(f.metodo_area ?? 'rne') === 'rne'}
+              onClick={() => setParam('metodo_area', 'rne' as EffectiveAreaMethod)}
+            >
+              RNE / Meyerhof
+            </ModeBtn>
+            <ModeBtn
+              active={(f.metodo_area ?? 'rne') === 'highter_anders'}
+              onClick={() => setParam('metodo_area', 'highter_anders' as EffectiveAreaMethod)}
+            >
+              Highter & Anders
+            </ModeBtn>
+          </div>
+          <Note>
+            <b>RNE/Meyerhof</b>: B' = B − 2e₂, L' = L − 2e₁ + swap.<br />
+            <b>Highter & Anders (1985)</b>: 4 casos según (eL/L, eB/B). Casos II/III/IV requieren
+            tablas digitalizadas (pendientes); el motor hace fallback automático a RNE con warning.
+          </Note>
         </SectionBody>
 
         {/* ─ Outputs derivados ─ */}

@@ -16,6 +16,8 @@
 import { useState, useCallback } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useUnitStore } from '../../store/unitStore';
+import type { PressureUnit, ForceUnit } from '../../store/unitStore';
 import { triggerCalculateWithValidation } from '../../lib/calculateHelper';
 import type {
   FoundationParams,
@@ -40,6 +42,23 @@ const METHOD_LABELS: Record<CalculationMethod, string> = {
   terzaghi: 'Terzaghi',
   general: 'Ec. General',
   rne: 'RNE E.050',
+};
+
+/**
+ * Mapeo del código `waterTableCase` (0-4) devuelto por el motor
+ * a descripción legible. Los códigos vienen de `water_table.py`:
+ *   0 = sin nivel freático (no se evalúa)
+ *   1 = NF sobre la base (cimentación sumergida) — γ_eff = γ'
+ *   2 = NF justo en la base — γ_eff = γ'
+ *   3 = NF dentro del bulbo (Df < Dw < Df+B) — γ_eff interpolado
+ *   4 = NF por debajo del bulbo (Dw ≥ Df+B) — sin efecto
+ */
+const WATER_TABLE_CASE_LABELS: Record<number, string> = {
+  0: 'Sin NF',
+  1: 'NF sobre la base (cimentación sumergida)',
+  2: 'NF en la base',
+  3: 'NF dentro del bulbo (γ interpolado)',
+  4: 'NF por debajo del bulbo (sin efecto)',
 };
 
 const CRITERION_LABELS: Record<CriterionKey, string> = {
@@ -93,6 +112,7 @@ export default function OutputPanel() {
       {result && (
         <>
           <QuickResultSection result={result} method={method} criterion={selectedCriterion} />
+          <MethodCriterionMatrix result={result} method={method} criterion={selectedCriterion} />
           {result.eccentricity && <EccentricitySection eccentricity={result.eccentricity} />}
           <FactorsSection result={result} />
           {result.warnings && result.warnings.length > 0 && (
@@ -189,7 +209,78 @@ function CalculateSection() {
           })}
         </div>
       </div>
+
+      {/* Selector de unidades de salida (presión y fuerza) */}
+      <OutputUnitSelector />
     </div>
+  );
+}
+
+/**
+ * Selector inline de unidad de presión y fuerza de salida.
+ * Se conecta al `unitStore`. Cambia cómo se ven los resultados sin
+ * recalcular nada (los valores SI están en el store de resultados).
+ */
+function OutputUnitSelector() {
+  const pressure = useUnitStore((s) => s.output.pressure);
+  const force = useUnitStore((s) => s.output.force);
+  const setOutput = useUnitStore((s) => s.setOutput);
+  return (
+    <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div>
+        <div style={{
+          fontFamily: 'var(--lucid-font-sans)', fontSize: 9, fontWeight: 600,
+          color: 'var(--lucid-ink-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
+        }}>Presión</div>
+        <div style={{
+          display: 'flex',
+          background: 'var(--lucid-surface-figure)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 4, padding: 2, gap: 2,
+        }}>
+          {(['t/m²', 'kPa', 'kg/cm²'] as PressureUnit[]).map((u) => (
+            <UnitPill key={u} active={pressure === u} onClick={() => setOutput({ pressure: u })}>{u}</UnitPill>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div style={{
+          fontFamily: 'var(--lucid-font-sans)', fontSize: 9, fontWeight: 600,
+          color: 'var(--lucid-ink-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
+        }}>Fuerza</div>
+        <div style={{
+          display: 'flex',
+          background: 'var(--lucid-surface-figure)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 4, padding: 2, gap: 2,
+        }}>
+          {(['t', 'kN', 'kgf'] as ForceUnit[]).map((u) => (
+            <UnitPill key={u} active={force === u} onClick={() => setOutput({ force: u })}>{u}</UnitPill>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnitPill({ active, onClick, children }: {
+  active: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, padding: '4px 6px',
+        background: active ? 'var(--lucid-surface-page)' : 'transparent',
+        boxShadow: active ? '0 0 0 1px var(--lucid-rule-cream) inset' : 'none',
+        border: 'none', borderRadius: 3,
+        color: active ? 'var(--lucid-ink-strong)' : 'var(--lucid-ink-body)',
+        fontSize: 10, fontFamily: 'var(--lucid-font-mono, monospace)',
+        cursor: 'pointer',
+      }}
+    >{children}</button>
   );
 }
 
@@ -212,6 +303,13 @@ function QuickResultSection({ result, method, criterion }: {
   const S3 = matrixBlock?.S3 ?? result.F3;
   const qnet = qu - result.q;
   const qa_net = qnet / (qu > 0 ? (qu / qa) : 1);
+
+  // Conversión a unidades del usuario
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
+  const fUnit = useUnitStore((s) => s.outputLabel('force'));
+  const toP = (v: number) => siToOutput(v, 'pressure');
+  const toF = (v: number) => siToOutput(v, 'force');
 
   return (
     <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
@@ -255,21 +353,21 @@ function QuickResultSection({ result, method, criterion }: {
             letterSpacing: '-0.02em', lineHeight: 1,
             fontVariantNumeric: 'tabular-nums',
           }}>
-            {fmt3(qa / G)}
+            {fmt3(toP(qa))}
           </div>
           <div style={{
             fontFamily: 'var(--lucid-font-sans)',
             fontSize: 11, color: 'var(--lucid-ink-muted)', marginTop: 6,
           }}>
-            t/m²
+            {pUnit}
           </div>
         </div>
 
-        <ResultRow label="qu" value={qu / G} unit="t/m²" />
-        <ResultRow label="qneta" value={qnet / G} unit="t/m²" />
-        <ResultRow label="qa_neta" value={qa_net / G} unit="t/m²" />
+        <ResultRow label="qu" value={toP(qu)} unit={pUnit} />
+        <ResultRow label="qneta" value={toP(qnet)} unit={pUnit} />
+        <ResultRow label="qa_neta" value={toP(qa_net)} unit={pUnit} />
         <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '8px 0' }} />
-        <ResultRow label="Q_max" value={Qmax / G} unit="tnf" accent />
+        <ResultRow label="Q_max" value={toF(Qmax)} unit={fUnit} accent />
 
         <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '10px 0' }} />
         <div style={{
@@ -278,16 +376,16 @@ function QuickResultSection({ result, method, criterion }: {
           marginBottom: 6,
           textTransform: 'uppercase', letterSpacing: '0.08em',
         }}>
-          Sumandos
+          Sumandos ({pUnit})
         </div>
         <div style={{
           display: 'flex', gap: 14,
           fontFamily: 'var(--lucid-font-serif)', fontSize: 12,
           fontVariantNumeric: 'tabular-nums',
         }}>
-          <span style={{ color: 'var(--lucid-ink-body)' }}>S₁ = {fmt3(S1 / G)}</span>
-          <span style={{ color: 'var(--lucid-ink-body)' }}>S₂ = {fmt3(S2 / G)}</span>
-          <span style={{ color: 'var(--lucid-ink-body)' }}>S₃ = {fmt3(S3 / G)}</span>
+          <span style={{ color: 'var(--lucid-ink-body)' }}>S₁ = {fmt3(toP(S1))}</span>
+          <span style={{ color: 'var(--lucid-ink-body)' }}>S₂ = {fmt3(toP(S2))}</span>
+          <span style={{ color: 'var(--lucid-ink-body)' }}>S₃ = {fmt3(toP(S3))}</span>
         </div>
       </div>
     </div>
@@ -295,26 +393,224 @@ function QuickResultSection({ result, method, criterion }: {
 }
 
 /* ═══════════════════════════════════════════════
+ * METHOD × CRITERION MATRIX — Tabla 3×3 comparativa
+ *   Filas: métodos disponibles (Terzaghi, Ec. General, RNE).
+ *   Columnas: 3 criterios (General, RNE, RNE Corregido).
+ *   Métrica visible: qa (por defecto), con toggle a qu y Qmax.
+ *   La celda (método activo × criterio seleccionado) queda destacada.
+ * ═══════════════════════════════════════════════ */
+function MethodCriterionMatrix({ result, method, criterion }: {
+  result: CalculationResult; method: CalculationMethod; criterion: CriterionKey;
+}) {
+  const matrix = result.methodCriteriaMatrix;
+  const [metric, setMetric] = useState<'qa' | 'qu' | 'Qmax'>('qa');
+  const [open, setOpen] = useState(true);
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
+  const fUnit = useUnitStore((s) => s.outputLabel('force'));
+  if (!matrix) return null;
+
+  // Métodos que tienen datos (Terzaghi puede no estar si la zapata es rectangular).
+  const availableMethods = (['terzaghi', 'general', 'rne'] as CalculationMethod[])
+    .filter((m) => matrix[m]);
+
+  const criteria: CriterionKey[] = ['general', 'rne', 'rne_corrected'];
+
+  const unit = metric === 'Qmax' ? fUnit : pUnit;
+  const getVal = (m: CalculationMethod, c: CriterionKey): number | null => {
+    const block = matrix[m];
+    if (!block) return null;
+    const v = block.criteria?.[c]?.[metric];
+    if (typeof v !== 'number') return null;
+    return metric === 'Qmax'
+      ? siToOutput(v, 'force')
+      : siToOutput(v, 'pressure');
+  };
+
+  // Identificar gobernante por columna (mayor qu o mayor qa = ¿el más conservador o el más alto?)
+  // Por defecto, en cimentaciones "gobierna" el qu/qa MENOR (más conservador) ⇒ destaco el mínimo.
+  // Pero si el usuario eligió RNE corregido (norma local), la prioridad es ese criterio.
+  // Para no opinar, destacamos visualmente: el "seleccionado" con anillo, el "menor por columna" con un punto.
+  const minByCol: Partial<Record<CriterionKey, CalculationMethod>> = {};
+  for (const c of criteria) {
+    let bestM: CalculationMethod | null = null;
+    let bestV = Infinity;
+    for (const m of availableMethods) {
+      const v = getVal(m, c);
+      if (v == null) continue;
+      if (v < bestV) { bestV = v; bestM = m; }
+    }
+    if (bestM) minByCol[c] = bestM;
+  }
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
+      <div
+        className="section-header"
+        onClick={() => setOpen(!open)}
+        style={{ justifyContent: 'space-between', cursor: 'pointer' }}
+      >
+        <span>Matriz método × criterio (3×3)</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            display: 'flex',
+            background: 'var(--lucid-surface-figure)',
+            border: '1px solid var(--lucid-rule-cream)',
+            borderRadius: 4, padding: 2, gap: 2,
+            fontFamily: 'var(--lucid-font-sans)', fontSize: 10,
+          }} onClick={(e) => e.stopPropagation()}>
+            {(['qa', 'qu', 'Qmax'] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setMetric(k)}
+                style={{
+                  padding: '3px 8px',
+                  background: metric === k ? 'var(--lucid-ink-strong)' : 'transparent',
+                  color: metric === k ? 'var(--lucid-ink-invert)' : 'var(--lucid-ink-body)',
+                  border: 'none', borderRadius: 3, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 'inherit',
+                }}
+              >{k}</button>
+            ))}
+          </div>
+          <span style={{ color: 'var(--lucid-ink-muted)' }}>
+            {open ? '−' : '+'}
+          </span>
+        </span>
+      </div>
+      {open && (
+        <div style={{ padding: '8px 14px 16px', overflowX: 'auto' }}>
+          <table style={{
+            width: '100%', borderCollapse: 'collapse',
+            fontFamily: 'var(--lucid-font-serif)', fontSize: 12,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            <thead>
+              <tr>
+                <th style={matrixHeaderStyle}>{metric} ({unit})</th>
+                {criteria.map((c) => (
+                  <th key={c} style={matrixHeaderStyle}>
+                    {CRITERION_LABELS[c].split(' ')[0]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {availableMethods.map((m) => (
+                <tr key={m}>
+                  <td style={{
+                    ...matrixCellStyle,
+                    fontFamily: 'var(--lucid-font-sans)',
+                    fontSize: 11, fontWeight: 600,
+                    color: 'var(--lucid-ink-muted)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>
+                    {METHOD_LABELS[m]}
+                  </td>
+                  {criteria.map((c) => {
+                    const v = getVal(m, c);
+                    const isSelected = m === method && c === criterion;
+                    const isColMin = minByCol[c] === m;
+                    return (
+                      <td key={c} style={{
+                        ...matrixCellStyle,
+                        background: isSelected ? 'var(--lucid-tint-coral)' : 'transparent',
+                        color: isSelected ? 'var(--lucid-acc-coral-text)' : 'var(--lucid-ink-strong)',
+                        fontWeight: isSelected ? 600 : 400,
+                        position: 'relative',
+                      }}>
+                        {v == null ? '—' : fmt3(v)}
+                        {isColMin && !isSelected && (
+                          <span style={{
+                            position: 'absolute', top: 3, right: 4,
+                            fontSize: 8, color: 'var(--lucid-ink-muted)',
+                          }} title="menor en la columna (más conservador)">▼</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{
+            marginTop: 8,
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 10, color: 'var(--lucid-ink-muted)', lineHeight: 1.5,
+          }}>
+            <span style={{
+              display: 'inline-block', width: 8, height: 8,
+              background: 'var(--lucid-tint-coral)',
+              border: '1px solid var(--lucid-acc-coral-border)',
+              marginRight: 4, verticalAlign: 'middle',
+            }} />
+            Selección activa
+            <span style={{ marginLeft: 12 }}>▼ menor por columna (más conservador)</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const matrixHeaderStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  borderBottom: '1px solid var(--lucid-rule-cream)',
+  textAlign: 'right',
+  fontFamily: 'var(--lucid-font-sans)',
+  fontSize: 10, fontWeight: 600,
+  color: 'var(--lucid-ink-muted)',
+  textTransform: 'uppercase', letterSpacing: '0.05em',
+};
+const matrixCellStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  borderBottom: '1px dashed var(--lucid-rule-white)',
+  textAlign: 'right',
+};
+
+/* ═══════════════════════════════════════════════
  * ECCENTRICITY — Solo si hay e1, e2 o Q
  * ═══════════════════════════════════════════════ */
 function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo }) {
   const ec = eccentricity;
+  const fellBack = ec.metodo_area === 'rne' && ec.metodo_area_solicitado === 'highter_anders';
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
+  const toP = (v: number) => siToOutput(v, 'pressure');
   return (
     <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Excentricidad
       </div>
       <div style={{ padding: '8px 14px 16px' }}>
-        <div style={{
-          fontFamily: 'var(--lucid-font-sans)',
-          fontSize: 11, color: 'var(--lucid-ink-muted)', marginBottom: 10,
-        }}>
-          Régimen: <strong style={{
-            color: 'var(--lucid-ink-strong)',
-            fontFamily: 'var(--lucid-font-serif)',
-            fontStyle: 'italic',
-            fontWeight: 500,
-          }}>{ec.regime}</strong>
+        {/* Chips de estado */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+          {ec.caso_carga && (
+            <Chip variant="neutral">
+              Carga: <strong>{ec.caso_carga}</strong>
+            </Chip>
+          )}
+          <Chip variant="neutral">
+            Régimen: <strong>{ec.regime}</strong>
+          </Chip>
+          {ec.dentro_kern != null && (
+            <Chip variant={ec.dentro_kern ? 'ok' : 'warn'}>
+              {ec.dentro_kern ? 'Dentro del kern' : 'Fuera del kern'}
+              {ec.kern_metric != null && ` (${ec.kern_metric.toFixed(3)})`}
+            </Chip>
+          )}
+          {ec.metodo_area && (
+            <Chip variant={fellBack ? 'warn' : 'neutral'}>
+              Método: <strong>{ec.metodo_area === 'highter_anders' ? 'H&A' : 'RNE'}</strong>
+              {ec.caso_HA && ` · Caso ${ec.caso_HA}`}
+              {fellBack && ' (fallback)'}
+            </Chip>
+          )}
+          {ec.intercambio_aplicado && (
+            <Chip variant="neutral">
+              Swap B'↔L' aplicado
+            </Chip>
+          )}
         </div>
         <ResultRow label="B'" value={ec.B_eff} unit="m" />
         <ResultRow label="L'" value={ec.L_eff} unit="m" />
@@ -322,8 +618,14 @@ function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo 
         {ec.qmax != null && (
           <>
             <div style={{ borderTop: '1px solid var(--lucid-rule-white)', margin: '8px 0' }} />
-            <ResultRow label="q_max" value={ec.qmax / G} unit="t/m²" />
-            <ResultRow label="q_min" value={ec.qmin != null ? ec.qmin / G : 0} unit="t/m²" />
+            <ResultRow label="q_max" value={toP(ec.qmax)} unit={pUnit} />
+            <ResultRow label="q_min" value={ec.qmin != null ? toP(ec.qmin) : 0} unit={pUnit} />
+            <ContactPressureDiagram
+              qmax={ec.qmax}
+              qmin={ec.qmin}
+              B_eff={ec.B_eff}
+              regime={ec.regime}
+            />
           </>
         )}
         {ec.FS_real != null && (
@@ -351,43 +653,217 @@ function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo 
   );
 }
 
+/**
+ * ContactPressureDiagram — SVG con el perfil de presiones de contacto
+ * bajo la zapata.
+ *   - Régimen "uniforme"     : rectángulo plano (qmax = qmin).
+ *   - Régimen "trapezoidal"  : trapecio (qmax > qmin > 0).
+ *   - Régimen "triangular"   : triángulo (qmin = 0, ancho efectivo B − 2e).
+ * El SVG es esquemático: las alturas son proporcionales a las presiones,
+ * la base representa la zapata completa.
+ */
+function ContactPressureDiagram({ qmax, qmin, B_eff, regime }: {
+  qmax: number | null;
+  qmin: number | null;
+  B_eff: number;
+  regime: 'uniforme' | 'trapezoidal' | 'triangular';
+}) {
+  if (qmax == null || qmax <= 0) return null;
+  const qmn = qmin ?? 0;
+  const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+
+  // Geometría SVG (espacio virtual)
+  const W = 240;          // ancho del SVG
+  const H = 90;           // alto del SVG
+  const padL = 10, padR = 10, padT = 8, padB = 28;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const baseY = padT + innerH;
+
+  // Alturas proporcionales (qmax → innerH; clamp para que qmin no caiga muy abajo)
+  const hMax = innerH;
+  const hMin = qmax > 0 ? (qmn / qmax) * innerH : 0;
+
+  // Para régimen triangular, el ancho efectivo es menor que la zapata completa.
+  // Se asume distribución solo en la zona comprimida (3·(B − 2e) ≈ 3·B_eff/?...).
+  // Pero como no conocemos exactamente el ancho B original aquí, dibujamos el
+  // triángulo cubriendo el 75% del ancho del SVG (visualmente representativo).
+  const triCoverage = 0.75;
+  const triLeft = padL + (innerW * (1 - triCoverage)) / 2;
+  const triRight = padL + innerW - (innerW * (1 - triCoverage)) / 2;
+
+  // Camino del perfil
+  let path: string;
+  if (regime === 'uniforme') {
+    path = `M ${padL} ${baseY - hMax} L ${padL + innerW} ${baseY - hMax} L ${padL + innerW} ${baseY} L ${padL} ${baseY} Z`;
+  } else if (regime === 'trapezoidal') {
+    // Lado izquierdo qmin, lado derecho qmax (o viceversa — usamos qmax a la derecha por convención)
+    path = `M ${padL} ${baseY - hMin} L ${padL + innerW} ${baseY - hMax} L ${padL + innerW} ${baseY} L ${padL} ${baseY} Z`;
+  } else {
+    // Triangular: pico a la derecha del área comprimida (triRight)
+    path = `M ${triLeft} ${baseY} L ${triRight} ${baseY - hMax} L ${triRight} ${baseY} Z`;
+  }
+
+  const fmtP = (v: number) => siToOutput(v, 'pressure').toFixed(2);
+
+  return (
+    <div style={{
+      marginTop: 12, padding: 8,
+      background: 'var(--lucid-surface-figure)',
+      border: '1px solid var(--lucid-rule-white)',
+      borderRadius: 4,
+    }}>
+      <div style={{
+        fontFamily: 'var(--lucid-font-sans)', fontSize: 9, fontWeight: 600,
+        color: 'var(--lucid-ink-muted)',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
+      }}>
+        Presiones de contacto ({regime})
+      </div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+        {/* Zapata (línea gruesa horizontal arriba) */}
+        <line x1={padL - 4} y1={padT - 2} x2={padL + innerW + 4} y2={padT - 2}
+              stroke="var(--lucid-ink-strong)" strokeWidth={2} />
+        {/* Perfil de presión */}
+        <path d={path} fill="var(--lucid-acc-coral)" fillOpacity={0.35}
+              stroke="var(--lucid-acc-coral)" strokeWidth={1.5} />
+        {/* Eje horizontal (suelo) */}
+        <line x1={padL - 4} y1={baseY} x2={padL + innerW + 4} y2={baseY}
+              stroke="var(--lucid-ink-body)" strokeWidth={1} />
+        {/* Etiquetas */}
+        {regime === 'uniforme' ? (
+          <text x={W / 2} y={baseY - hMax / 2}
+                fontSize={10} textAnchor="middle"
+                fill="var(--lucid-ink-strong)"
+                fontFamily="var(--lucid-font-mono, monospace)">
+            q = {fmtP(qmax)} {pUnit}
+          </text>
+        ) : (
+          <>
+            <text x={padL + innerW} y={baseY - hMax - 3}
+                  fontSize={9} textAnchor="end"
+                  fill="var(--lucid-acc-coral-text)"
+                  fontFamily="var(--lucid-font-mono, monospace)">
+              q_max = {fmtP(qmax)}
+            </text>
+            <text x={padL} y={baseY - hMin - 3}
+                  fontSize={9} textAnchor="start"
+                  fill="var(--lucid-ink-body)"
+                  fontFamily="var(--lucid-font-mono, monospace)">
+              q_min = {fmtP(qmn)}
+            </text>
+          </>
+        )}
+        {/* B' label */}
+        <text x={W / 2} y={baseY + 14}
+              fontSize={9} textAnchor="middle"
+              fill="var(--lucid-ink-muted)"
+              fontFamily="var(--lucid-font-mono, monospace)">
+          B' = {B_eff.toFixed(2)} m · unidad: {pUnit}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════
- * FACTORS — Nc, Nq, Nγ y factores correctivos
+ * FACTORS — Nc, Nq, Nγ + factores correctivos (forma, profundidad, inclinación)
  * ═══════════════════════════════════════════════ */
 function FactorsSection({ result }: { result: CalculationResult }) {
   const bf = result.bearingFactors;
+  const sf = result.shapeFactors;
+  const df = result.depthFactors;
+  const inc = result.inclinationFactors;
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
+  const uwUnit = useUnitStore((s) => s.outputLabel('unitWeight'));
   return (
     <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Factores
       </div>
       <div style={{ padding: '8px 14px 16px' }}>
+        {/* Capacidad — Nc, Nq, Nγ */}
+        <FactorRow label="Capacidad" items={[
+          { sym: 'Nc', val: bf.Nc },
+          { sym: 'Nq', val: bf.Nq },
+          { sym: 'Nγ', val: bf.Ngamma },
+        ]} />
+        {/* Forma */}
+        {sf && (sf.sc !== 1 || sf.sq !== 1 || sf.sgamma !== 1) && (
+          <FactorRow label="Forma" items={[
+            { sym: 'Fcs', val: sf.sc },
+            { sym: 'Fqs', val: sf.sq },
+            { sym: 'Fγs', val: sf.sgamma },
+          ]} />
+        )}
+        {/* Profundidad */}
+        {df && (df.dc !== 1 || df.dq !== 1 || df.dgamma !== 1) && (
+          <FactorRow label="Profundidad" items={[
+            { sym: 'Fcd', val: df.dc },
+            { sym: 'Fqd', val: df.dq },
+            { sym: 'Fγd', val: df.dgamma },
+          ]} />
+        )}
+        {/* Inclinación */}
+        {inc && (inc.ic !== 1 || inc.iq !== 1 || inc.igamma !== 1) && (
+          <FactorRow label="Inclinación" items={[
+            { sym: 'Fci', val: inc.ic },
+            { sym: 'Fqi', val: inc.iq },
+            { sym: 'Fγi', val: inc.igamma },
+          ]} />
+        )}
         <div style={{
-          display: 'flex', gap: 16,
-          fontFamily: 'var(--lucid-font-serif)', fontSize: 13,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          <span style={{ color: 'var(--lucid-ink-strong)' }}>
-            <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>Nc</em> = {fmt3(bf.Nc)}
-          </span>
-          <span style={{ color: 'var(--lucid-ink-strong)' }}>
-            <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>Nq</em> = {fmt3(bf.Nq)}
-          </span>
-          <span style={{ color: 'var(--lucid-ink-strong)' }}>
-            <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>Nγ</em> = {fmt3(bf.Ngamma)}
-          </span>
-        </div>
-        <div style={{
-          marginTop: 8,
+          marginTop: 8, paddingTop: 8,
+          borderTop: '1px solid var(--lucid-rule-white)',
           fontFamily: 'var(--lucid-font-serif)',
           fontSize: 12, color: 'var(--lucid-ink-body)',
           fontVariantNumeric: 'tabular-nums',
         }}>
-          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>q</em> = {fmt3(result.q / G)} t/m²
+          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>q</em> = {fmt3(siToOutput(result.q, 'pressure'))} {pUnit}
           {' · '}
-          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>γ</em><sub>eff</sub> = {fmt3(result.gammaEffective / G)} t/m³
+          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>γ</em><sub>eff</sub> = {fmt3(siToOutput(result.gammaEffective, 'unitWeight'))} {uwUnit}
         </div>
+        {result.waterTableCase != null && (
+          <div style={{
+            marginTop: 6,
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 11, color: 'var(--lucid-ink-muted)',
+          }}>
+            NF: caso {result.waterTableCase} — <span style={{ color: 'var(--lucid-ink-body)' }}>
+              {WATER_TABLE_CASE_LABELS[result.waterTableCase] ?? 'desconocido'}
+            </span>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function FactorRow({ label, items }: {
+  label: string;
+  items: Array<{ sym: string; val: number }>;
+}) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'baseline', gap: 14,
+      marginBottom: 6,
+      fontFamily: 'var(--lucid-font-serif)', fontSize: 12,
+      fontVariantNumeric: 'tabular-nums',
+    }}>
+      <span style={{
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 10, fontWeight: 600,
+        color: 'var(--lucid-ink-muted)',
+        textTransform: 'uppercase', letterSpacing: '0.08em',
+        minWidth: 80,
+      }}>{label}</span>
+      {items.map((it) => (
+        <span key={it.sym} style={{ color: 'var(--lucid-ink-strong)' }}>
+          <em style={{ color: 'var(--lucid-ink-muted)', fontStyle: 'italic' }}>{it.sym}</em> = {fmt3(it.val)}
+        </span>
+      ))}
     </div>
   );
 }
@@ -424,17 +900,42 @@ function WarningsSection({ warnings }: { warnings: string[] }) {
 function RNESection({ result }: { result: CalculationResult }) {
   if (!result.rneConsideration) return null;
   const rne = result.rneConsideration;
+  const siToOutput = useUnitStore((s) => s.siToOutput);
+  const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
+  const toP = (v: number) => siToOutput(v, 'pressure');
   return (
     <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
       <div className="section-header" style={{ cursor: 'default' }}>
         Consideración RNE (método activo)
       </div>
       <div style={{ padding: '8px 14px 16px' }}>
-        <ResultRow label="qu RNE" value={rne.qultRNE / G} unit="t/m²" />
-        <ResultRow label="qa RNE" value={rne.qadmRNE / G} unit="t/m²" />
-        <ResultRow label="qu RNE corr." value={rne.qultRNECorrected / G} unit="t/m²" />
+        <ResultRow label="qu RNE" value={toP(rne.qultRNE)} unit={pUnit} />
+        <ResultRow label="qa RNE" value={toP(rne.qadmRNE)} unit={pUnit} />
+        <ResultRow label="qu RNE corr." value={toP(rne.qultRNECorrected)} unit={pUnit} />
       </div>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+ * UTILITY — chip de estado (ok / warn / neutral)
+ * ═══════════════════════════════════════════════ */
+function Chip({ variant, children }: {
+  variant: 'ok' | 'warn' | 'neutral';
+  children: React.ReactNode;
+}) {
+  const palette = variant === 'ok'
+    ? { bg: 'var(--lucid-acc-sage-bg)', fg: 'var(--lucid-acc-sage-text)', bd: 'var(--lucid-acc-sage-border)' }
+    : variant === 'warn'
+    ? { bg: 'var(--lucid-tint-coral)', fg: 'var(--lucid-acc-coral-text)', bd: 'var(--lucid-acc-coral-border)' }
+    : { bg: 'var(--lucid-surface-figure)', fg: 'var(--lucid-ink-body)', bd: 'var(--lucid-rule-cream)' };
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 8px', fontFamily: 'var(--lucid-font-sans)',
+      fontSize: 11, background: palette.bg, color: palette.fg,
+      border: `1px solid ${palette.bd}`, borderRadius: 999,
+    }}>{children}</span>
   );
 }
 

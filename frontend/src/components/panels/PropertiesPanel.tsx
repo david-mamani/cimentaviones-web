@@ -8,10 +8,10 @@
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { CalculationMethod, FoundationType } from '../../types/geotechnical';
+import type { CalculationMethod, FoundationType, EffectiveAreaMethod, Stratum } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
-import { ChevronDown, ChevronRight, Plus, X, Frame, ArrowDownToLine } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, X, Frame, ArrowDownToLine, GitCompare } from 'lucide-react';
 
 const TYPES: { value: FoundationType; label: string }[] = [
   { value: 'cuadrada', label: 'Cuadrada' },
@@ -25,20 +25,13 @@ const METHODS: { value: CalculationMethod; label: string }[] = [
 ];
 
 export default function PropertiesPanel() {
-  // Toggle local de "Asentamiento" (no persistido; controla visibilidad de Es/μs/S_max)
-  const [settlementEnabled, setSettlementEnabled] = useState(false);
-
   return (
     <div>
       {/* ────── 1. DATOS GENERALES ────── */}
       <SectionGroupHeader>Datos Generales</SectionGroupHeader>
-      <StrataSection settlementEnabled={settlementEnabled} />
+      <StrataSection />
       <ConditionsSection />
       <SiteParamsSection />
-      <SettlementToggleSection
-        enabled={settlementEnabled}
-        onToggle={setSettlementEnabled}
-      />
 
       {/* ────── 2. DISEÑO RÁPIDO ────── */}
       <SectionGroupHeader>Diseño de Cimentación</SectionGroupHeader>
@@ -52,21 +45,37 @@ export default function PropertiesPanel() {
 }
 
 /* ═══════════════════════════════════════════════
- * SECCIÓN: ESTRATOS (con Es/μs opcionales)
+ * SECCIÓN: ESTRATOS
+ *   - Tabla principal: h, γ, c, φ, γsat, Es, μs (Es/μs siempre visibles).
+ *   - Sub-panel expandible por estrato: is_clay + parámetros de consolidación.
  * ═══════════════════════════════════════════════ */
-function StrataSection({ settlementEnabled }: { settlementEnabled: boolean }) {
+function StrataSection() {
   const [open, setOpen] = useState(true);
+  // IDs de estratos cuyo sub-panel de consolidación está expandido.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const strata = useFoundationStore((s) => s.strata);
   const addStratum = useFoundationStore((s) => s.addStratum);
   const removeStratum = useFoundationStore((s) => s.removeStratum);
   const updateStratum = useFoundationStore((s) => s.updateStratum);
   const strataColors = useViewerSettings((s) => s.strataColors);
   const setStrataColor = useViewerSettings((s) => s.setStrataColor);
+  // Estrato de diseño (índice) viene del último resultado del backend.
+  const designStratumIndex = useFoundationStore((s) => s.result?.designStratumIndex ?? null);
 
-  // Headers de la tabla: base + opcional Es, μs
-  const headers = ['', 'h(m)', 'γ(t/m³)', 'c(t/m²)', 'φ°', 'γsat(t/m³)'];
-  if (settlementEnabled) headers.push('Es(t/m²)', 'μs');
-  headers.push('');
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const headers = ['', 'h(m)', 'Σh(m)', 'γ(t/m³)', 'c(t/m²)', 'φ°', 'γsat(t/m³)', 'Es(t/m²)', 'μs', ''];
+
+  // Profundidad acumulada al fondo de cada estrato (z₁, z₂, ...)
+  let cum = 0;
+  const cumDepths: number[] = strata.map((s) => { cum += s.thickness; return cum; });
 
   return (
     <Section
@@ -102,85 +111,124 @@ function StrataSection({ settlementEnabled }: { settlementEnabled: boolean }) {
           <tbody>
             {strata.map((s, i) => {
               const color = strataColors[i % strataColors.length];
+              const isExpanded = expanded.has(s.id);
+              const isDesign = designStratumIndex === i;
               return (
-                <tr key={s.id}>
-                  <td style={{ padding: '3px 2px', textAlign: 'center', width: 22 }}>
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setStrataColor(i, e.target.value)}
-                      style={{
-                        width: 14, height: 14, padding: 0,
-                        border: '1px solid var(--lucid-rule-cream)', background: 'none',
-                        cursor: 'pointer', borderRadius: '50%',
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={s.thickness} step={0.1}
-                      onChange={(v) => updateStratum(s.id, { thickness: v })} />
-                  </td>
-                  <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={s.gamma} step={0.5}
-                      onChange={(v) => updateStratum(s.id, { gamma: v })} />
-                  </td>
-                  <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={s.c} step={1}
-                      onChange={(v) => updateStratum(s.id, { c: v })} />
-                  </td>
-                  <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={s.phi} step={1}
-                      onChange={(v) => updateStratum(s.id, { phi: v })} />
-                  </td>
-                  <td style={{ padding: '2px 1px' }}>
-                    <CadNumericInput className="stratum-input" value={s.gammaSat} step={0.5}
-                      onChange={(v) => updateStratum(s.id, { gammaSat: v })} />
-                  </td>
-                  {settlementEnabled && (
-                    <>
-                      <td style={{ padding: '2px 1px' }}>
-                        <CadNumericInput
-                          className="stratum-input"
-                          value={s.Es ?? 0}
-                          step={100}
-                          onChange={(v) => updateStratum(s.id, { Es: v > 0 ? v : null })}
-                        />
-                      </td>
-                      <td style={{ padding: '2px 1px' }}>
-                        <CadNumericInput
-                          className="stratum-input"
-                          value={s.mu_s ?? 0}
-                          step={0.05}
-                          onChange={(v) => updateStratum(s.id, { mu_s: v > 0 ? v : null })}
-                        />
-                      </td>
-                    </>
-                  )}
-                  <td style={{ padding: '2px 2px', textAlign: 'center', width: 20 }}>
-                    {strata.length > 1 && (
+                <>
+                  <tr key={s.id} title={isDesign ? 'Estrato de diseño (bajo la base de la zapata)' : undefined} style={isDesign ? {
+                    background: 'var(--lucid-tint-coral)',
+                    outline: '1px solid var(--lucid-acc-coral-border)',
+                  } : undefined}>
+                    <td style={{ padding: '3px 2px', textAlign: 'center', width: 22 }}>
                       <button
-                        onClick={() => removeStratum(s.id)}
+                        onClick={() => toggleExpand(s.id)}
+                        title={isExpanded ? 'Ocultar consolidación' : 'Mostrar consolidación'}
                         style={{
-                          background: 'none', border: 'none',
-                          color: 'var(--lucid-ink-faint)', cursor: 'pointer',
-                          padding: 2, display: 'grid', placeItems: 'center', borderRadius: 3,
-                          transition: 'color 160ms cubic-bezier(0.4,0,0.2,1), background 160ms cubic-bezier(0.4,0,0.2,1)',
-                        }}
-                        title="Eliminar estrato"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = 'var(--lucid-acc-coral)';
-                          e.currentTarget.style.background = 'var(--lucid-tint-coral)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = 'var(--lucid-ink-faint)';
-                          e.currentTarget.style.background = 'transparent';
+                          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                          color: 'var(--lucid-ink-muted)', display: 'inline-flex',
+                          alignItems: 'center', justifyContent: 'center',
                         }}
                       >
-                        <X size={11} />
+                        {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                       </button>
-                    )}
-                  </td>
-                </tr>
+                      <input
+                        type="color"
+                        value={color}
+                        onChange={(e) => setStrataColor(i, e.target.value)}
+                        style={{
+                          width: 10, height: 10, padding: 0, marginLeft: 2,
+                          border: '1px solid var(--lucid-rule-cream)', background: 'none',
+                          cursor: 'pointer', borderRadius: '50%', verticalAlign: 'middle',
+                        }}
+                      />
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput className="stratum-input" value={s.thickness} step={0.1}
+                        onChange={(v) => updateStratum(s.id, { thickness: v })} />
+                    </td>
+                    <td style={{
+                      padding: '2px 4px',
+                      textAlign: 'right',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: 10,
+                      color: 'var(--lucid-ink-muted)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }} title="Profundidad acumulada hasta el fondo del estrato">
+                      {cumDepths[i].toFixed(2)}
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput className="stratum-input" value={s.gamma} step={0.5}
+                        onChange={(v) => updateStratum(s.id, { gamma: v })} />
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput className="stratum-input" value={s.c} step={1}
+                        onChange={(v) => updateStratum(s.id, { c: v })} />
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput className="stratum-input" value={s.phi} step={1}
+                        onChange={(v) => updateStratum(s.id, { phi: v })} />
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput className="stratum-input" value={s.gammaSat} step={0.5}
+                        onChange={(v) => updateStratum(s.id, { gammaSat: v })} />
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput
+                        className="stratum-input"
+                        value={s.Es ?? 0}
+                        step={100}
+                        onChange={(v) => updateStratum(s.id, { Es: v > 0 ? v : null })}
+                      />
+                    </td>
+                    <td style={{ padding: '2px 1px' }}>
+                      <CadNumericInput
+                        className="stratum-input"
+                        value={s.mu_s ?? 0}
+                        step={0.05}
+                        onChange={(v) => updateStratum(s.id, { mu_s: v > 0 ? v : null })}
+                      />
+                    </td>
+                    <td style={{ padding: '2px 2px', textAlign: 'center', width: 20 }}>
+                      {strata.length > 1 && (
+                        <button
+                          onClick={() => removeStratum(s.id)}
+                          style={{
+                            background: 'none', border: 'none',
+                            color: 'var(--lucid-ink-faint)', cursor: 'pointer',
+                            padding: 2, display: 'grid', placeItems: 'center', borderRadius: 3,
+                            transition: 'color 160ms cubic-bezier(0.4,0,0.2,1), background 160ms cubic-bezier(0.4,0,0.2,1)',
+                          }}
+                          title="Eliminar estrato"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = 'var(--lucid-acc-coral)';
+                            e.currentTarget.style.background = 'var(--lucid-tint-coral)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = 'var(--lucid-ink-faint)';
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <X size={11} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={headers.length} style={{
+                        padding: '8px 10px 12px',
+                        background: 'var(--lucid-surface-figure)',
+                        borderTop: '1px dashed var(--lucid-rule-white)',
+                        borderBottom: '1px dashed var(--lucid-rule-white)',
+                      }}>
+                        <ConsolidationSubPanel
+                          stratum={s}
+                          onChange={(updates) => updateStratum(s.id, updates)}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </>
               );
             })}
           </tbody>
@@ -297,35 +345,84 @@ function SiteParamsSection() {
 }
 
 /* ═══════════════════════════════════════════════
- * SECCIÓN: ASENTAMIENTO (toggle)
+ * SUB-PANEL: CONSOLIDACIÓN por estrato
+ *   - is_clay (toggle)
+ *   - Cc, Cs, e0, σ'c   (consolidación primaria)
+ *   - Cα, e_p           (consolidación secundaria)
+ * Los inputs solo emiten al store si > 0; vacío/0 ⇒ null.
  * ═══════════════════════════════════════════════ */
-function SettlementToggleSection({ enabled, onToggle }: {
-  enabled: boolean; onToggle: (v: boolean) => void;
+function ConsolidationSubPanel({
+  stratum: s,
+  onChange,
+}: {
+  stratum: Stratum;
+  onChange: (updates: Partial<Stratum>) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  // S_max es UI-only por ahora (motor de asentamiento pendiente)
-  const [sMax, setSMax] = useState(25);
-
   return (
-    <Section title="Asentamiento" open={open} onToggle={() => setOpen(!open)}>
-      <label style={checkboxLabelStyle}>
-        <input type="checkbox" className="cad-checkbox" checked={enabled}
-          onChange={(e) => onToggle(e.target.checked)} />
-        Habilitar módulo de asentamiento
+    <div>
+      <label style={{ ...checkboxLabelStyle, marginBottom: 8 }}>
+        <input
+          type="checkbox"
+          className="cad-checkbox"
+          checked={!!s.is_clay}
+          onChange={(e) => onChange({ is_clay: e.target.checked })}
+        />
+        Es arcilla — activar consolidación (Sc)
       </label>
-      {enabled && (
-        <>
-          <PropRow label="S_max (mm)">
-            <CadNumericInput value={sMax} step={5} min={0}
-              onChange={(v) => setSMax(v)} />
-          </PropRow>
-          <div style={hintStyle}>
-            Las columnas Es, μs aparecen en la tabla de estratos.
-            <br />Motor de asentamiento aún no implementado en el backend.
-          </div>
-        </>
-      )}
-    </Section>
+
+      <div style={{ fontSize: 10, color: 'var(--lucid-ink-muted)', fontFamily: 'var(--lucid-font-sans)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+        Consolidación primaria
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+        <SubRow label="Cc">
+          <CadNumericInput value={s.Cc ?? 0} step={0.01} min={0}
+            onChange={(v) => onChange({ Cc: v > 0 ? v : null })} />
+        </SubRow>
+        <SubRow label="Cs">
+          <CadNumericInput value={s.Cs ?? 0} step={0.005} min={0}
+            onChange={(v) => onChange({ Cs: v > 0 ? v : null })} />
+        </SubRow>
+        <SubRow label="e₀">
+          <CadNumericInput value={s.e0 ?? 0} step={0.05} min={0}
+            onChange={(v) => onChange({ e0: v > 0 ? v : null })} />
+        </SubRow>
+        <SubRow label="σ'c (t/m²)">
+          <CadNumericInput value={s.sigma_c ?? 0} step={1} min={0}
+            onChange={(v) => onChange({ sigma_c: v > 0 ? v : null })} />
+        </SubRow>
+      </div>
+
+      <div style={{ fontSize: 10, color: 'var(--lucid-ink-muted)', fontFamily: 'var(--lucid-font-sans)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+        Consolidación secundaria
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <SubRow label="Cα">
+          <CadNumericInput value={s.Calpha ?? 0} step={0.005} min={0}
+            onChange={(v) => onChange({ Calpha: v > 0 ? v : null })} />
+        </SubRow>
+        <SubRow label="e_p">
+          <CadNumericInput value={s.ep ?? 0} step={0.05} min={0}
+            onChange={(v) => onChange({ ep: v > 0 ? v : null })} />
+        </SubRow>
+      </div>
+      <div style={hintStyle}>
+        t₁, t₂ (años) son globales — se configuran en la pestaña "Asentamiento".
+      </div>
+    </div>
+  );
+}
+
+function SubRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{
+        fontFamily: 'var(--lucid-font-sans)',
+        fontSize: 11,
+        color: 'var(--lucid-ink-muted)',
+        minWidth: 60, flexShrink: 0,
+      }}>{label}</span>
+      <div style={{ flex: 1 }}>{children}</div>
+    </label>
   );
 }
 
@@ -460,6 +557,33 @@ function QuickDesignSection() {
       >
         <ArrowDownToLine size={13} style={{ color: 'var(--lucid-acc-coral)' }} />
         Abrir Asentamientos
+      </button>
+
+      <button
+        onClick={() => addTab?.('compare-settlements')}
+        style={{
+          width: '100%', marginTop: 6, padding: '8px 10px',
+          background: 'var(--lucid-surface-page)',
+          border: '1px solid var(--lucid-rule-cream)',
+          borderRadius: 4,
+          color: 'var(--lucid-ink-strong)',
+          fontSize: 12,
+          fontFamily: 'var(--lucid-font-sans)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          transition: 'background 160ms cubic-bezier(0.4,0,0.2,1), border-color 160ms cubic-bezier(0.4,0,0.2,1)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--lucid-surface-figure)';
+          e.currentTarget.style.borderColor = 'var(--lucid-ink-strong)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'var(--lucid-surface-page)';
+          e.currentTarget.style.borderColor = 'var(--lucid-rule-cream)';
+        }}
+        title="Abrir comparador multi-zapata con distorsión angular y clasificación Bjerrum"
+      >
+        <GitCompare size={13} style={{ color: 'var(--lucid-acc-coral)' }} />
+        Comparar Zapatas
       </button>
     </Section>
   );

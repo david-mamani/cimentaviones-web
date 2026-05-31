@@ -202,6 +202,19 @@ class IterationInput(BaseModel):
     config: IterationConfig
 
 
+class IterationFamilyInput(BaseModel):
+    """
+    Input para iteración FAMILIA: corre `IterationInput` con múltiples
+    relaciones L/B en una sola pasada. Default = {1, 2, 3, 5, 10}.
+    """
+    base: CalculationInput
+    config: IterationConfig
+    lb_ratios: list[float] = Field(
+        default_factory=lambda: [1.0, 2.0, 3.0, 5.0, 10.0],
+        min_length=1,
+    )
+
+
 # ──────────────────────────────────────────────────────────────────
 # Asentamientos
 # ──────────────────────────────────────────────────────────────────
@@ -280,6 +293,26 @@ class SettlementIterationInput(BaseModel):
     def validate_range(self):
         if self.B_end < self.B_start:
             raise ValueError(f"B_end ({self.B_end}) debe ser ≥ B_start ({self.B_start})")
+        return self
+
+
+class SettlementIteration2DInput(SettlementIterationInput):
+    """
+    Input para iteración 2D B × Df del bloque de asentamientos.
+
+    Hereda B_start/B_end/B_step de la 1D y añade el rango de Df. El motor
+    recalcula `H, z̄, Es_eq` para cada celda (B, Df).
+    """
+    Df_start: float = Field(gt=0)
+    Df_end: float = Field(gt=0)
+    Df_step: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_df_range(self):
+        if self.Df_end < self.Df_start:
+            raise ValueError(
+                f"Df_end ({self.Df_end}) debe ser ≥ Df_start ({self.Df_start})."
+            )
         return self
 
 

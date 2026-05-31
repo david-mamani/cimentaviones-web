@@ -154,6 +154,7 @@ const defaultFoundation: FoundationParams = {
   M1: null,
   M2: null,
   Q: null,
+  metodo_area: 'rne',
 };
 
 const defaultConditions: SpecialConditions = {
@@ -171,6 +172,9 @@ const defaultSettlementParams: SettlementParams = {
   Cw_method: 'peck',
   consolidation: false,
   mu_s_override: null,
+  t1: null,
+  t2: null,
+  Kcr: 1.0,
 };
 
 function createDefaultStratum(): Stratum {
@@ -183,11 +187,48 @@ function createDefaultStratum(): Stratum {
     gammaSat: 2.0,    // t/m³ (default métrico)
     Es: null,
     mu_s: null,
+    is_clay: false,
+    Cc: null,
+    Cs: null,
+    e0: null,
+    sigma_c: null,
+    Calpha: null,
+    ep: null,
   };
 }
 
 // Constante de conversión Métrico ↔ SI
 const G = 9.80665;
+
+/**
+ * Serializa estratos a SI para enviar al backend.
+ * Conversiones:
+ *   - γ, γsat: t/m³ → kN/m³ (×G)
+ *   - c, σ'c: t/m² → kPa (×G)
+ *   - Es: t/m² → kPa (×G)
+ *   - φ, μs, Cc, Cs, e0, Cα, ep, is_clay: adimensionales (sin conversión)
+ * Los campos opcionales se omiten si vienen `null`/`undefined`.
+ */
+function serializeStratumForAPI(s: Stratum): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    id: s.id,
+    thickness: s.thickness,
+    gamma: s.gamma * G,
+    c: s.c * G,
+    phi: s.phi,
+    gammaSat: s.gammaSat * G,
+  };
+  if (typeof s.Es === 'number' && s.Es > 0) out.Es = s.Es * G;
+  if (typeof s.mu_s === 'number') out.mu_s = s.mu_s;
+  if (s.is_clay) out.is_clay = true;
+  if (typeof s.Cc === 'number' && s.Cc > 0) out.Cc = s.Cc;
+  if (typeof s.Cs === 'number' && s.Cs > 0) out.Cs = s.Cs;
+  if (typeof s.e0 === 'number' && s.e0 > 0) out.e0 = s.e0;
+  if (typeof s.sigma_c === 'number' && s.sigma_c > 0) out.sigma_c = s.sigma_c * G;
+  if (typeof s.Calpha === 'number' && s.Calpha > 0) out.Calpha = s.Calpha;
+  if (typeof s.ep === 'number' && s.ep > 0) out.ep = s.ep;
+  return out;
+}
 
 export const useFoundationStore = create<FoundationState>((set, get) => ({
   foundation: { ...defaultFoundation },
@@ -336,17 +377,8 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     set({ isCalculatingSettlement: true });
     const state = get();
 
-    // Conversión Métrico → SI (igual que en calculate())
-    const strataForAPI = state.strata.map((s) => ({
-      id: s.id,
-      thickness: s.thickness,
-      gamma: s.gamma * G,
-      c: s.c * G,
-      phi: s.phi,
-      gammaSat: s.gammaSat * G,
-      ...(typeof s.Es === 'number' && s.Es > 0 ? { Es: s.Es * G } : {}),
-      ...(typeof s.mu_s === 'number' ? { mu_s: s.mu_s } : {}),
-    }));
+    // Conversión Métrico → SI
+    const strataForAPI = state.strata.map(serializeStratumForAPI);
 
     const f = state.foundation;
     const foundationForAPI: any = {
@@ -396,16 +428,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
 
   calculateSettlementIteration: async (B_start, B_end, B_step) => {
     const state = get();
-    const strataForAPI = state.strata.map((s) => ({
-      id: s.id,
-      thickness: s.thickness,
-      gamma: s.gamma * G,
-      c: s.c * G,
-      phi: s.phi,
-      gammaSat: s.gammaSat * G,
-      ...(typeof s.Es === 'number' && s.Es > 0 ? { Es: s.Es * G } : {}),
-      ...(typeof s.mu_s === 'number' ? { mu_s: s.mu_s } : {}),
-    }));
+    const strataForAPI = state.strata.map(serializeStratumForAPI);
     const f = state.foundation;
     const foundationForAPI: any = {
       type: f.type, B: f.B, L: f.L, Df: f.Df, FS: f.FS,
@@ -443,17 +466,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     const state = get();
 
     // Conversión Métrico → SI antes de enviar al motor
-    const strataForAPI = state.strata.map((s) => ({
-      id: s.id,
-      thickness: s.thickness,
-      gamma: s.gamma * G,
-      c: s.c * G,
-      phi: s.phi,
-      gammaSat: s.gammaSat * G,
-      // Es y mu_s: opcionales, solo se envían si el usuario los proveyó
-      ...(typeof s.Es === 'number' && s.Es > 0 ? { Es: s.Es * G } : {}),
-      ...(typeof s.mu_s === 'number' ? { mu_s: s.mu_s } : {}),
-    }));
+    const strataForAPI = state.strata.map(serializeStratumForAPI);
 
     const f = state.foundation;
     const mode = state.eccentricityInputMode;
@@ -479,6 +492,7 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       ...eccentricityPayload,
       // Q: tnf → kN (multiplicar por G). Si no fue provista, se omite.
       ...(typeof f.Q === 'number' && f.Q > 0 ? { Q: f.Q * G } : {}),
+      ...(f.metodo_area ? { metodo_area: f.metodo_area } : {}),
     };
 
     const controller = new AbortController();
@@ -551,11 +565,19 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       M1: data.foundation.M1 ?? null,
       M2: data.foundation.M2 ?? null,
       Q: data.foundation.Q ?? null,
+      metodo_area: data.foundation.metodo_area ?? 'rne',
     };
     const strataLoaded = data.strata.map((s) => ({
       ...s,
       Es: s.Es ?? null,
       mu_s: s.mu_s ?? null,
+      is_clay: s.is_clay ?? false,
+      Cc: s.Cc ?? null,
+      Cs: s.Cs ?? null,
+      e0: s.e0 ?? null,
+      sigma_c: s.sigma_c ?? null,
+      Calpha: s.Calpha ?? null,
+      ep: s.ep ?? null,
     }));
     set({
       foundation: foundationLoaded,

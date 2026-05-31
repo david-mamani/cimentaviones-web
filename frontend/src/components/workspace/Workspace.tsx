@@ -12,6 +12,7 @@ import IfcViewer from '../viewer3d/IfcViewer';
 import Viewer2D from '../viewer2d/Viewer2D';
 import FoundationDesignTab from '../foundation-design/FoundationDesignTab';
 import SettlementTab from '../settlement/SettlementTab';
+import CompareSettlementsTab from '../settlement/CompareSettlementsTab';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { TabType } from '../../store/workspaceStore';
 
@@ -28,6 +29,7 @@ const TAB_LABELS: Record<TabType, string> = {
   results: 'Resultados',
   'foundation-design': 'Excentricidad',
   settlement: 'Asentamientos',
+  'compare-settlements': 'Comparar zapatas',
 };
 
 interface WorkspaceProps {
@@ -261,6 +263,8 @@ function TabContent({ type }: { type: TabType; tabId: string }) {
       return <FoundationDesignTab />;
     case 'settlement':
       return <SettlementTab />;
+    case 'compare-settlements':
+      return <CompareSettlementsTab />;
     default:
       return null;
   }

@@ -52,6 +52,10 @@ export default function ParametricIterations() {
   const setConfig = useFoundationStore((s) => s.setIterationConfig);
 
   const [iterResult, setIterResult] = useState<IterationResult | null>(null);
+  // Modo familia: corre múltiples L/B en una sola pasada.
+  const [familyMode, setFamilyMode] = useState(false);
+  const [familyRatios, setFamilyRatios] = useState<number[]>([1, 2, 3, 5, 10]);
+  const [familyResult, setFamilyResult] = useState<any | null>(null);
   const [chartMetric, setChartMetric] = useState<'qa' | 'Qmax'>('qa');
   const [loading, setLoading] = useState(false);
   const [chartHeight, setChartHeight] = useState(CHART_DEFAULT_HEIGHT);
@@ -129,27 +133,47 @@ export default function ParametricIterations() {
         c: s.c * G,              // t/m² → kPa
         gammaSat: s.gammaSat * G, // t/m³ → kN/m³
       }));
-      // Dimensiones ya en metros
       const configForAPI: Record<string, unknown> = { ...config };
-      // When lbLocked, pass ratio so backend computes L = k × B for each iteration
-      if (lbLocked && foundation.type === 'rectangular') {
-        configForAPI.lbRatio = lbRatio;
+      if (familyMode) {
+        // Modo familia: corre N relaciones L/B en una sola pasada.
+        const resp = await fetch('/api/iterate-family', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base: { foundation, strata: strataForAPI, conditions, method },
+            config: configForAPI,
+            lb_ratios: familyRatios,
+          }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: 'Error servidor' }));
+          throw new Error(err.detail || `Error ${resp.status}`);
+        }
+        const data = await resp.json();
+        setFamilyResult(data);
+        setIterResult(null);
+      } else {
+        // Modo simple (1 corrida)
+        if (lbLocked && foundation.type === 'rectangular') {
+          configForAPI.lbRatio = lbRatio;
+        }
+        const response = await fetch('/api/iterate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base: { foundation, strata: strataForAPI, conditions, method },
+            config: configForAPI,
+          }),
+        });
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        const result = await response.json();
+        setIterResult(result);
+        setFamilyResult(null);
+        useFoundationStore.getState().setIterationResults(result);
       }
-      const response = await fetch('/api/iterate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base: { foundation, strata: strataForAPI, conditions, method },
-          config: configForAPI,
-        }),
-      });
-      if (!response.ok) throw new Error(`Error ${response.status}`);
-      const result = await response.json();
-      setIterResult(result);
-      // Save to global store for PDF export
-      useFoundationStore.getState().setIterationResults(result);
     } catch (err) {
       console.error('Error en iteraciones:', err);
+      alert((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -158,8 +182,36 @@ export default function ParametricIterations() {
   /** Convert SI value to metric display */
   const toMetric = (val: number, _type: 'pressure' | 'force') => val / G;
 
-  // Build Plotly traces — display in metric
+  // Build Plotly traces — display in metric.
+  // En modo familia, generamos una curva por cada (lbRatio, df) — si hay más
+  // de 1 Df, agrupa por familia con colores y por Df con marcadores.
   const getTraces = (): Partial<Plotly.Data>[] => {
+    if (familyMode && familyResult) {
+      const traces: Partial<Plotly.Data>[] = [];
+      familyResult.families.forEach((fam: any, fi: number) => {
+        fam.dfValues.forEach((df: number, di: number) => {
+          const row = fam.matrix[di];
+          traces.push({
+            x: row.map((c: any) => c.B),
+            y: row.map((c: any) => toMetric(
+              chartMetric === 'qa' ? c.result.qa : c.Qmax,
+              chartMetric === 'qa' ? 'pressure' : 'force',
+            )),
+            type: 'scatter' as const,
+            mode: 'lines+markers' as const,
+            name: fam.dfValues.length > 1
+              ? `${fam.label} · Df=${df.toFixed(1)}`
+              : fam.label,
+            line: { color: COLORS[fi % COLORS.length], width: 2 },
+            marker: {
+              symbol: MARKERS[di % MARKERS.length],
+              size: 6,
+            },
+          });
+        });
+      });
+      return traces;
+    }
     if (!iterResult) return [];
     return iterResult.dfValues.map((df, di) => {
       const row = iterResult.matrix[di];
@@ -349,6 +401,59 @@ export default function ParametricIterations() {
           </div>
         )}
 
+        {/* Modo familia L/B */}
+        <div style={{
+          marginTop: 12, padding: '10px 12px',
+          background: familyMode ? 'var(--lucid-tint-coral)' : 'var(--lucid-surface-figure)',
+          border: `1px solid ${familyMode ? 'var(--lucid-acc-coral-border)' : 'var(--lucid-rule-cream)'}`,
+          borderRadius: 4,
+        }}>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontFamily: 'var(--lucid-font-sans)', fontSize: 12,
+            cursor: 'pointer',
+          }}>
+            <input
+              type="checkbox" className="cad-checkbox"
+              checked={familyMode}
+              onChange={(e) => setFamilyMode(e.target.checked)}
+            />
+            Modo familia: correr múltiples L/B en una pasada
+          </label>
+          {familyMode && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{
+                fontFamily: 'var(--lucid-font-sans)', fontSize: 10,
+                color: 'var(--lucid-ink-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
+              }}>
+                Relaciones L/B (separadas por coma)
+              </div>
+              <input
+                type="text"
+                value={familyRatios.join(', ')}
+                onChange={(e) => {
+                  const parsed = e.target.value.split(',')
+                    .map((s) => parseFloat(s.trim()))
+                    .filter((n) => isFinite(n) && n > 0);
+                  if (parsed.length > 0) setFamilyRatios(parsed);
+                }}
+                style={{
+                  width: '100%', padding: '6px 8px',
+                  background: 'var(--lucid-surface-page)',
+                  border: '1px solid var(--lucid-rule-cream)',
+                  borderRadius: 3,
+                  fontFamily: 'var(--font-mono, monospace)', fontSize: 11,
+                  color: 'var(--lucid-ink-strong)',
+                }}
+              />
+              <div style={{ marginTop: 4, fontSize: 10, color: 'var(--lucid-ink-muted)', fontFamily: 'var(--lucid-font-sans)' }}>
+                Default: 1, 2, 3, 5, 10 (cuadrada + 4 rectangulares). Una curva por L/B.
+              </div>
+            </div>
+          )}
+        </div>
+
         <button
           onClick={handleRun}
           disabled={(!config.varyB && !config.varyDf) || loading}
@@ -376,7 +481,7 @@ export default function ParametricIterations() {
       </div>
 
       {/* Results */}
-      {iterResult && (
+      {(iterResult || familyResult) && (
         <div>
           {/* Chart card */}
           <div style={{

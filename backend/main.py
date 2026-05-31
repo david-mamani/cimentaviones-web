@@ -21,8 +21,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from models import (
-    CalculationInput, IterationInput, IFCExportInput, PDFExportInput,
-    SettlementInput, SettlementIterationInput, CompareSettlementsInput,
+    CalculationInput, IterationInput, IterationFamilyInput,
+    IFCExportInput, PDFExportInput,
+    SettlementInput, SettlementIterationInput, SettlementIteration2DInput,
+    CompareSettlementsInput,
 )
 from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
@@ -354,6 +356,158 @@ def iterate_settlement_endpoint(input_data: SettlementIterationInput):
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en iteración asentamiento: {str(e)}")
+
+
+@app.post("/api/iterate-family")
+def iterate_family_endpoint(input_data: IterationFamilyInput):
+    """
+    Iteración paramétrica FAMILIA: corre `run_parametric_iterations` para
+    cada L/B en `lb_ratios` y devuelve un dict con las N familias.
+
+    Útil para producir curvas familia (típicamente {1, 2, 3, 5, 10}) en una
+    sola petición. La cimentación debe ser rectangular; si es cuadrada se
+    fuerza L=B (la "familia" colapsa pero se sigue ejecutando).
+
+    Tope global: 500 puntos sumando todas las familias.
+    """
+    MAX_TOTAL = 500
+    try:
+        base = input_data.base.model_dump()
+        cfg = input_data.config.model_dump()
+        lb_ratios = sorted(set(input_data.lb_ratios))
+
+        # Estimación de puntos por familia
+        def _approx_points(c: dict) -> int:
+            nB = 1
+            if c.get("varyB"):
+                nB = max(1, int((c["bEnd"] - c["bStart"]) / max(c["bStep"], 1e-9)) + 1)
+            nD = 1
+            if c.get("varyDf"):
+                nD = max(1, int((c["dfEnd"] - c["dfStart"]) / max(c["dfStep"], 1e-9)) + 1)
+            return nB * nD
+        total = _approx_points(cfg) * len(lb_ratios)
+        if total > MAX_TOTAL:
+            raise ValueError(
+                f"La iteración familia generaría ~{total} puntos; "
+                f"máximo {MAX_TOTAL}. Reduce rangos o cantidad de relaciones L/B."
+            )
+
+        families = []
+        for k in lb_ratios:
+            cfg_k = {**cfg, "lbRatio": k}
+            # Si la cimentación base era cuadrada, forzamos rectangular para
+            # honrar el k. Si era rectangular ya, mantenemos.
+            base_k = {**base, "foundation": {**base["foundation"]}}
+            if base_k["foundation"]["type"] == "cuadrada":
+                base_k["foundation"]["type"] = "rectangular"
+                base_k["foundation"]["L"] = k * base_k["foundation"]["B"]
+            result_k = run_parametric_iterations(base_k, cfg_k)
+            families.append({
+                "lbRatio": k,
+                "label": f"L = {k} × B",
+                **result_k,
+            })
+
+        return {
+            "families": families,
+            "lb_ratios": lb_ratios,
+            "totalPoints": total,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en iter familia: {str(e)}")
+
+
+@app.post("/api/iterate-settlement-2d")
+def iterate_settlement_2d_endpoint(input_data: SettlementIteration2DInput):
+    """
+    Iteración 2D B × Df del bloque de asentamientos.
+
+    Para cada celda (B, Df) recomputa H, z̄, Es_eq y devuelve `qadm_settlement`
+    + `qadm_diseno` + S_total si Q se proveyó. Devuelve `matrix[Df][B]` con
+    `bValues` y `dfValues` para que el frontend dibuje un heatmap.
+
+    Tope: 500 puntos (igual que el endpoint de capacidad).
+    """
+    MAX_POINTS = 500
+    try:
+        raw = input_data.model_dump()
+        f = raw["foundation"]
+        Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
+
+        def _gen_range(start: float, end: float, step: float) -> list[float]:
+            if step <= 0 or end < start:
+                return [start]
+            vals: list[float] = []
+            x = start
+            while x <= end + 1e-6:
+                vals.append(round(x, 4))
+                x += step
+            return vals
+
+        b_values = _gen_range(raw["B_start"], raw["B_end"], raw["B_step"])
+        df_values = _gen_range(raw["Df_start"], raw["Df_end"], raw["Df_step"])
+        total = len(b_values) * len(df_values)
+        if total > MAX_POINTS:
+            raise ValueError(
+                f"La iteración 2D generaría {total} puntos; el máximo es {MAX_POINTS}."
+            )
+
+        matrix: list[list[dict]] = []
+        for df in df_values:
+            row: list[dict] = []
+            for b in b_values:
+                foundation_cell = {
+                    **f,
+                    "B": b,
+                    "L": f.get("L", b),
+                    "Df": df,
+                }
+                Df_abs = df + Ds
+                try:
+                    r = calculate_total_settlement(
+                        foundation=foundation_cell,
+                        strata=raw["strata"],
+                        Df_abs=Df_abs,
+                        settlement_params=raw["settlement"],
+                        conditions=raw["conditions"],
+                        qadm_falla=raw.get("qadm_falla"),
+                        q_aplicada_net=None,
+                    )
+                    row.append({
+                        "B": b,
+                        "Df": df,
+                        "qadm_settlement": r["qadm_settlement"],
+                        "qadm_falla": r.get("qadm_falla"),
+                        "qadm_diseno": (r["design"]["qadm_diseno"] if r["design"] else None),
+                        "criterio_gobernante": (
+                            r["design"]["criterio_gobernante"] if r["design"] else None
+                        ),
+                        "z_bar": r["z_bar"],
+                        "Es_eq": r["Es_eq"],
+                    })
+                except Exception as cell_err:
+                    row.append({
+                        "B": b, "Df": df,
+                        "error": str(cell_err),
+                        "qadm_settlement": None, "qadm_falla": None,
+                        "qadm_diseno": None, "criterio_gobernante": None,
+                        "z_bar": None, "Es_eq": None,
+                    })
+            matrix.append(row)
+
+        return {
+            "bValues": b_values,
+            "dfValues": df_values,
+            "matrix": matrix,
+            "B_start": raw["B_start"], "B_end": raw["B_end"], "B_step": raw["B_step"],
+            "Df_start": raw["Df_start"], "Df_end": raw["Df_end"], "Df_step": raw["Df_step"],
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en iter 2D asentamiento: {str(e)}")
 
 
 @app.get("/api/health")

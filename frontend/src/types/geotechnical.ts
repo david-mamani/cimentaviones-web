@@ -26,9 +26,22 @@ export interface Stratum {
   c: number;           // Cohesión c (unidades de input: pressure)
   phi: number;         // Ángulo de fricción interna φ (°)
   gammaSat: number;    // Peso unitario saturado γsat (unidades de input: unitWeight)
+  // Asentamiento elástico
   Es?: number | null;  // Módulo de elasticidad (input: pressure, métrico t/m²) — opcional
   mu_s?: number | null;// Relación de Poisson (adim.) — opcional
+  // Consolidación primaria (Das §2.7 / 8.2)
+  is_clay?: boolean;          // Marca este estrato como arcilla (activa Sc)
+  Cc?: number | null;         // Índice de compresión
+  Cs?: number | null;         // Índice de recompresión
+  e0?: number | null;         // Relación de vacíos inicial
+  sigma_c?: number | null;    // σ'c preconsolidación (input: pressure, métrico t/m²)
+  // Consolidación secundaria (Das Ecs. 9.91–9.92)
+  Calpha?: number | null;     // Índice de compresión secundaria
+  ep?: number | null;         // Relación de vacíos al fin de la consolidación primaria
 }
+
+/** Método para el área efectiva ante excentricidad */
+export type EffectiveAreaMethod = 'rne' | 'highter_anders';
 
 /** Modo de entrada de excentricidad */
 export type EccentricityInputMode = 'M' | 'e';
@@ -49,6 +62,11 @@ export interface FoundationParams {
   M1?: number | null;  // Momento M1 = M_x (input: force·length, métrico tnf·m)
   M2?: number | null;  // Momento M2 = M_y (input: force·length, métrico tnf·m)
   Q?: number | null;   // Carga aplicada (input: force, métrico tnf) — opcional
+  // Método de cálculo del área efectiva ante excentricidad biaxial:
+  //   "rne"            : RNE/Meyerhof (B' = B − 2e2, L' = L − 2e1) — default.
+  //   "highter_anders" : H&A 1985 (4 casos). Casos II/III/IV requieren tablas
+  //                      digitalizadas (pendientes); fallback automático a RNE.
+  metodo_area?: EffectiveAreaMethod;
 }
 
 /** Condiciones especiales */
@@ -132,6 +150,14 @@ export interface SettlementParams {
   Cw_method: CwMethod;
   consolidation: boolean;
   mu_s_override?: number | null;
+  // Consolidación secundaria — tiempos globales en AÑOS.
+  // Activa Sc_s si ambos > 0 y t2 > t1, y al menos un estrato arcilloso
+  // tiene Cα y e_p definidos.
+  t1?: number | null;
+  t2?: number | null;
+  // Factor de corrección 3D Skempton–Bjerrum para consolidación primaria.
+  // Default 1.0; override manual hasta que se digitalice el ábaco.
+  Kcr?: number;
 }
 
 export interface SettlementLayerContribution {
@@ -152,6 +178,17 @@ export interface ConsolidationLayerResult {
   sigma_p0: number;
   sigma_final?: number;
   sigma_c?: number;
+}
+
+export interface SecondaryConsolidationLayerResult {
+  stratum_index: number;
+  Sc_s: number;
+  Sc_s_mm: number;
+  C_alpha_prime: number;
+  Hc: number;
+  t1: number;
+  t2: number;
+  formula_used: string;
 }
 
 export interface ElasticSettlementBlock {
@@ -216,6 +253,16 @@ export interface SettlementResult {
   consolidation_layers: ConsolidationLayerResult[];
   Sc: number | null;
   Sc_mm: number | null;
+  // Consolidación primaria sin ajuste 3D Skempton–Bjerrum (Kcr); Sc = Sc_oedometrico · Kcr.
+  Sc_oedometrico?: number | null;
+  Sc_oedometrico_mm?: number | null;
+  Kcr?: number;
+  // Consolidación secundaria (Das Ecs. 9.91–9.92)
+  secondary_layers?: SecondaryConsolidationLayerResult[];
+  Sc_s?: number | null;
+  Sc_s_mm?: number | null;
+  t1?: number | null;
+  t2?: number | null;
   S_total: number | null;
   S_total_mm: number | null;
   S_max: number;
@@ -264,6 +311,13 @@ export interface EccentricityInfo {
   L_eff: number;
   A_eff: number;
   regime: 'uniforme' | 'trapezoidal' | 'triangular';
+  caso_carga?: 'uniaxial' | 'biaxial' | null;
+  dentro_kern?: boolean | null;
+  kern_metric?: number | null;
+  intercambio_aplicado?: boolean;
+  metodo_area?: EffectiveAreaMethod;
+  metodo_area_solicitado?: EffectiveAreaMethod;
+  caso_HA?: 'I' | 'II' | 'III' | 'IV' | null;
   qmax: number | null;
   qmin: number | null;
   Qu: number;
