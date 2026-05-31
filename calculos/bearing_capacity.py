@@ -34,6 +34,7 @@ from .methods import (
     soil_type_from_phi,
     CRITERIA,
 )
+from .highter_anders import compute_effective_dimensions_ha
 
 
 # Conversiones de presión kPa → otras unidades
@@ -71,6 +72,8 @@ def _compute_effective_dimensions(B: float, L: float, e1: float, e2: float) -> d
       B' = B - 2·e2  (e2 = M2/Q, M2 sobre eje vertical → eccentricidad en B)
       L' = L - 2·e1  (e1 = M1/Q, M1 sobre eje horizontal → eccentricidad en L)
     Si B' > L', se intercambian (B' siempre es la dimensión menor).
+
+    Devuelve también `intercambio_aplicado` (bool) para reportar en el output.
     """
     B_eff = B - 2.0 * e2
     L_eff = L - 2.0 * e1
@@ -81,10 +84,14 @@ def _compute_effective_dimensions(B: float, L: float, e1: float, e2: float) -> d
             f"El área efectiva es nula o negativa."
         )
 
-    if B_eff > L_eff:
+    intercambio = B_eff > L_eff
+    if intercambio:
         B_eff, L_eff = L_eff, B_eff
 
-    return {"B_eff": B_eff, "L_eff": L_eff, "A_eff": B_eff * L_eff}
+    return {
+        "B_eff": B_eff, "L_eff": L_eff, "A_eff": B_eff * L_eff,
+        "intercambio_aplicado": intercambio,
+    }
 
 
 def _extreme_pressures_trapezoidal(Q: float, B: float, L: float, e1: float, e2: float) -> dict:
@@ -204,6 +211,9 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
     M1 = foundation.get("M1")  # opcional
     M2 = foundation.get("M2")  # opcional
     Q_applied = foundation.get("Q")  # opcional
+    metodo_area = foundation.get("metodo_area", "rne")
+    if metodo_area not in ("rne", "highter_anders"):
+        raise ValueError(f"metodo_area desconocido: {metodo_area!r}")
 
     # Derivar e1, e2 desde M1/Q, M2/Q si se proveen momentos y la
     # excentricidad correspondiente está en 0 (convención profesor).
@@ -302,9 +312,37 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
 
     # ── Bloque 11 parcial: dimensiones efectivas y régimen ────────
     has_eccentricity = (e1 > 0 or e2 > 0)
-    eff = _compute_effective_dimensions(B, L, e1, e2)
+    caso_HA = None
+    metodo_area_usado = metodo_area
+    if has_eccentricity and metodo_area == "highter_anders":
+        try:
+            eff = compute_effective_dimensions_ha(B, L, e1, e2)
+            caso_HA = eff["caso_HA"]
+        except NotImplementedError as e:
+            # Casos II/III/IV bloqueados por digitalización de ábacos:
+            # se hace fallback a RNE/Meyerhof y se emite warning.
+            warnings.append(
+                f"Highter & Anders no disponible ({e}). Se usa RNE/Meyerhof "
+                f"como fallback."
+            )
+            eff = _compute_effective_dimensions(B, L, e1, e2)
+            metodo_area_usado = "rne"
+    else:
+        eff = _compute_effective_dimensions(B, L, e1, e2)
     B_eff, L_eff, A_eff = eff["B_eff"], eff["L_eff"], eff["A_eff"]
+    intercambio_aplicado = eff["intercambio_aplicado"]
 
+    # Clasificación uniaxial vs biaxial (independiente de kern).
+    if has_eccentricity:
+        if e1 > 1e-9 and e2 > 1e-9:
+            caso_carga = "biaxial"
+        else:
+            caso_carga = "uniaxial"
+    else:
+        caso_carga = None
+
+    in_kern = True
+    kern_metric = 0.0
     if has_eccentricity:
         # Kern biaxial: ROMBO definido por (6·e1/L + 6·e2/B) ≤ 1, NO rectángulo.
         # Convención del curso: e1 reduce L (eje 1 horizontal), e2 reduce B.
@@ -422,6 +460,13 @@ def calculate_bearing_capacity(input_data: dict) -> dict:
             "Q": Q_applied,
             "B_eff": B_eff, "L_eff": L_eff, "A_eff": A_eff,
             "regime": regime,
+            "caso_carga": caso_carga,                   # "uniaxial"|"biaxial"|None
+            "dentro_kern": in_kern if has_eccentricity else None,
+            "kern_metric": kern_metric if has_eccentricity else None,
+            "intercambio_aplicado": intercambio_aplicado,
+            "metodo_area": metodo_area_usado,
+            "metodo_area_solicitado": metodo_area,
+            "caso_HA": caso_HA,
             "qmax": qmax,
             "qmin": qmin,
             "Qu": Qu,

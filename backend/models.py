@@ -27,6 +27,17 @@ class Stratum(BaseModel):
     Cs: Optional[float] = Field(default=None, gt=0, description="Índice de recompresión")
     e0: Optional[float] = Field(default=None, gt=0, description="Relación de vacíos inicial")
     sigma_c: Optional[float] = Field(default=None, gt=0, description="σ'c preconsolidación (kPa)")
+    # Consolidación secundaria (Das Ecs. 9.91–9.92):
+    #   Sc_s = Cα/(1+e_p) · Hc · log10(t2/t1)
+    # Cα y e_p son propiedades del estrato; t1/t2 son globales (SettlementParams).
+    Calpha: Optional[float] = Field(
+        default=None, gt=0,
+        description="Índice de compresión secundaria Cα (-) — activa Sc_s si t1/t2 globales también",
+    )
+    ep: Optional[float] = Field(
+        default=None, gt=0,
+        description="Relación de vacíos al fin de la consolidación primaria e_p (-)",
+    )
 
     @model_validator(mode="after")
     def validate_gammaSat_gte_gamma(self):
@@ -61,6 +72,14 @@ class FoundationParams(BaseModel):
     Q: Optional[float] = Field(
         default=None, gt=0,
         description="Carga vertical total aplicada (kN). Requerida para qmax/qmin, FS_real y M→e.",
+    )
+    # Método de cálculo del área efectiva ante excentricidad.
+    #   "rne"            : RNE/Meyerhof B'=B-2e2, L'=L-2e1 (default).
+    #   "highter_anders" : H&A 1985 con 4 casos. Hoy solo Caso I cerrado;
+    #                      II/III/IV requieren digitalización de ábacos.
+    metodo_area: Literal["rne", "highter_anders"] = Field(
+        default="rne",
+        description="Método para área efectiva con excentricidad biaxial.",
     )
 
     @model_validator(mode="after")
@@ -196,6 +215,31 @@ class SettlementParams(BaseModel):
     Cw_method: Literal["peck", "teng", "bowles", "off"] = "peck"
     consolidation: bool = False
     mu_s_override: Optional[float] = Field(default=None, ge=0.0, le=0.5)
+    # Consolidación secundaria — tiempos globales en AÑOS.
+    # Se activa si AMBOS t1 y t2 se proveen (con t2 > t1) Y al menos un estrato
+    # arcilloso tiene Cα y e_p.
+    t1: Optional[float] = Field(
+        default=None, gt=0,
+        description="Tiempo al fin de consolidación primaria (años) — activa Sc_s",
+    )
+    t2: Optional[float] = Field(
+        default=None, gt=0,
+        description="Tiempo de evaluación / vida útil (años) — activa Sc_s; debe ser > t1",
+    )
+    # Factor de corrección 3D Skempton–Bjerrum para consolidación primaria.
+    # Default 1.0 (override manual). TODO: digitalización del ábaco pendiente.
+    Kcr: float = Field(
+        default=1.0, gt=0,
+        description="Factor 3D Skempton–Bjerrum para Sc_p (default 1.0)",
+    )
+
+    @model_validator(mode="after")
+    def validate_t1_t2(self):
+        if self.t1 is not None and self.t2 is not None and self.t2 <= self.t1:
+            raise ValueError(
+                f"t2 ({self.t2}) debe ser > t1 ({self.t1}) para Sc_s."
+            )
+        return self
 
 
 class SettlementInput(BaseModel):
@@ -236,6 +280,62 @@ class SettlementIterationInput(BaseModel):
     def validate_range(self):
         if self.B_end < self.B_start:
             raise ValueError(f"B_end ({self.B_end}) debe ser ≥ B_start ({self.B_start})")
+        return self
+
+
+class NamedSettlementInput(SettlementInput):
+    """Input de asentamiento con identificador de zapata (multi-zapata)."""
+    id: str = Field(min_length=1, description="Identificador único de la zapata (ej. 'Z1')")
+
+
+class CompareSettlementsInput(BaseModel):
+    """
+    Input del endpoint /api/compare-settlements.
+
+    `footings`: lista de N inputs de asentamiento con identificador único.
+    `spans`: matriz NxN (lista de listas) con las luces L_ij en metros
+             entre los pares de zapatas. Diagonal = 0; simétrica.
+             La unidad es metros.
+    """
+    footings: list[NamedSettlementInput] = Field(min_length=2)
+    spans: list[list[float]] = Field(
+        description="Matriz NxN de luces entre pares (m). Diagonal = 0; simétrica.",
+    )
+
+    @model_validator(mode="after")
+    def validate_spans_matrix(self):
+        n = len(self.footings)
+        if len(self.spans) != n:
+            raise ValueError(
+                f"`spans` debe tener {n} filas (igual a #footings), tiene {len(self.spans)}."
+            )
+        ids_seen: set[str] = set()
+        for f in self.footings:
+            if f.id in ids_seen:
+                raise ValueError(f"id duplicado en footings: {f.id!r}.")
+            ids_seen.add(f.id)
+        for i, row in enumerate(self.spans):
+            if len(row) != n:
+                raise ValueError(
+                    f"spans[{i}] debe tener {n} columnas, tiene {len(row)}."
+                )
+            for j, val in enumerate(row):
+                if i == j:
+                    if val != 0:
+                        raise ValueError(
+                            f"spans[{i}][{i}] debe ser 0 (diagonal), es {val}."
+                        )
+                else:
+                    if val <= 0:
+                        raise ValueError(
+                            f"spans[{i}][{j}] debe ser > 0 (luz entre zapatas), es {val}."
+                        )
+                    # Simetría (tolerancia 1e-6)
+                    if abs(self.spans[j][i] - val) > 1e-6:
+                        raise ValueError(
+                            f"`spans` debe ser simétrica: spans[{i}][{j}]={val} "
+                            f"≠ spans[{j}][{i}]={self.spans[j][i]}."
+                        )
         return self
 
 

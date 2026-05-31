@@ -18,10 +18,14 @@ from calculos.settlement import (
     elastic_settlement,
     qadm_from_settlement_limit,
     consolidation_settlement,
+    secondary_consolidation_settlement,
     Es_from_N60_kulhawy_mayne,
     KM_ALPHA_TABLE,
     design_qadm,
     angular_distortion,
+    clasificar_bjerrum,
+    cumple_sin_grietas,
+    DISTORTION_LIMITS_RNE_E050,
     calculate_total_settlement,
     iterate_qadm_vs_B,
 )
@@ -462,3 +466,183 @@ class TestAngularDistortion:
         r = angular_distortion(delta_a=0.0, delta_b=0.050, L_columns=5.0)
         assert r["is_below_structural_damage"] is False
         assert "danio_estructural_edif_convencional" in r["limits_exceeded"]
+
+
+# ═══════════════════════════════════════════════════════════════
+# 14. Consolidación secundaria Sc(s) — Das Ecs. 9.91–9.92
+# ═══════════════════════════════════════════════════════════════
+
+class TestSecondaryConsolidation:
+
+    def test_basic(self):
+        # Cα=0.01, ep=0.8, Hc=2 m, t1=1 año, t2=50 años
+        # C'α = 0.01/1.8 = 0.005556
+        # Sc_s = 0.005556·2·log10(50) = 0.005556·2·1.699 = 0.01888 m
+        r = secondary_consolidation_settlement(
+            Hc=2.0, Calpha=0.01, ep=0.8, t1=1.0, t2=50.0,
+        )
+        assert r["C_alpha_prime"] == pytest.approx(0.01 / 1.8, abs=1e-6)
+        assert r["Sc_s"] == pytest.approx(0.01888, abs=1e-4)
+        assert r["Sc_s_mm"] == pytest.approx(18.88, abs=0.1)
+
+    def test_t2_eq_t1_raises(self):
+        with pytest.raises(ValueError):
+            secondary_consolidation_settlement(
+                Hc=2.0, Calpha=0.01, ep=0.8, t1=10.0, t2=10.0,
+            )
+
+    def test_t2_lt_t1_raises(self):
+        with pytest.raises(ValueError):
+            secondary_consolidation_settlement(
+                Hc=2.0, Calpha=0.01, ep=0.8, t1=10.0, t2=5.0,
+            )
+
+    def test_negative_inputs_raise(self):
+        with pytest.raises(ValueError):
+            secondary_consolidation_settlement(
+                Hc=-1.0, Calpha=0.01, ep=0.8, t1=1.0, t2=10.0,
+            )
+        with pytest.raises(ValueError):
+            secondary_consolidation_settlement(
+                Hc=2.0, Calpha=0.0, ep=0.8, t1=1.0, t2=10.0,
+            )
+
+
+# ═══════════════════════════════════════════════════════════════
+# 15. Bjerrum — clasificación + 1/600 + cumple_sin_grietas
+# ═══════════════════════════════════════════════════════════════
+
+class TestBjerrum:
+
+    def test_1_over_600_in_table(self):
+        """El doc de auditoría exige entrada 1/600 (pórticos con diagonales)."""
+        assert "peligro_porticos_diagonales" in DISTORTION_LIMITS_RNE_E050
+        assert DISTORTION_LIMITS_RNE_E050["peligro_porticos_diagonales"] == pytest.approx(1.0 / 600, abs=1e-9)
+
+    def test_clasificar_sin_riesgo(self):
+        # β = 1/2000 < 1/750 ⇒ sin_riesgo
+        r = clasificar_bjerrum(1.0 / 2000)
+        assert r["categoria_clave"] == "sin_riesgo"
+
+    def test_clasificar_danio_estructural(self):
+        # β = 1/100 ⇒ daño estructural (peor categoría)
+        r = clasificar_bjerrum(1.0 / 100)
+        assert r["categoria_clave"] == "danio_estructural_edif_convencional"
+
+    def test_clasificar_devuelve_mas_severa(self):
+        # β = 1/200 supera 1/250, 1/300, 1/500, 1/600, 1/750 — la más severa
+        # de ellas es 1/250 (perdida_verticalidad).
+        r = clasificar_bjerrum(1.0 / 200)
+        assert r["categoria_clave"] == "perdida_verticalidad_edif_altos_rigidos"
+
+    def test_cumple_sin_grietas_true(self):
+        # β = 1/1000 ≤ 1/500
+        assert cumple_sin_grietas(1.0 / 1000) is True
+
+    def test_cumple_sin_grietas_false(self):
+        # β = 1/400 > 1/500
+        assert cumple_sin_grietas(1.0 / 400) is False
+
+    def test_negative_beta_raises(self):
+        with pytest.raises(ValueError):
+            clasificar_bjerrum(-0.001)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 16. Integración Sc(s) + Kcr en calculate_total_settlement
+# ═══════════════════════════════════════════════════════════════
+
+class TestSc_s_and_Kcr_integration:
+
+    def _clay_strata(self):
+        return [
+            {"thickness": 1.0, "gamma": 18.0, "gammaSat": 20.0,
+             "Es": 15000, "mu_s": 0.30},
+            # arcilla con todos los parámetros para Sc_p y Sc_s
+            {"thickness": 5.0, "gamma": 18.0, "gammaSat": 20.0,
+             "Es": 8000, "mu_s": 0.40,
+             "is_clay": True,
+             "Cc": 0.3, "e0": 0.8, "Cs": 0.05,
+             "Calpha": 0.01, "ep": 0.75},
+            {"thickness": 10.0, "gamma": 18.0, "gammaSat": 20.0,
+             "Es": 20000, "mu_s": 0.30},
+        ]
+
+    def _base_params(self, **overrides):
+        p = {"S_max": 0.05, "point": "centro", "rigid": False,
+             "Cw_method": "off", "consolidation": True}
+        p.update(overrides)
+        return p
+
+    def test_Sc_s_activates_with_t1_t2(self):
+        r = calculate_total_settlement(
+            foundation={"B": 2.0, "L": 3.0, "Df": 1.0},
+            strata=self._clay_strata(),
+            Df_abs=1.0,
+            settlement_params=self._base_params(t1=1.0, t2=50.0),
+            q_aplicada_net=80.0,
+        )
+        assert r["Sc_s"] is not None and r["Sc_s"] > 0
+        assert r["t1"] == 1.0 and r["t2"] == 50.0
+        assert len(r["secondary_layers"]) == 1
+
+    def test_Sc_s_omitted_without_t1_t2(self):
+        r = calculate_total_settlement(
+            foundation={"B": 2.0, "L": 3.0, "Df": 1.0},
+            strata=self._clay_strata(),
+            Df_abs=1.0,
+            settlement_params=self._base_params(),  # sin t1, t2
+            q_aplicada_net=80.0,
+        )
+        assert r["Sc_s"] is None
+        assert r["secondary_layers"] == []
+
+    def test_Kcr_default_1(self):
+        r = calculate_total_settlement(
+            foundation={"B": 2.0, "L": 3.0, "Df": 1.0},
+            strata=self._clay_strata(),
+            Df_abs=1.0,
+            settlement_params=self._base_params(),
+            q_aplicada_net=80.0,
+        )
+        assert r["Kcr"] == 1.0
+        # Sin override, Sc = Sc_oedometrico
+        assert r["Sc"] == pytest.approx(r["Sc_oedometrico"], rel=1e-9)
+
+    def test_Kcr_override_scales_Sc(self):
+        r1 = calculate_total_settlement(
+            foundation={"B": 2.0, "L": 3.0, "Df": 1.0},
+            strata=self._clay_strata(),
+            Df_abs=1.0,
+            settlement_params=self._base_params(Kcr=0.7),
+            q_aplicada_net=80.0,
+        )
+        assert r1["Kcr"] == 0.7
+        # Sc = 0.7 · Sc_oedometrico
+        assert r1["Sc"] == pytest.approx(0.7 * r1["Sc_oedometrico"], rel=1e-9)
+
+    def test_S_total_includes_Sc_s(self):
+        r = calculate_total_settlement(
+            foundation={"B": 2.0, "L": 3.0, "Df": 1.0},
+            strata=self._clay_strata(),
+            Df_abs=1.0,
+            settlement_params=self._base_params(t1=1.0, t2=50.0),
+            q_aplicada_net=80.0,
+        )
+        expected = r["Se_corr"] + r["Sc"] + r["Sc_s"]
+        assert r["S_total"] == pytest.approx(expected, rel=1e-9)
+
+    def test_Sc_s_skipped_when_layer_missing_Calpha(self):
+        # Estratos arcillosos sin Cα/ep — warning, no error
+        strata = self._clay_strata()
+        del strata[1]["Calpha"]
+        del strata[1]["ep"]
+        r = calculate_total_settlement(
+            foundation={"B": 2.0, "L": 3.0, "Df": 1.0},
+            strata=strata,
+            Df_abs=1.0,
+            settlement_params=self._base_params(t1=1.0, t2=50.0),
+            q_aplicada_net=80.0,
+        )
+        assert r["Sc_s"] is None or r["Sc_s"] == 0.0
+        assert any("Cα" in w for w in r["warnings"])

@@ -22,11 +22,14 @@ from fastapi.responses import Response
 
 from models import (
     CalculationInput, IterationInput, IFCExportInput, PDFExportInput,
-    SettlementInput, SettlementIterationInput,
+    SettlementInput, SettlementIterationInput, CompareSettlementsInput,
 )
 from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
-from calculos.settlement import calculate_total_settlement, iterate_qadm_vs_B
+from calculos.settlement import (
+    calculate_total_settlement, iterate_qadm_vs_B,
+    clasificar_bjerrum, cumple_sin_grietas,
+)
 from services.ifc_generator import generate_ifc
 from services.latex_generator import generate_latex, compile_latex_to_pdf
 
@@ -166,6 +169,54 @@ def export_pdf(input_data: PDFExportInput):
         raise HTTPException(status_code=500, detail=f"Error generando PDF: {str(e)}")
 
 
+def _run_settlement_from_raw(raw: dict) -> dict:
+    """
+    Ejecuta `calculate_total_settlement` a partir de un dict (model_dump de
+    SettlementInput o NamedSettlementInput). Devuelve el resultado con
+    `q_aplicada_net` adjunto. Helper compartido por los endpoints individual
+    y de comparación multi-zapata.
+    """
+    f = raw["foundation"]
+    Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
+    Df_abs = f["Df"] + Ds
+
+    # q aplicada NETA: q_total − γ·Df. Si Q no se provee, se omite S_total.
+    q_net = None
+    if isinstance(f.get("Q"), (int, float)) and f["Q"] > 0:
+        # área = B·L (Meyerhof B' NO acopla con asentamiento, D A.13)
+        area = f["B"] * f["L"]
+        q_total = f["Q"] / area
+        depth = 0.0
+        gamma_sum = 0.0
+        depth_sum = 0.0
+        for s in raw["strata"]:
+            top = depth
+            bot = depth + s["thickness"]
+            depth = bot
+            if top >= Df_abs:
+                break
+            h = min(bot, Df_abs) - top
+            if h > 0:
+                gamma_sum += s["gamma"] * h
+                depth_sum += h
+        gamma_avg = (gamma_sum / depth_sum) if depth_sum > 0 else 18.0
+        q_net = q_total - gamma_avg * Df_abs
+        if q_net < 0:
+            q_net = 0.0
+
+    result = calculate_total_settlement(
+        foundation=f,
+        strata=raw["strata"],
+        Df_abs=Df_abs,
+        settlement_params=raw["settlement"],
+        conditions=raw["conditions"],
+        qadm_falla=raw.get("qadm_falla"),
+        q_aplicada_net=q_net,
+    )
+    result["q_aplicada_net"] = q_net
+    return result
+
+
 @app.post("/api/calculate-settlement")
 def calculate_settlement_endpoint(input_data: SettlementInput):
     """
@@ -174,52 +225,93 @@ def calculate_settlement_endpoint(input_data: SettlementInput):
     Ver `MOTOR_ASENTAMIENTOS.md` para el contrato detallado.
     """
     try:
-        raw = input_data.model_dump()
-        f = raw["foundation"]
-        Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
-        Df_abs = f["Df"] + Ds
-
-        # q aplicada NETA: q_total − γ·Df. Usamos γ del estrato bajo la base
-        # como aproximación. Si Q no se provee, se omite el cálculo de S_total.
-        q_net = None
-        if isinstance(f.get("Q"), (int, float)) and f["Q"] > 0:
-            # área = B·L (Meyerhof B' NO acopla con asentamiento, D A.13)
-            area = f["B"] * f["L"]
-            q_total = f["Q"] / area
-            # γ promedio en [0, Df_abs] (aproximación)
-            depth = 0.0
-            gamma_sum = 0.0
-            depth_sum = 0.0
-            for s in raw["strata"]:
-                top = depth
-                bot = depth + s["thickness"]
-                depth = bot
-                if top >= Df_abs:
-                    break
-                h = min(bot, Df_abs) - top
-                if h > 0:
-                    gamma_sum += s["gamma"] * h
-                    depth_sum += h
-            gamma_avg = (gamma_sum / depth_sum) if depth_sum > 0 else 18.0
-            q_net = q_total - gamma_avg * Df_abs
-            if q_net < 0:
-                q_net = 0.0
-
-        result = calculate_total_settlement(
-            foundation=f,
-            strata=raw["strata"],
-            Df_abs=Df_abs,
-            settlement_params=raw["settlement"],
-            conditions=raw["conditions"],
-            qadm_falla=raw.get("qadm_falla"),
-            q_aplicada_net=q_net,
-        )
-        result["q_aplicada_net"] = q_net
-        return result
+        return _run_settlement_from_raw(input_data.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en asentamiento: {str(e)}")
+
+
+@app.post("/api/compare-settlements")
+def compare_settlements_endpoint(input_data: CompareSettlementsInput):
+    """
+    Compara N zapatas: calcula S_total para cada una y devuelve la matriz
+    de asentamientos diferenciales (δ_ij), distorsiones angulares (β_ij),
+    el peor par y la clasificación Bjerrum.
+
+    Convención de unidades:
+      - δ_ij en metros (igual que S_total).
+      - β_ij = δ_ij / spans_ij  (adimensional).
+      - spans en metros (input).
+    """
+    try:
+        raw = input_data.model_dump()
+        footings_raw = raw["footings"]
+        spans = raw["spans"]
+        n = len(footings_raw)
+
+        # 1. Calcular cada zapata.
+        per_footing = []
+        for f_raw in footings_raw:
+            res = _run_settlement_from_raw(f_raw)
+            S_total = res.get("S_total")
+            if S_total is None:
+                # Si no hay Q, no podemos comparar asentamientos. Forzar Q.
+                raise ValueError(
+                    f"Zapata {f_raw['id']!r}: falta `Q` en foundation "
+                    f"(necesario para calcular S_total)."
+                )
+            per_footing.append({
+                "id": f_raw["id"],
+                "S_total": S_total,
+                "S_total_mm": S_total * 1000.0,
+                "Se": res.get("Se_corr"),
+                "Sc_p": res.get("Sc"),
+                "Sc_s": res.get("Sc_s"),
+                "warnings": res.get("warnings", []),
+            })
+
+        # 2. Matrices δ_ij y β_ij.
+        delta_matrix: list[list[float]] = [[0.0] * n for _ in range(n)]
+        beta_matrix: list[list[float]] = [[0.0] * n for _ in range(n)]
+        worst = {"i": 0, "j": 0, "beta": 0.0, "delta": 0.0,
+                 "id_a": None, "id_b": None, "span": 0.0}
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    continue
+                d = abs(per_footing[i]["S_total"] - per_footing[j]["S_total"])
+                L_span = spans[i][j]
+                b = d / L_span if L_span > 0 else 0.0
+                delta_matrix[i][j] = d
+                beta_matrix[i][j] = b
+                if b > worst["beta"]:
+                    worst = {
+                        "i": i, "j": j, "beta": b, "delta": d,
+                        "id_a": per_footing[i]["id"],
+                        "id_b": per_footing[j]["id"],
+                        "span": L_span,
+                    }
+
+        # 3. Clasificación Bjerrum del peor par.
+        bjerrum = clasificar_bjerrum(worst["beta"])
+        bjerrum["cumple_sin_grietas"] = cumple_sin_grietas(worst["beta"])
+        bjerrum["beta"] = worst["beta"]
+        bjerrum["beta_1_over_N"] = (1.0 / worst["beta"]) if worst["beta"] > 0 else float("inf")
+
+        return {
+            "footings": per_footing,
+            "spans": spans,
+            "delta_matrix": delta_matrix,
+            "delta_matrix_mm": [[v * 1000.0 for v in row] for row in delta_matrix],
+            "beta_matrix": beta_matrix,
+            "worst": worst,
+            "bjerrum": bjerrum,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en comparación: {str(e)}")
 
 
 @app.post("/api/iterate-settlement")

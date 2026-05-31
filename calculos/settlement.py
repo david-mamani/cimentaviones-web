@@ -46,6 +46,8 @@ BETA_TABLE_DAS_9_1 = {
 
 
 # RNE E.050 — Tabla 8: Distorsión angular admisible α = δ/L
+# (entrada 1/600 — peligro_porticos_diagonales — añadida desde Bjerrum 1963
+# para cubrir el rango faltante respecto al documento de auditoría.)
 DISTORTION_LIMITS_RNE_E050 = {
     "danio_estructural_edif_convencional":     1.0 / 150,
     "perdida_verticalidad_edif_altos_rigidos": 1.0 / 250,
@@ -53,9 +55,59 @@ DISTORTION_LIMITS_RNE_E050 = {
     "primeras_grietas_paredes":                1.0 / 300,
     "limite_seguro_sin_grietas":               1.0 / 500,
     "cimentaciones_rigidas_circulares_anillo": 1.0 / 500,
+    "peligro_porticos_diagonales":             1.0 / 600,
     "edif_rigidos_concreto_solado_1_20m":      1.0 / 650,
     "maquinaria_sensible_asentamientos":       1.0 / 750,
 }
+
+
+# Categorías ordenadas de la MÁS severa (β grande) a la MÁS leve (β chico).
+# Cada entrada es (clave, β_limite, etiqueta legible).
+BJERRUM_SEVERITY_ORDER = [
+    ("danio_estructural_edif_convencional",
+     1.0 / 150, "Daño estructural en edificios convencionales (β > 1/150)"),
+    ("perdida_verticalidad_edif_altos_rigidos",
+     1.0 / 250, "Pérdida de verticalidad en edificios altos rígidos (β > 1/250)"),
+    ("dificultades_puentes_grua",
+     1.0 / 300, "Dificultades con puentes-grúa / primeras grietas (β > 1/300)"),
+    ("peligro_porticos_diagonales",
+     1.0 / 600, "Peligro en pórticos con diagonales (β > 1/600)"),
+    ("limite_seguro_sin_grietas",
+     1.0 / 500, "Límite seguro sin grietas en edificios (β > 1/500)"),
+    ("maquinaria_sensible_asentamientos",
+     1.0 / 750, "Peligro para maquinaria sensible a asentamientos (β > 1/750)"),
+]
+
+
+def clasificar_bjerrum(beta: float) -> dict:
+    """
+    Devuelve la categoría Bjerrum/RNE más severa cuyo límite es excedido por β.
+
+    Si β no supera ningún límite (β ≤ 1/750), devuelve "sin_riesgo".
+    """
+    if beta < 0:
+        raise ValueError(f"β debe ser ≥ 0 (β={beta}).")
+    for clave, limite, etiqueta in BJERRUM_SEVERITY_ORDER:
+        if beta > limite:
+            return {
+                "categoria_clave": clave,
+                "categoria_label": etiqueta,
+                "limite_excedido": limite,
+                "limite_1_over_N": (1.0 / limite) if limite > 0 else float("inf"),
+            }
+    return {
+        "categoria_clave": "sin_riesgo",
+        "categoria_label": "β dentro de todos los límites (sin riesgo)",
+        "limite_excedido": None,
+        "limite_1_over_N": None,
+    }
+
+
+def cumple_sin_grietas(beta: float) -> bool:
+    """β ≤ 1/500 (límite seguro sin grietas, Bjerrum)."""
+    if beta < 0:
+        raise ValueError(f"β debe ser ≥ 0 (β={beta}).")
+    return beta <= DISTORTION_LIMITS_RNE_E050["limite_seguro_sin_grietas"]
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -666,6 +718,58 @@ def consolidation_settlement(
 
 
 # ═══════════════════════════════════════════════════════════════
+# 10.b CONSOLIDACIÓN SECUNDARIA Sc(s) — Das Ecs. 9.91–9.92
+# ═══════════════════════════════════════════════════════════════
+#
+#   C'α = Cα / (1 + e_p)
+#   Sc_s = C'α · Hc · log10(t2 / t1)
+#
+# Convención del curso: t1, t2 en AÑOS (entrada del usuario). e_p y Cα
+# por estrato arcilloso (dependen del suelo).
+
+def secondary_consolidation_settlement(
+    Hc: float, Calpha: float, ep: float, t1: float, t2: float,
+) -> dict:
+    """
+    Asentamiento por consolidación secundaria (creep) en un estrato arcilloso.
+
+    Args:
+        Hc:     espesor del estrato (m)
+        Calpha: índice de compresión secundaria (-)
+        ep:     relación de vacíos al final de la consolidación primaria (-)
+        t1:     tiempo al final de la consolidación primaria (años)
+        t2:     tiempo de vida útil o de evaluación (años)
+
+    Returns:
+        dict con Sc_s, Sc_s_mm, C_alpha_prime, formula_used.
+    """
+    if Hc <= 0:
+        raise ValueError(f"Hc debe ser > 0 (Hc={Hc}).")
+    if Calpha <= 0:
+        raise ValueError(f"Cα debe ser > 0 (Cα={Calpha}).")
+    if ep <= -1.0:
+        raise ValueError(f"e_p debe ser > -1 para que (1+e_p) > 0 (e_p={ep}).")
+    if t1 <= 0 or t2 <= 0:
+        raise ValueError(f"t1 y t2 deben ser > 0 (t1={t1}, t2={t2}).")
+    if t2 <= t1:
+        raise ValueError(
+            f"t2 ({t2}) debe ser > t1 ({t1}) para que log10(t2/t1) > 0."
+        )
+
+    C_alpha_prime = Calpha / (1.0 + ep)
+    Sc_s = C_alpha_prime * Hc * math.log10(t2 / t1)
+    return {
+        "Sc_s": Sc_s,
+        "Sc_s_mm": Sc_s * 1000.0,
+        "C_alpha_prime": C_alpha_prime,
+        "Hc": Hc,
+        "t1": t1,
+        "t2": t2,
+        "formula_used": "C'α·Hc·log10(t2/t1) con C'α = Cα/(1+e_p)",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
 # 11. CORRELACIONES Es (Das §9)
 # ═══════════════════════════════════════════════════════════════
 
@@ -882,7 +986,27 @@ def calculate_total_settlement(
 
     # ── 7. Sc por estratos arcillosos (opcional) ──────────────────
     sc_layers: list = []
+    scs_layers: list = []
     Sc_total = 0.0
+    Sc_s_total = 0.0
+
+    # ── 7.0 Parámetros de consolidación secundaria (Sc_s) ─────────
+    # t1, t2 son globales (vida útil de la obra). Cα y e_p son por
+    # estrato arcilloso. Si t1 o t2 no se proveen, Sc_s se omite.
+    t1_global = settlement_params.get("t1")
+    t2_global = settlement_params.get("t2")
+    secondary_enabled = (
+        isinstance(t1_global, (int, float)) and t1_global > 0
+        and isinstance(t2_global, (int, float)) and t2_global > t1_global
+    )
+
+    # Kcr Skempton–Bjerrum: ajuste 3D de la consolidación primaria.
+    # Default 1.0. TODO: digitalizar el ábaco para selección automática
+    # según f(B/H, geometría, OCR). Hoy se acepta override manual.
+    Kcr = settlement_params.get("Kcr", 1.0)
+    if not isinstance(Kcr, (int, float)) or Kcr <= 0:
+        raise ValueError(f"Kcr debe ser > 0 (Kcr={Kcr}).")
+
     if settlement_params.get("consolidation", False) and isinstance(q_aplicada_net, (int, float)) and q_aplicada_net > 0:
         # Recorrer estratos arcillosos en la zona de influencia
         depth = 0.0
@@ -939,11 +1063,39 @@ def calculate_total_settlement(
                 warnings.append(
                     f"Estrato {i}: no se pudo calcular Sc ({type(e).__name__}: {e})."
                 )
+                continue
 
-    # ── 8. S_total ────────────────────────────────────────────────
+            # ── 7.b Sc_s (consolidación secundaria) — Das Ecs. 9.91–9.92
+            if secondary_enabled:
+                Calpha = st.get("Calpha")
+                ep = st.get("ep")
+                if Calpha is None or ep is None:
+                    warnings.append(
+                        f"Estrato {i}: t1/t2 globales presentes pero faltan "
+                        f"Cα y/o e_p en el estrato. Se omite Sc_s."
+                    )
+                else:
+                    try:
+                        scs = secondary_consolidation_settlement(
+                            Hc=Hc, Calpha=Calpha, ep=ep,
+                            t1=t1_global, t2=t2_global,
+                        )
+                        scs["stratum_index"] = i
+                        scs_layers.append(scs)
+                        Sc_s_total += scs["Sc_s"]
+                    except ValueError as e:
+                        warnings.append(
+                            f"Estrato {i}: no se pudo calcular Sc_s ({e})."
+                        )
+
+    # ── 7.c Ajuste Skempton–Bjerrum 3D sobre Sc primario ──────────
+    Sc_total_oed = Sc_total
+    Sc_total *= Kcr
+
+    # ── 8. S_total = Se + Sc_p + Sc_s ─────────────────────────────
     S_max = settlement_params.get("S_max", 0.025)
     Se_corr = se_data["Se_corr"] if se_data else 0.0
-    S_total = Se_corr + Sc_total
+    S_total = Se_corr + Sc_total + Sc_s_total
     Se_ok = S_total <= S_max
 
     # ── 9. qadm_asentamiento (inversión) ──────────────────────────
@@ -993,6 +1145,15 @@ def calculate_total_settlement(
         "consolidation_layers": sc_layers,
         "Sc": Sc_total if sc_layers else None,
         "Sc_mm": (Sc_total * 1000.0) if sc_layers else None,
+        "Sc_oedometrico": Sc_total_oed if sc_layers else None,
+        "Sc_oedometrico_mm": (Sc_total_oed * 1000.0) if sc_layers else None,
+        "Kcr": Kcr,
+
+        "secondary_layers": scs_layers,
+        "Sc_s": Sc_s_total if scs_layers else None,
+        "Sc_s_mm": (Sc_s_total * 1000.0) if scs_layers else None,
+        "t1": t1_global if secondary_enabled else None,
+        "t2": t2_global if secondary_enabled else None,
 
         "S_total": S_total if se_data else None,
         "S_total_mm": (S_total * 1000.0) if se_data else None,
