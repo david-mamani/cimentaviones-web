@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { CalculationMethod, FoundationType, EffectiveAreaMethod, Stratum } from '../../types/geotechnical';
+import type { CalculationMethod, FoundationType, Stratum } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
 import { ChevronDown, ChevronRight, Plus, X, Frame, ArrowDownToLine, GitCompare } from 'lucide-react';

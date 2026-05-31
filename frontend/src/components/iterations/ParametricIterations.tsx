@@ -562,7 +562,8 @@ export default function ParametricIterations() {
             </div>
           </div>
 
-          {/* Annotations — log Lucid */}
+          {/* Annotations — log Lucid (sólo en modo simple) */}
+          {iterResult && (<>
           <div style={{
             background: 'var(--lucid-surface-page)',
             border: '1px solid var(--lucid-rule-cream)',
@@ -714,6 +715,7 @@ export default function ParametricIterations() {
               })()}
             </div>
           </div>
+          </>)}
         </div>
       )}
     </div>

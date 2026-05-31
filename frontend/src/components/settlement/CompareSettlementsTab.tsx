@@ -50,7 +50,6 @@ export default function CompareSettlementsTab() {
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const siToOutput = useUnitStore((s) => s.siToOutput);
   const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
 
   // ── Helpers para mantener spans NxN simétrico con diagonal 0 ──
