@@ -220,7 +220,7 @@ class IterationFamilyInput(BaseModel):
 # ──────────────────────────────────────────────────────────────────
 
 class SettlementParams(BaseModel):
-    """Parámetros del bloque de asentamientos (ver MOTOR_ASENTAMIENTOS.md §1.2)."""
+    """Parámetros del bloque de asentamientos."""
     S_max: float = Field(default=0.025, gt=0, description="Asentamiento admisible (m)")
     point: Literal["centro", "esquina"] = "centro"
     rigid: bool = False

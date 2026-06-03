@@ -1,8 +1,7 @@
 """
 Cálculo de asentamientos para cimentaciones superficiales.
 
-Implementa las decisiones documentadas en `MOTOR_ASENTAMIENTOS.md`
-(D A.1 … D A.20) tras la consulta a NotebookLM (Das 8/9ed §9 +
+Implementa el bloque de asentamientos tras la consulta a NotebookLM (Das 8/9ed §9 +
 Bowles + RNE E.050):
 
   1. Zona de influencia z̄ = min(H, 5·B)                       [D A.1]
@@ -907,15 +906,14 @@ def calculate_total_settlement(
     q_aplicada_net: Optional[float] = None,
 ) -> dict:
     """
-    Orquesta el cálculo de asentamiento siguiendo el flujo del §17
-    de `MOTOR_ASENTAMIENTOS.md`.
+    Orquesta el cálculo de asentamiento.
 
     Args:
         foundation: {B, L, Df}
         strata:     [{thickness, gamma, gammaSat, Es?, mu_s?, is_clay?,
                       Cc?, Cs?, e0?, sigma_c?}, ...]
         Df_abs:     profundidad absoluta de la base = Df + Ds (sótano)
-        settlement_params: ver `MOTOR_ASENTAMIENTOS.md §1.2`
+        settlement_params: parámetros globales de asentamiento.
         conditions: {hasWaterTable, waterTableDepth, hasBasement,
                       basementDepth} — opcional, para Cw y σ'₀
         qadm_falla: kPa neta — para min(falla, asent). Si None ⇒ se omite

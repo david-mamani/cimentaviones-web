@@ -224,7 +224,7 @@ def calculate_settlement_endpoint(input_data: SettlementInput):
     """
     Cálculo del bloque de asentamientos (Steinbrenner + Fox + Cw + Sc).
 
-    Ver `MOTOR_ASENTAMIENTOS.md` para el contrato detallado.
+    Retorna el cálculo de asentamiento total y presión admisible.
     """
     try:
         return _run_settlement_from_raw(input_data.model_dump())

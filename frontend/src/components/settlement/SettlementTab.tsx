@@ -1,7 +1,7 @@
 /**
  * SettlementTab — Pestaña dedicada "Asentamientos".
  *
- * Convención del curso (Das §9 + RNE E.050), MOTOR_ASENTAMIENTOS.md:
+ * Convención del curso (Das §9 + RNE E.050):
  *   - z̄ = min(H, 5·B); Es_eq promedio ponderado por espesor
  *   - μ del estrato bajo la base (NO se promedia)
  *   - Steinbrenner Is con fix arctan; Is = F1 si μ=0.5

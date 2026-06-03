@@ -2,7 +2,7 @@
 Tests del motor de asentamientos (`calculos/settlement.py`).
 
 Cubre las decisiones D A.1 … D A.20 documentadas en
-`MOTOR_ASENTAMIENTOS.md`.
+el bloque de asentamientos.
 """
 import math
 import pytest

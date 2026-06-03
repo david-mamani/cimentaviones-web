@@ -136,7 +136,7 @@ export interface MethodCriteriaBlock {
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Asentamientos (Steinbrenner + Fox + Cw + Sc)  — MOTOR_ASENTAMIENTOS.md
+ * Asentamientos (Steinbrenner + Fox + Cw + Sc)
  * ────────────────────────────────────────────────────────────────── */
 
 export type SettlementPoint = 'centro' | 'esquina';
