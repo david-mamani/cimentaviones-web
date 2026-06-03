@@ -69,6 +69,9 @@ interface FoundationState {
 
   // Iteration config
   iterationConfig: IterationConfig;
+  parametricUiConfig: ParametricUiConfig;
+  settlementUiConfig: SettlementUiConfig;
+  compareSettlementConfig: CompareSettlementConfig;
 
   // Loading state
   isCalculating: boolean;
@@ -118,6 +121,9 @@ interface FoundationState {
   setIterationResults: (data: IterationResult) => void;
   clearIterationResults: () => void;
   setIterationConfig: (config: IterationConfig) => void;
+  setParametricUiConfig: (config: Partial<ParametricUiConfig>) => void;
+  setSettlementUiConfig: (config: Partial<SettlementUiConfig>) => void;
+  setCompareSettlementConfig: (config: CompareSettlementConfig) => void;
 
   // Acciones - Proyecto
   loadProject: (data: ProjectData) => void;
@@ -127,6 +133,43 @@ interface FoundationState {
 export interface IterationConfig {
   varyB: boolean; bStart: number; bEnd: number; bStep: number;
   varyDf: boolean; dfStart: number; dfEnd: number; dfStep: number;
+}
+
+export interface ParametricUiConfig {
+  familyMode: boolean;
+  familyRatios: number[];
+  chartMetric: 'qa' | 'Qmax';
+}
+
+export interface SettlementRange1D {
+  B_start: number;
+  B_end: number;
+  B_step: number;
+}
+
+export interface SettlementRange2D extends SettlementRange1D {
+  Df_start: number;
+  Df_end: number;
+  Df_step: number;
+}
+
+export interface SettlementUiConfig {
+  viewMode: 'perfil' | 'qadm' | 'qadm2d';
+  iterRange: SettlementRange1D;
+  iter2D: SettlementRange2D;
+}
+
+export interface CompareSettlementFooting {
+  id: string;
+  B: number;
+  L: number;
+  Df: number;
+  Q: number;
+}
+
+export interface CompareSettlementConfig {
+  footings: CompareSettlementFooting[];
+  spans: number[][];
 }
 
 /** Datos serializables del proyecto */
@@ -140,6 +183,10 @@ export interface ProjectData {
   eccentricityInputMode?: EccentricityInputMode;
   iterationConfig?: IterationConfig;
   selectedCriterion?: CriterionKey;
+  settlementParams?: SettlementParams;
+  parametricUiConfig?: ParametricUiConfig;
+  settlementUiConfig?: SettlementUiConfig;
+  compareSettlementConfig?: CompareSettlementConfig;
 }
 
 const defaultFoundation: FoundationParams = {
@@ -175,6 +222,37 @@ const defaultSettlementParams: SettlementParams = {
   t1: null,
   t2: null,
   Kcr: 1.0,
+};
+
+const defaultIterationConfig: IterationConfig = {
+  varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
+  varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+};
+
+const defaultParametricUiConfig: ParametricUiConfig = {
+  familyMode: false,
+  familyRatios: [1, 2, 3, 5, 10],
+  chartMetric: 'qa',
+};
+
+const defaultSettlementUiConfig: SettlementUiConfig = {
+  viewMode: 'perfil',
+  iterRange: { B_start: 1.0, B_end: 3.0, B_step: 0.2 },
+  iter2D: {
+    B_start: 1.0, B_end: 3.0, B_step: 0.2,
+    Df_start: 1.0, Df_end: 3.0, Df_step: 0.2,
+  },
+};
+
+const defaultCompareSettlementConfig: CompareSettlementConfig = {
+  footings: [
+    { id: 'Z1', B: 1.6, L: 2.0, Df: 1.6, Q: 50 },
+    { id: 'Z2', B: 1.6, L: 2.0, Df: 1.6, Q: 70 },
+  ],
+  spans: [
+    [0, 5.8],
+    [5.8, 0],
+  ],
 };
 
 function createDefaultStratum(): Stratum {
@@ -247,9 +325,16 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   settlementIteration: null,
   isCalculatingSettlement: false,
   iterationResults: null,
-  iterationConfig: {
-    varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
-    varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+  iterationConfig: { ...defaultIterationConfig },
+  parametricUiConfig: { ...defaultParametricUiConfig },
+  settlementUiConfig: {
+    ...defaultSettlementUiConfig,
+    iterRange: { ...defaultSettlementUiConfig.iterRange },
+    iter2D: { ...defaultSettlementUiConfig.iter2D },
+  },
+  compareSettlementConfig: {
+    footings: defaultCompareSettlementConfig.footings.map((f) => ({ ...f })),
+    spans: defaultCompareSettlementConfig.spans.map((row) => [...row]),
   },
   isCalculating: false,
 
@@ -527,6 +612,27 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   setIterationResults: (data) => set({ iterationResults: data }),
   clearIterationResults: () => set({ iterationResults: null }),
   setIterationConfig: (config) => set({ iterationConfig: config }),
+  setParametricUiConfig: (config) => set((state) => ({
+    parametricUiConfig: { ...state.parametricUiConfig, ...config },
+  })),
+  setSettlementUiConfig: (config) => set((state) => ({
+    settlementUiConfig: {
+      ...state.settlementUiConfig,
+      ...config,
+      iterRange: config.iterRange
+        ? { ...state.settlementUiConfig.iterRange, ...config.iterRange }
+        : state.settlementUiConfig.iterRange,
+      iter2D: config.iter2D
+        ? { ...state.settlementUiConfig.iter2D, ...config.iter2D }
+        : state.settlementUiConfig.iter2D,
+    },
+  })),
+  setCompareSettlementConfig: (config) => set({
+    compareSettlementConfig: {
+      footings: config.footings.map((f) => ({ ...f })),
+      spans: config.spans.map((row) => [...row]),
+    },
+  }),
 
   reset: () => {
     stratumCounter = 0;
@@ -546,9 +652,16 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       settlementIteration: null,
       isCalculatingSettlement: false,
       iterationResults: null,
-      iterationConfig: {
-        varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
-        varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+      iterationConfig: { ...defaultIterationConfig },
+      parametricUiConfig: { ...defaultParametricUiConfig },
+      settlementUiConfig: {
+        ...defaultSettlementUiConfig,
+        iterRange: { ...defaultSettlementUiConfig.iterRange },
+        iter2D: { ...defaultSettlementUiConfig.iter2D },
+      },
+      compareSettlementConfig: {
+        footings: defaultCompareSettlementConfig.footings.map((f) => ({ ...f })),
+        spans: defaultCompareSettlementConfig.spans.map((row) => [...row]),
       },
       isCalculating: false,
     });
@@ -588,9 +701,30 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       lbLocked: data.lbLocked ?? false,
       lbRatio: data.lbRatio ?? 2.0,
       eccentricityInputMode: data.eccentricityInputMode ?? 'M',
-      iterationConfig: data.iterationConfig ?? {
-        varyB: true, bStart: 1.0, bEnd: 3.0, bStep: 0.5,
-        varyDf: false, dfStart: 1.0, dfEnd: 3.0, dfStep: 0.5,
+      settlementParams: { ...defaultSettlementParams, ...(data.settlementParams ?? {}) },
+      iterationConfig: data.iterationConfig ?? { ...defaultIterationConfig },
+      parametricUiConfig: {
+        ...defaultParametricUiConfig,
+        ...(data.parametricUiConfig ?? {}),
+        familyRatios: data.parametricUiConfig?.familyRatios ?? defaultParametricUiConfig.familyRatios,
+      },
+      settlementUiConfig: {
+        ...defaultSettlementUiConfig,
+        ...(data.settlementUiConfig ?? {}),
+        iterRange: {
+          ...defaultSettlementUiConfig.iterRange,
+          ...(data.settlementUiConfig?.iterRange ?? {}),
+        },
+        iter2D: {
+          ...defaultSettlementUiConfig.iter2D,
+          ...(data.settlementUiConfig?.iter2D ?? {}),
+        },
+      },
+      compareSettlementConfig: {
+        footings: (data.compareSettlementConfig?.footings ?? defaultCompareSettlementConfig.footings)
+          .map((f) => ({ ...f })),
+        spans: (data.compareSettlementConfig?.spans ?? defaultCompareSettlementConfig.spans)
+          .map((row) => [...row]),
       },
       result: null,
       errors: [],

@@ -39,13 +39,32 @@ export default function Toolbar({
   const loadProject = useFoundationStore((s) => s.loadProject);
   const lbLocked = useFoundationStore((s) => s.lbLocked);
   const lbRatio = useFoundationStore((s) => s.lbRatio);
+  const eccentricityInputMode = useFoundationStore((s) => s.eccentricityInputMode);
+  const selectedCriterion = useFoundationStore((s) => s.selectedCriterion);
+  const iterationConfig = useFoundationStore((s) => s.iterationConfig);
+  const settlementParams = useFoundationStore((s) => s.settlementParams);
+  const parametricUiConfig = useFoundationStore((s) => s.parametricUiConfig);
+  const settlementUiConfig = useFoundationStore((s) => s.settlementUiConfig);
+  const compareSettlementConfig = useFoundationStore((s) => s.compareSettlementConfig);
 
   const [showCredits, setShowCredits] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveProject = () => {
     const data: ProjectData = {
-      foundation, strata, conditions, method, lbLocked, lbRatio,
+      foundation,
+      strata,
+      conditions,
+      method,
+      lbLocked,
+      lbRatio,
+      eccentricityInputMode,
+      selectedCriterion,
+      iterationConfig,
+      settlementParams,
+      parametricUiConfig,
+      settlementUiConfig,
+      compareSettlementConfig,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

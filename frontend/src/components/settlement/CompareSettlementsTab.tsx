@@ -13,23 +13,18 @@
  */
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
+import type { CompareSettlementFooting } from '../../store/foundationStore';
 import { useUnitStore } from '../../store/unitStore';
 import CadNumericInput from '../common/CadNumericInput';
 import { Play, Plus, X, Loader2 } from 'lucide-react';
 
 const G = 9.80665;
 
-interface FootingInput {
-  id: string;
-  B: number;
-  L: number;
-  Df: number;
-  Q: number;   // tnf
-}
-
-let footingCounter = 0;
-function makeFooting(B = 1.6, L = 2.0, Df = 1.6, Q = 50): FootingInput {
-  return { id: `Z${++footingCounter}`, B, L, Df, Q };
+function makeFooting(existing: CompareSettlementFooting[]): CompareSettlementFooting {
+  const used = new Set(existing.map((f) => f.id));
+  let n = existing.length + 1;
+  while (used.has(`Z${n}`)) n += 1;
+  return { id: `Z${n}`, B: 1.6, L: 2.0, Df: 1.6, Q: 50 };
 }
 
 export default function CompareSettlementsTab() {
@@ -37,15 +32,10 @@ export default function CompareSettlementsTab() {
   const conditions = useFoundationStore((s) => s.conditions);
   const settlementParams = useFoundationStore((s) => s.settlementParams);
   const fStore = useFoundationStore((s) => s.foundation);
+  const compareSettlementConfig = useFoundationStore((s) => s.compareSettlementConfig);
+  const setCompareSettlementConfig = useFoundationStore((s) => s.setCompareSettlementConfig);
 
-  const [footings, setFootings] = useState<FootingInput[]>([
-    makeFooting(1.6, 2.0, 1.6, 50),
-    makeFooting(1.6, 2.0, 1.6, 70),
-  ]);
-  const [spans, setSpans] = useState<number[][]>([
-    [0, 5.8],
-    [5.8, 0],
-  ]);
+  const { footings, spans } = compareSettlementConfig;
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,9 +58,8 @@ export default function CompareSettlementsTab() {
   }
 
   const addFooting = () => {
-    const next = [...footings, makeFooting()];
-    setFootings(next);
-    setSpans(resizeSpans(next.length, spans));
+    const next = [...footings, makeFooting(footings)];
+    setCompareSettlementConfig({ footings: next, spans: resizeSpans(next.length, spans) });
   };
 
   const removeFooting = (idx: number) => {
@@ -79,12 +68,14 @@ export default function CompareSettlementsTab() {
     const nextSpans = spans
       .filter((_, i) => i !== idx)
       .map((row) => row.filter((_, j) => j !== idx));
-    setFootings(next);
-    setSpans(nextSpans);
+    setCompareSettlementConfig({ footings: next, spans: nextSpans });
   };
 
-  const updateFooting = (idx: number, patch: Partial<FootingInput>) => {
-    setFootings(footings.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+  const updateFooting = (idx: number, patch: Partial<CompareSettlementFooting>) => {
+    setCompareSettlementConfig({
+      footings: footings.map((f, i) => (i === idx ? { ...f, ...patch } : f)),
+      spans,
+    });
   };
 
   const updateSpan = (i: number, j: number, value: number) => {
@@ -92,7 +83,7 @@ export default function CompareSettlementsTab() {
     const next = spans.map((row) => [...row]);
     next[i][j] = value;
     next[j][i] = value;   // mantener simétrica
-    setSpans(next);
+    setCompareSettlementConfig({ footings, spans: next });
   };
 
   const run = async () => {

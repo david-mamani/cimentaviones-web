@@ -50,13 +50,12 @@ export default function ParametricIterations() {
 
   const config = useFoundationStore((s) => s.iterationConfig);
   const setConfig = useFoundationStore((s) => s.setIterationConfig);
+  const parametricUiConfig = useFoundationStore((s) => s.parametricUiConfig);
+  const setParametricUiConfig = useFoundationStore((s) => s.setParametricUiConfig);
 
   const [iterResult, setIterResult] = useState<IterationResult | null>(null);
   // Modo familia: corre múltiples L/B en una sola pasada.
-  const [familyMode, setFamilyMode] = useState(false);
-  const [familyRatios, setFamilyRatios] = useState<number[]>([1, 2, 3, 5, 10]);
   const [familyResult, setFamilyResult] = useState<any | null>(null);
-  const [chartMetric, setChartMetric] = useState<'qa' | 'Qmax'>('qa');
   const [loading, setLoading] = useState(false);
   const [chartHeight, setChartHeight] = useState(CHART_DEFAULT_HEIGHT);
   const chartHRef = useRef(CHART_DEFAULT_HEIGHT);
@@ -121,6 +120,7 @@ export default function ParametricIterations() {
 
   const lbLocked = useFoundationStore((s) => s.lbLocked);
   const lbRatio = useFoundationStore((s) => s.lbRatio);
+  const { familyMode, familyRatios, chartMetric } = parametricUiConfig;
 
   const handleRun = async () => {
     if (!config.varyB && !config.varyDf) return;
@@ -416,7 +416,7 @@ export default function ParametricIterations() {
             <input
               type="checkbox" className="cad-checkbox"
               checked={familyMode}
-              onChange={(e) => setFamilyMode(e.target.checked)}
+              onChange={(e) => setParametricUiConfig({ familyMode: e.target.checked })}
             />
             Modo familia: correr múltiples L/B en una pasada
           </label>
@@ -436,7 +436,7 @@ export default function ParametricIterations() {
                   const parsed = e.target.value.split(',')
                     .map((s) => parseFloat(s.trim()))
                     .filter((n) => isFinite(n) && n > 0);
-                  if (parsed.length > 0) setFamilyRatios(parsed);
+                  if (parsed.length > 0) setParametricUiConfig({ familyRatios: parsed });
                 }}
                 style={{
                   width: '100%', padding: '6px 8px',
@@ -494,7 +494,7 @@ export default function ParametricIterations() {
             {/* Chart tabs + copy */}
             <div style={{ display: 'flex', gap: 0, marginBottom: 14, alignItems: 'center' }}>
               <button
-                onClick={() => setChartMetric('qa')}
+                onClick={() => setParametricUiConfig({ chartMetric: 'qa' })}
                 style={{
                   padding: '6px 18px',
                   background: 'transparent', border: 'none',
@@ -507,7 +507,7 @@ export default function ParametricIterations() {
                 q<sub>adm</sub> (tnf/m²)
               </button>
               <button
-                onClick={() => setChartMetric('Qmax')}
+                onClick={() => setParametricUiConfig({ chartMetric: 'Qmax' })}
                 style={{
                   padding: '6px 18px',
                   background: 'transparent', border: 'none',

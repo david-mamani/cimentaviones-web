@@ -40,15 +40,12 @@ export default function SettlementTab() {
   const calculateSettlementIteration = useFoundationStore(
     (s) => s.calculateSettlementIteration,
   );
+  const settlementUiConfig = useFoundationStore((s) => s.settlementUiConfig);
+  const setSettlementUiConfig = useFoundationStore((s) => s.setSettlementUiConfig);
 
-  const [viewMode, setViewMode] = useState<'perfil' | 'qadm' | 'qadm2d'>('perfil');
-  const [iterRange, setIterRange] = useState({ B_start: 1.0, B_end: 3.0, B_step: 0.2 });
-  const [iter2D, setIter2D] = useState({
-    B_start: 1.0, B_end: 3.0, B_step: 0.2,
-    Df_start: 1.0, Df_end: 3.0, Df_step: 0.2,
-  });
   const [iter2DResult, setIter2DResult] = useState<any | null>(null);
   const [iter2DLoading, setIter2DLoading] = useState(false);
+  const { viewMode, iterRange, iter2D } = settlementUiConfig;
 
   const runIter2D = async () => {
     setIter2DLoading(true);
@@ -152,9 +149,9 @@ export default function SettlementTab() {
             padding: 2,
             gap: 2,
           }}>
-            <ViewBtn active={viewMode === 'perfil'} onClick={() => setViewMode('perfil')}>Perfil</ViewBtn>
-            <ViewBtn active={viewMode === 'qadm'} onClick={() => setViewMode('qadm')}>qadm(B)</ViewBtn>
-            <ViewBtn active={viewMode === 'qadm2d'} onClick={() => setViewMode('qadm2d')}>qadm(B,Df)</ViewBtn>
+            <ViewBtn active={viewMode === 'perfil'} onClick={() => setSettlementUiConfig({ viewMode: 'perfil' })}>Perfil</ViewBtn>
+            <ViewBtn active={viewMode === 'qadm'} onClick={() => setSettlementUiConfig({ viewMode: 'qadm' })}>qadm(B)</ViewBtn>
+            <ViewBtn active={viewMode === 'qadm2d'} onClick={() => setSettlementUiConfig({ viewMode: 'qadm2d' })}>qadm(B,Df)</ViewBtn>
           </div>
         </div>
         <div style={{
@@ -178,7 +175,7 @@ export default function SettlementTab() {
               iteration={settlementIteration}
               onRun={() => calculateSettlementIteration(iterRange.B_start, iterRange.B_end, iterRange.B_step)}
               range={iterRange}
-              setRange={setIterRange}
+              setRange={(range) => setSettlementUiConfig({ iterRange: range })}
             />
           )}
           {viewMode === 'qadm2d' && (
@@ -186,7 +183,7 @@ export default function SettlementTab() {
               result={iter2DResult}
               loading={iter2DLoading}
               range={iter2D}
-              setRange={setIter2D}
+              setRange={(range) => setSettlementUiConfig({ iter2D: range })}
               onRun={runIter2D}
               pUnit={pUnit}
               toP={toP}
