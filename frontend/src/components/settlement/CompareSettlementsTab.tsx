@@ -1,16 +1,3 @@
-/**
- * CompareSettlementsTab — Comparador multi-zapata.
- *
- * Permite añadir N "zapatas" (cada una con su B, L, Df, Q) sobre el mismo
- * perfil estratigráfico (los estratos y condiciones se toman del store
- * principal). Define la matriz simétrica de luces entre apoyos y llama al
- * endpoint `POST /api/compare-settlements`.
- *
- * Devuelve:
- *   - S_total por zapata.
- *   - Matriz de asentamientos diferenciales δ_ij y distorsiones β_ij.
- *   - Peor par + categoría Bjerrum.
- */
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { CompareSettlementFooting } from '../../store/foundationStore';
@@ -42,7 +29,6 @@ export default function CompareSettlementsTab() {
 
   const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
 
-  // ── Helpers para mantener spans NxN simétrico con diagonal 0 ──
   function resizeSpans(newSize: number, current: number[][]): number[][] {
     const result: number[][] = [];
     for (let i = 0; i < newSize; i++) {
@@ -50,7 +36,7 @@ export default function CompareSettlementsTab() {
       for (let j = 0; j < newSize; j++) {
         if (i === j) row.push(0);
         else if (current[i]?.[j] != null) row.push(current[i][j]);
-        else row.push(5);   // default 5 m
+        else row.push(5);
       }
       result.push(row);
     }
@@ -82,7 +68,7 @@ export default function CompareSettlementsTab() {
     if (i === j) return;
     const next = spans.map((row) => [...row]);
     next[i][j] = value;
-    next[j][i] = value;   // mantener simétrica
+    next[j][i] = value;
     setCompareSettlementConfig({ footings, spans: next });
   };
 
@@ -156,7 +142,6 @@ export default function CompareSettlementsTab() {
           Comparar zapatas — asentamiento diferencial y distorsión (Bjerrum)
         </h2>
 
-        {/* ─── Zapatas ─── */}
         <Section title="Zapatas">
           <table style={tableStyle}>
             <thead>
@@ -200,7 +185,6 @@ export default function CompareSettlementsTab() {
           </button>
         </Section>
 
-        {/* ─── Matriz de luces ─── */}
         <Section title="Matriz de luces L_ij (m)">
           <table style={tableStyle}>
             <thead>
@@ -232,7 +216,6 @@ export default function CompareSettlementsTab() {
           </div>
         </Section>
 
-        {/* ─── Botón calcular ─── */}
         <button
           onClick={run}
           disabled={loading}
@@ -253,7 +236,6 @@ export default function CompareSettlementsTab() {
           </div>
         )}
 
-        {/* ─── Resultados ─── */}
         {result && (
           <>
             <Section title="Asentamiento total por zapata">
@@ -358,7 +340,6 @@ export default function CompareSettlementsTab() {
   );
 }
 
-/* ──────────── helpers ──────────── */
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

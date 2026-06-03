@@ -1,12 +1,7 @@
-/**
- * ParametricIterations — Iteration controls + Plotly.js interactive chart.
- * Hardcoded to Metric units (m, tnf/m², tnf).
- */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { IterationResult } from '../../types/geotechnical';
 import CadNumericInput from '../common/CadNumericInput';
-// @ts-expect-error — plotly.js-basic-dist-min no publica tipos; se usa la build minificada para reducir bundle
 import Plotly from 'plotly.js-basic-dist-min';
 import factoryModule from 'react-plotly.js/factory';
 const createPlotlyComponent = (factoryModule as { default?: typeof factoryModule }).default ?? factoryModule;
@@ -21,10 +16,8 @@ const MARKERS: Array<'circle' | 'square' | 'triangle-up' | 'diamond' | 'cross'> 
   'circle', 'square', 'triangle-up', 'diamond', 'cross',
 ];
 
-// SI to Metric conversion factor
 const G = 9.80665;
 
-// Chart layout
 const CHART_DEFAULT_HEIGHT = 320;
 const CHART_MIN_HEIGHT = 180;
 const CHART_MAX_HEIGHT = 700;
@@ -35,7 +28,6 @@ export default function ParametricIterations() {
   const conditions = useFoundationStore((s) => s.conditions);
   const method = useFoundationStore((s) => s.method);
 
-  // Theme detection for chart colors
   const [isLight, setIsLight] = useState(() =>
     document.documentElement.classList.contains('light-mode')
   );
@@ -54,7 +46,6 @@ export default function ParametricIterations() {
   const setParametricUiConfig = useFoundationStore((s) => s.setParametricUiConfig);
 
   const [iterResult, setIterResult] = useState<IterationResult | null>(null);
-  // Modo familia: corre múltiples L/B en una sola pasada.
   const [familyResult, setFamilyResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [chartHeight, setChartHeight] = useState(CHART_DEFAULT_HEIGHT);
@@ -126,16 +117,14 @@ export default function ParametricIterations() {
     if (!config.varyB && !config.varyDf) return;
     setLoading(true);
     try {
-      // Convertir strata a SI para la API (Métrico → SI)
       const strataForAPI = strata.map((s) => ({
         ...s,
-        gamma: s.gamma * G,      // t/m³ → kN/m³
-        c: s.c * G,              // t/m² → kPa
-        gammaSat: s.gammaSat * G, // t/m³ → kN/m³
+        gamma: s.gamma * G,
+        c: s.c * G,
+        gammaSat: s.gammaSat * G,
       }));
       const configForAPI: Record<string, unknown> = { ...config };
       if (familyMode) {
-        // Modo familia: corre N relaciones L/B en una sola pasada.
         const resp = await fetch('/api/iterate-family', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -153,7 +142,6 @@ export default function ParametricIterations() {
         setFamilyResult(data);
         setIterResult(null);
       } else {
-        // Modo simple (1 corrida)
         if (lbLocked && foundation.type === 'rectangular') {
           configForAPI.lbRatio = lbRatio;
         }
@@ -179,15 +167,11 @@ export default function ParametricIterations() {
     }
   };
 
-  /** Convert SI value to metric display */
   const toMetric = (val: number, _type: 'pressure' | 'force') => val / G;
 
-  // Build Plotly traces — display in metric.
-  // En modo familia, generamos una curva por cada (lbRatio, df) — si hay más
-  // de 1 Df, agrupa por familia con colores y por Df con marcadores.
-  const getTraces = (): Partial<Plotly.Data>[] => {
+  const getTraces = (): any[] => {
     if (familyMode && familyResult) {
-      const traces: Partial<Plotly.Data>[] = [];
+      const traces: any[] = [];
       familyResult.families.forEach((fam: any, fi: number) => {
         fam.dfValues.forEach((df: number, di: number) => {
           const row = fam.matrix[di];
@@ -238,8 +222,6 @@ export default function ParametricIterations() {
     });
   };
 
-  // Plotly chart colors — theme-aware (Plotly SVG no resuelve CSS vars,
-  // así que las leemos a mano según el modo activo).
   const chartText        = isLight ? '#4a4a4a' : '#cccccc';
   const chartAxisLabel   = isLight ? '#4a4a4a' : '#cccccc';
   const chartAxisLine    = isLight ? '#c8c8c8' : '#555555';
@@ -253,7 +235,7 @@ export default function ParametricIterations() {
   const chartLegendBorder = isLight ? '#d6d0bf' : '#444444';
   const chartLegendText  = isLight ? '#4a4a4a' : '#bbbbbb';
 
-  const layout: Partial<Plotly.Layout> = {
+  const layout: any = {
     xaxis: {
       title: { text: 'B (m)', font: { size: 11, color: chartAxisLabel } },
       color: chartAxisText,
@@ -295,7 +277,7 @@ export default function ParametricIterations() {
     dragmode: 'zoom' as const,
   };
 
-  const plotConfig: Partial<Plotly.Config> = {
+  const plotConfig: any = {
     displayModeBar: true,
     modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
     displaylogo: false,
@@ -311,7 +293,6 @@ export default function ParametricIterations() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      {/* Eyebrow + Title */}
       <div style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--lucid-font-sans)',
@@ -333,7 +314,6 @@ export default function ParametricIterations() {
         </h2>
       </div>
 
-      {/* Config — figure card */}
       <div style={{
         background: 'var(--lucid-surface-figure)',
         border: '1px solid var(--lucid-rule-cream)',
@@ -366,7 +346,6 @@ export default function ParametricIterations() {
           </div>
         )}
 
-        {/* L info — Lucid note */}
         {config.varyB && foundation.type === 'rectangular' && (
           <div style={{
             marginBottom: 12, marginLeft: 24,
@@ -401,7 +380,6 @@ export default function ParametricIterations() {
           </div>
         )}
 
-        {/* Modo familia L/B */}
         <div style={{
           marginTop: 12, padding: '10px 12px',
           background: familyMode ? 'var(--lucid-tint-coral)' : 'var(--lucid-surface-figure)',
@@ -480,10 +458,8 @@ export default function ParametricIterations() {
         </button>
       </div>
 
-      {/* Results */}
       {(iterResult || familyResult) && (
         <div>
-          {/* Chart card */}
           <div style={{
             background: 'var(--lucid-surface-figure)',
             border: '1px solid var(--lucid-rule-cream)',
@@ -491,7 +467,6 @@ export default function ParametricIterations() {
             padding: '20px 24px',
             marginBottom: 18,
           }}>
-            {/* Chart tabs + copy */}
             <div style={{ display: 'flex', gap: 0, marginBottom: 14, alignItems: 'center' }}>
               <button
                 onClick={() => setParametricUiConfig({ chartMetric: 'qa' })}
@@ -538,7 +513,6 @@ export default function ParametricIterations() {
               </button>
             </div>
 
-            {/* Plotly Chart */}
             <div style={{ height: chartHeight, background: 'var(--lucid-surface-page)', borderRadius: 4, overflow: 'hidden' }}>
               <Plot
                 data={getTraces() as any[]}
@@ -550,7 +524,6 @@ export default function ParametricIterations() {
               />
             </div>
 
-            {/* Resize handle */}
             <div
               onMouseDown={onResizeStart}
               style={{
@@ -562,7 +535,6 @@ export default function ParametricIterations() {
             </div>
           </div>
 
-          {/* Annotations — log Lucid (sólo en modo simple) */}
           {iterResult && (<>
           <div style={{
             background: 'var(--lucid-surface-page)',
@@ -592,14 +564,12 @@ export default function ParametricIterations() {
             ))}
           </div>
 
-          {/* Export buttons */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24 }}>
             <ExportIterBtn label="JSON" onClick={() => exportJSON(iterResult, foundation, method)} />
             <ExportIterBtn label="CSV" onClick={() => exportCSV(iterResult)} />
             <ExportIterBtn label="TXT" onClick={() => exportTXT(iterResult, foundation, method)} />
           </div>
 
-          {/* Summary Table for Copy-Paste */}
           <div style={{
             background: 'var(--lucid-surface-figure)',
             border: '1px solid var(--lucid-rule-cream)',
@@ -650,10 +620,6 @@ export default function ParametricIterations() {
                 const metricU = chartMetric === 'qa' ? 'tnf/m²' : 'tnf';
                 const metricName = chartMetric === 'qa' ? 'Q adm' : 'Q max';
 
-                // NOTA: Esta tabla es para visualizacion ademas de copy-paste
-                // a Word/Excel. Usamos tokens Lucid para integrarse al tema; al
-                // copiar a Word los colores de tema se pegan tal cual. Si se
-                // requiere un azul-Word fijo se sugiere copiar el screenshot.
                 const thBg = 'var(--lucid-acc-slate-bg)';
                 const thColor = 'var(--lucid-acc-slate-text)';
                 const cellBorder = '1px solid var(--lucid-rule-cream)';
@@ -762,7 +728,6 @@ function ExportIterBtn({ label, onClick }: { label: string; onClick: () => void 
   );
 }
 
-// ─── Export helpers ───────────────────────────────────────────────
 
 function downloadFile(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });

@@ -1,26 +1,16 @@
-/**
- * IFC Viewer settings store — Controls visual appearance of the 3D scene.
- */
 import { create } from 'zustand';
 
 export interface ViewerSettings {
-  // Strata
   strataOpacity: number;
   strataWireframe: boolean;
   strataColors: string[];
-  // Foundation
   foundationColor: string;
   foundationOpacity: number;
-  // Water table
   waterTableColor: string;
   waterTableOpacity: number;
-  // Grid
   showGrid: boolean;
-  // Labels
   showLabels: boolean;
-  // Lighting
   ambientIntensity: number;
-  // Background
   bgColor: string;
 }
 

@@ -1,16 +1,8 @@
-/* ═══════════════════════════════════════════════════════════
-   Cimentaciones Web — Design System
-   Photoshop-gray dark mode + Cream light mode
-   ═══════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css');
 
-/* ─── Lucid Explainer tokens — minimalist explainer-style design system.
-   Theme-aware: dark mode defaults below, light mode overrides in .light-mode.
-   Cream-on-white in light mode; dark grays + coral accent in dark mode. ─── */
 
-/* ─── Dark Mode (default) — Photoshop Grays ─── */
 :root {
   --bg-base: #2b2b2b;
   --bg-surface-1: #333333;
@@ -53,7 +45,6 @@
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;
 
-  /* SVG 2D viewer tokens (SVG attrs can't use rgba/CSS vars directly) */
   --svg-dim: #b8ad9c;
   --svg-dim-selected: #d4c9b8;
   --svg-surface: #666666;
@@ -73,7 +64,6 @@
   --svg-water: #7a9eb8;
   --svg-stroke: #444444;
 
-  /* ─── Lucid tokens — DARK variant (default) ─── */
   --lucid-surface-page: #2b2b2b;
   --lucid-surface-page-warm: #232323;
   --lucid-surface-figure: #333333;
@@ -113,7 +103,6 @@
   color-scheme: dark;
 }
 
-/* ─── Light Mode — Cream ─── */
 .light-mode {
   --bg-base: #f0ebe3;
   --bg-surface-1: #e8e3db;
@@ -159,7 +148,6 @@
   --svg-water: #6a8fa8;
   --svg-stroke: #c4bdb3;
 
-  /* ─── Lucid tokens — LIGHT variant (cream-on-white) ─── */
   --lucid-surface-page: #ffffff;
   --lucid-surface-page-warm: #fafaf7;
   --lucid-surface-figure: #f8f5e8;
@@ -196,7 +184,6 @@
   color-scheme: light;
 }
 
-/* ─── Reset ─── */
 * {
   margin: 0;
   padding: 0;
@@ -217,18 +204,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-/* ─── Selection ─── */
 ::selection { background: var(--accent-glow); color: var(--text-primary); }
 
-/* ═══════════════════════════════════════════════════════════
-   Inputs
-   ═══════════════════════════════════════════════════════════ */
 
 .cad-input {
   width: 100%;
@@ -262,9 +244,6 @@ body {
   border-color: var(--lucid-ink-muted);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Buttons
-   ═══════════════════════════════════════════════════════════ */
 
 .cad-btn {
   padding: 5px 12px;
@@ -304,9 +283,6 @@ body {
   background: var(--accent-dark);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Cards
-   ═══════════════════════════════════════════════════════════ */
 
 .card {
   background: var(--bg-surface-2);
@@ -325,9 +301,6 @@ body {
   box-shadow: 0 0 0 1px var(--accent-glow);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Section Headers
-   ═══════════════════════════════════════════════════════════ */
 
 .section-header {
   display: flex;
@@ -356,9 +329,6 @@ body {
   background: var(--lucid-surface-page);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Checkbox
-   ═══════════════════════════════════════════════════════════ */
 
 .cad-checkbox {
   appearance: none;
@@ -390,9 +360,6 @@ body {
   transform: rotate(45deg);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Resize Handles
-   ═══════════════════════════════════════════════════════════ */
 
 .resize-handle {
   position: absolute;
@@ -412,9 +379,6 @@ body {
 .resize-handle-right { right: -2px; }
 .resize-handle-left { left: -2px; }
 
-/* ═══════════════════════════════════════════════════════════
-   Tab Bar
-   ═══════════════════════════════════════════════════════════ */
 
 .tab-bar {
   display: flex;
@@ -468,9 +432,6 @@ body {
   color: var(--lucid-ink-strong);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Stratum Input Table
-   ═══════════════════════════════════════════════════════════ */
 
 .stratum-input {
   width: 100%;
@@ -505,9 +466,6 @@ body {
   border-color: var(--lucid-ink-strong);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Utility Classes
-   ═══════════════════════════════════════════════════════════ */
 
 .font-mono {
   font-family: var(--font-mono);
@@ -525,9 +483,6 @@ body {
   color: var(--text-muted);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Animations
-   ═══════════════════════════════════════════════════════════ */
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

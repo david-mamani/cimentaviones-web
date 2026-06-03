@@ -1,11 +1,6 @@
-/**
- * Esquemas de validación con Zod v4.
- * Todos los mensajes de error en español.
- */
 
 import { z } from 'zod';
 
-/** Validación de un estrato individual */
 export const stratumSchema = z.object({
   id: z.string(),
   thickness: z.number({ error: 'El espesor debe ser un número' })
@@ -26,7 +21,6 @@ export const stratumSchema = z.object({
   gammaSat: z.number({ error: 'El peso unitario saturado debe ser un número' })
     .check(z.positive('El peso unitario saturado γsat debe ser mayor a 0')),
 
-  // Inputs de asentamiento (opcionales; reservados para módulo futuro)
   Es: z.number().check(z.positive('Es debe ser > 0')).nullable().optional(),
   mu_s: z.number().check(z.gte(0, 'μs ≥ 0'), z.lt(0.5, 'μs < 0.5')).nullable().optional(),
 }).refine(
@@ -37,7 +31,6 @@ export const stratumSchema = z.object({
   }
 );
 
-/** Validación de los parámetros de cimentación */
 export const foundationSchema = z.object({
   type: z.enum(['cuadrada', 'rectangular', 'franja', 'circular'], {
     error: 'Seleccione un tipo de cimentación válido',
@@ -64,7 +57,6 @@ export const foundationSchema = z.object({
       z.lte(45, 'El ángulo de inclinación β debe ser ≤ 45°'),
     ),
 
-  // Convención profesor / RNE: e1 reduce L, e2 reduce B.
   e1: z.number({ error: 'e1 debe ser un número' })
     .check(z.gte(0, 'La excentricidad e1 debe ser ≥ 0'))
     .default(0),
@@ -96,7 +88,6 @@ export const foundationSchema = z.object({
   }
 );
 
-/** Validación de condiciones especiales */
 export const conditionsSchema = z.object({
   hasWaterTable: z.boolean(),
   waterTableDepth: z.number().check(z.gte(0, 'La profundidad del NF debe ser ≥ 0')).default(0),
@@ -104,10 +95,6 @@ export const conditionsSchema = z.object({
   basementDepth: z.number().check(z.gte(0, 'La profundidad del sótano debe ser ≥ 0')).default(0),
 });
 
-/**
- * Validación global del input completo.
- * Verifica restricciones cruzadas como Σ espesores ≥ Df_abs y β < φ.
- */
 export function validateCalculationInput(
   foundation: z.infer<typeof foundationSchema>,
   strata: z.infer<typeof stratumSchema>[],
@@ -119,7 +106,6 @@ export function validateCalculationInput(
     errors.push('Se requiere al menos un estrato de suelo.');
   }
 
-  // Df_abs incluye el sótano si está activo
   const Ds = conditions.hasBasement ? conditions.basementDepth : 0;
   const Df_abs = foundation.Df + Ds;
 

@@ -1,8 +1,3 @@
-/**
- * Toolbar — Minimalist top bar with Lucide icons.
- * All tools visible as icons. No dropdown.
- * Groups: Logo | Project | Calculate | Views | UnitSettings | Info | Theme | Panels
- */
 import { useState, useRef } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import type { ProjectData } from '../../store/foundationStore';
@@ -103,7 +98,6 @@ export default function Toolbar({
         borderBottom: '1px solid var(--lucid-rule-white)',
         flexShrink: 0,
       }}>
-        {/* Brand — logo + serif name + sans tag */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginRight: 6 }}>
           <img
             src={lightMode ? '/assets/ucsm_logo_light.png' : '/assets/ucsm_logo_dark.png'}
@@ -114,7 +108,6 @@ export default function Toolbar({
 
         <Sep />
 
-        {/* Project */}
         <ToolBtn icon={<Save size={15} />} title="Guardar proyecto" onClick={handleSaveProject} />
         <ToolBtn icon={<FolderOpen size={15} />} title="Cargar proyecto" onClick={() => fileInputRef.current?.click()} />
 
@@ -122,7 +115,6 @@ export default function Toolbar({
 
         <Sep />
 
-        {/* View buttons — all visible as icons */}
         <ToolBtn icon={<Square size={15} />} title="Vista 2D" onClick={() => onOpenTab('2d')} />
         <ToolBtn icon={<Box size={15} />} title="Vista 3D" onClick={() => onOpenTab('3d')} />
         <ToolBtn icon={<Frame size={15} />} title="Excentricidad" onClick={() => onOpenTab('foundation-design')} />
@@ -140,10 +132,8 @@ export default function Toolbar({
 
         <ToolBtn icon={<Info size={15} />} title="Créditos" onClick={() => setShowCredits(true)} />
 
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Theme toggle */}
         <ToolBtn
           icon={lightMode ? <Moon size={15} /> : <Sun size={15} />}
           title={lightMode ? 'Modo oscuro' : 'Modo claro'}
@@ -152,7 +142,6 @@ export default function Toolbar({
 
         <Sep />
 
-        {/* Panel toggles */}
         <ToolBtn
           icon={<PanelLeft size={15} />}
           title={leftCollapsed ? 'Mostrar propiedades' : 'Ocultar propiedades'}
@@ -167,7 +156,6 @@ export default function Toolbar({
         />
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -176,13 +164,11 @@ export default function Toolbar({
         style={{ display: 'none' }}
       />
 
-      {/* Credits modal */}
       {showCredits && <CreditsModal onClose={() => setShowCredits(false)} />}
     </>
   );
 }
 
-/* ─── Sub-components ─── */
 
 function ToolBtn({ icon, title, active, onClick, disabled }: {
   icon: React.ReactNode; title: string; active?: boolean;

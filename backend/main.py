@@ -1,36 +1,38 @@
 """
 Cimentaciones Backend — Servidor FastAPI.
-
 Endpoints:
   POST /api/calculate  → Cálculo individual de capacidad portante
   POST /api/iterate    → Iteraciones paramétricas (variar B y/o Df)
   POST /api/export-ifc → Generar archivo IFC del modelo
   POST /api/export-pdf → Generar reporte PDF via LaTeX
 """
-
 import os
 import sys
 import math
 from pathlib import Path
 
-# Agregar directorio raíz al path para importar calculos/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-
 from models import (
-    CalculationInput, IterationInput, IterationFamilyInput,
-    IFCExportInput, PDFExportInput,
-    SettlementInput, SettlementIterationInput, SettlementIteration2DInput,
+    CalculationInput,
+    IterationInput,
+    IterationFamilyInput,
+    IFCExportInput,
+    PDFExportInput,
+    SettlementInput,
+    SettlementIterationInput,
+    SettlementIteration2DInput,
     CompareSettlementsInput,
 )
 from calculos.bearing_capacity import calculate_bearing_capacity
 from calculos.parametric_iterations import run_parametric_iterations
 from calculos.settlement import (
-    calculate_total_settlement, iterate_qadm_vs_B,
-    clasificar_bjerrum, cumple_sin_grietas,
+    calculate_total_settlement,
+    iterate_qadm_vs_B,
+    clasificar_bjerrum,
+    cumple_sin_grietas,
 )
 from services.ifc_generator import generate_ifc
 from services.latex_generator import generate_latex, compile_latex_to_pdf
@@ -40,13 +42,12 @@ app = FastAPI(
     description="Motor de cálculos geotécnicos — Capacidad portante",
     version="1.1.0",
 )
-
-# CORS: en producción, definir ALLOWED_ORIGINS como lista separada por comas
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
 _allowed_origins: list[str] = (
-    ["*"] if _raw_origins == "*" else [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    ["*"]
+    if _raw_origins == "*"
+    else [o.strip() for o in _raw_origins.split(",") if o.strip()]
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
@@ -59,23 +60,23 @@ app.add_middleware(
 def calculate(input_data: CalculationInput):
     """
     Ejecuta el cálculo de capacidad portante.
-
     Recibe los parámetros de cimentación, estratos, condiciones
     especiales y método de cálculo. Retorna todos los resultados.
     """
     try:
         raw = input_data.model_dump()
         result = calculate_bearing_capacity(raw)
-
-        # Guard: valores numéricos críticos no deben ser NaN ni Infinity
         for key in ("qu", "qa", "qnet", "qaNet"):
             val = result.get(key)
             if val is not None and (math.isnan(val) or math.isinf(val)):
-                raise ValueError(f"El resultado '{key}' es inválido ({val}). Revise los parámetros de entrada.")
-
+                raise ValueError(
+                    f"El resultado '{key}' es inválido ({val}). Revise los parámetros de entrada."
+                )
         from services.markdown_generator import generate_resolution_md
-        result["resolution_md"] = generate_resolution_md(raw, result, raw.get("unit_config"))
 
+        result["resolution_md"] = generate_resolution_md(
+            raw, result, raw.get("unit_config")
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -87,7 +88,6 @@ def calculate(input_data: CalculationInput):
 def iterate(input_data: IterationInput):
     """
     Ejecuta iteraciones paramétricas.
-
     Varía B y/o Df en un rango y retorna una matriz de resultados.
     """
     try:
@@ -105,7 +105,6 @@ def iterate(input_data: IterationInput):
 def generate_ifc_endpoint(input_data: IFCExportInput):
     """
     Genera un archivo IFC del modelo geotécnico.
-
     Recibe los datos del modelo (estratos, cimentación, condiciones)
     y retorna un archivo .ifc binario para descarga o visualización.
     """
@@ -130,7 +129,6 @@ def generate_ifc_endpoint(input_data: IFCExportInput):
 def export_pdf(input_data: PDFExportInput):
     """
     Genera un reporte PDF profesional via LaTeX.
-
     1. Genera el contenido .tex con ecuaciones, tablas e imágenes
     2. Compila con pdflatex
     3. Retorna el PDF compilado
@@ -139,7 +137,6 @@ def export_pdf(input_data: PDFExportInput):
         raw = input_data.model_dump()
         options = raw.get("options", {})
         images = raw.get("images") or {}
-
         tex_content = generate_latex(
             foundation=raw["foundation"],
             strata=raw["strata"],
@@ -151,14 +148,12 @@ def export_pdf(input_data: PDFExportInput):
             iteration_results=raw.get("iteration_results"),
             unit_config=raw.get("unit_config"),
         )
-
         pdf_bytes = compile_latex_to_pdf(
             tex_content,
             images,
             iteration_results=raw.get("iteration_results"),
             options=options,
         )
-
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -181,11 +176,8 @@ def _run_settlement_from_raw(raw: dict) -> dict:
     f = raw["foundation"]
     Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
     Df_abs = f["Df"] + Ds
-
-    # q aplicada NETA: q_total − γ·Df. Si Q no se provee, se omite S_total.
     q_net = None
     if isinstance(f.get("Q"), (int, float)) and f["Q"] > 0:
-        # área = B·L (Meyerhof B' NO acopla con asentamiento, D A.13)
         area = f["B"] * f["L"]
         q_total = f["Q"] / area
         depth = 0.0
@@ -205,7 +197,6 @@ def _run_settlement_from_raw(raw: dict) -> dict:
         q_net = q_total - gamma_avg * Df_abs
         if q_net < 0:
             q_net = 0.0
-
     result = calculate_total_settlement(
         foundation=f,
         strata=raw["strata"],
@@ -223,7 +214,6 @@ def _run_settlement_from_raw(raw: dict) -> dict:
 def calculate_settlement_endpoint(input_data: SettlementInput):
     """
     Cálculo del bloque de asentamientos (Steinbrenner + Fox + Cw + Sc).
-
     Retorna el cálculo de asentamiento total y presión admisible.
     """
     try:
@@ -240,7 +230,6 @@ def compare_settlements_endpoint(input_data: CompareSettlementsInput):
     Compara N zapatas: calcula S_total para cada una y devuelve la matriz
     de asentamientos diferenciales (δ_ij), distorsiones angulares (β_ij),
     el peor par y la clasificación Bjerrum.
-
     Convención de unidades:
       - δ_ij en metros (igual que S_total).
       - β_ij = δ_ij / spans_ij  (adimensional).
@@ -251,33 +240,37 @@ def compare_settlements_endpoint(input_data: CompareSettlementsInput):
         footings_raw = raw["footings"]
         spans = raw["spans"]
         n = len(footings_raw)
-
-        # 1. Calcular cada zapata.
         per_footing = []
         for f_raw in footings_raw:
             res = _run_settlement_from_raw(f_raw)
             S_total = res.get("S_total")
             if S_total is None:
-                # Si no hay Q, no podemos comparar asentamientos. Forzar Q.
                 raise ValueError(
                     f"Zapata {f_raw['id']!r}: falta `Q` en foundation "
                     f"(necesario para calcular S_total)."
                 )
-            per_footing.append({
-                "id": f_raw["id"],
-                "S_total": S_total,
-                "S_total_mm": S_total * 1000.0,
-                "Se": res.get("Se_corr"),
-                "Sc_p": res.get("Sc"),
-                "Sc_s": res.get("Sc_s"),
-                "warnings": res.get("warnings", []),
-            })
-
-        # 2. Matrices δ_ij y β_ij.
+            per_footing.append(
+                {
+                    "id": f_raw["id"],
+                    "S_total": S_total,
+                    "S_total_mm": S_total * 1000.0,
+                    "Se": res.get("Se_corr"),
+                    "Sc_p": res.get("Sc"),
+                    "Sc_s": res.get("Sc_s"),
+                    "warnings": res.get("warnings", []),
+                }
+            )
         delta_matrix: list[list[float]] = [[0.0] * n for _ in range(n)]
         beta_matrix: list[list[float]] = [[0.0] * n for _ in range(n)]
-        worst = {"i": 0, "j": 0, "beta": 0.0, "delta": 0.0,
-                 "id_a": None, "id_b": None, "span": 0.0}
+        worst = {
+            "i": 0,
+            "j": 0,
+            "beta": 0.0,
+            "delta": 0.0,
+            "id_a": None,
+            "id_b": None,
+            "span": 0.0,
+        }
         for i in range(n):
             for j in range(n):
                 if i == j:
@@ -289,18 +282,20 @@ def compare_settlements_endpoint(input_data: CompareSettlementsInput):
                 beta_matrix[i][j] = b
                 if b > worst["beta"]:
                     worst = {
-                        "i": i, "j": j, "beta": b, "delta": d,
+                        "i": i,
+                        "j": j,
+                        "beta": b,
+                        "delta": d,
                         "id_a": per_footing[i]["id"],
                         "id_b": per_footing[j]["id"],
                         "span": L_span,
                     }
-
-        # 3. Clasificación Bjerrum del peor par.
         bjerrum = clasificar_bjerrum(worst["beta"])
         bjerrum["cumple_sin_grietas"] = cumple_sin_grietas(worst["beta"])
         bjerrum["beta"] = worst["beta"]
-        bjerrum["beta_1_over_N"] = (1.0 / worst["beta"]) if worst["beta"] > 0 else float("inf")
-
+        bjerrum["beta_1_over_N"] = (
+            (1.0 / worst["beta"]) if worst["beta"] > 0 else float("inf")
+        )
         return {
             "footings": per_footing,
             "spans": spans,
@@ -320,25 +315,21 @@ def compare_settlements_endpoint(input_data: CompareSettlementsInput):
 def iterate_settlement_endpoint(input_data: SettlementIterationInput):
     """
     Iteración paramétrica qadm(B) del bloque de asentamientos.
-
     Re-computa z̄ y Es_eq para cada B (D A.10).
     """
     try:
         raw = input_data.model_dump()
         f = raw["foundation"]
-        Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
+        Ds = (
+            raw["conditions"]["basementDepth"]
+            if raw["conditions"]["hasBasement"]
+            else 0.0
+        )
         Df_abs = f["Df"] + Ds
-
         q_net = None
         if isinstance(f.get("Q"), (int, float)) and f["Q"] > 0:
-            # q_aplicada varía con B (Q/(B·L)); para iteración mantenemos Q
-            # constante y dejamos que el motor recalcule el área por B.
-            # Aquí pasamos q_net = None para que iter no chequee S_total
-            # (la iteración se usa para qadm, no para S_total).
             q_net = None
-
         foundation_for_iter = {"L": f["L"], "Df": f["Df"]}
-
         result = iterate_qadm_vs_B(
             B_start=raw["B_start"],
             B_end=raw["B_end"],
@@ -348,14 +339,18 @@ def iterate_settlement_endpoint(input_data: SettlementIterationInput):
             Df_abs=Df_abs,
             settlement_params=raw["settlement"],
             conditions=raw["conditions"],
-            qadm_falla_fn=(lambda B: raw["qadm_falla"]) if raw.get("qadm_falla") else None,
+            qadm_falla_fn=(lambda B: raw["qadm_falla"])
+            if raw.get("qadm_falla")
+            else None,
             q_aplicada_net=q_net,
         )
         return result
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en iteración asentamiento: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error en iteración asentamiento: {str(e)}"
+        )
 
 
 @app.post("/api/iterate-family")
@@ -363,11 +358,9 @@ def iterate_family_endpoint(input_data: IterationFamilyInput):
     """
     Iteración paramétrica FAMILIA: corre `run_parametric_iterations` para
     cada L/B en `lb_ratios` y devuelve un dict con las N familias.
-
     Útil para producir curvas familia (típicamente {1, 2, 3, 5, 10}) en una
     sola petición. La cimentación debe ser rectangular; si es cuadrada se
     fuerza L=B (la "familia" colapsa pero se sigue ejecutando).
-
     Tope global: 500 puntos sumando todas las familias.
     """
     MAX_TOTAL = 500
@@ -376,38 +369,38 @@ def iterate_family_endpoint(input_data: IterationFamilyInput):
         cfg = input_data.config.model_dump()
         lb_ratios = sorted(set(input_data.lb_ratios))
 
-        # Estimación de puntos por familia
         def _approx_points(c: dict) -> int:
             nB = 1
             if c.get("varyB"):
                 nB = max(1, int((c["bEnd"] - c["bStart"]) / max(c["bStep"], 1e-9)) + 1)
             nD = 1
             if c.get("varyDf"):
-                nD = max(1, int((c["dfEnd"] - c["dfStart"]) / max(c["dfStep"], 1e-9)) + 1)
+                nD = max(
+                    1, int((c["dfEnd"] - c["dfStart"]) / max(c["dfStep"], 1e-9)) + 1
+                )
             return nB * nD
+
         total = _approx_points(cfg) * len(lb_ratios)
         if total > MAX_TOTAL:
             raise ValueError(
                 f"La iteración familia generaría ~{total} puntos; "
                 f"máximo {MAX_TOTAL}. Reduce rangos o cantidad de relaciones L/B."
             )
-
         families = []
         for k in lb_ratios:
             cfg_k = {**cfg, "lbRatio": k}
-            # Si la cimentación base era cuadrada, forzamos rectangular para
-            # honrar el k. Si era rectangular ya, mantenemos.
             base_k = {**base, "foundation": {**base["foundation"]}}
             if base_k["foundation"]["type"] == "cuadrada":
                 base_k["foundation"]["type"] = "rectangular"
                 base_k["foundation"]["L"] = k * base_k["foundation"]["B"]
             result_k = run_parametric_iterations(base_k, cfg_k)
-            families.append({
-                "lbRatio": k,
-                "label": f"L = {k} × B",
-                **result_k,
-            })
-
+            families.append(
+                {
+                    "lbRatio": k,
+                    "label": f"L = {k} × B",
+                    **result_k,
+                }
+            )
         return {
             "families": families,
             "lb_ratios": lb_ratios,
@@ -423,18 +416,20 @@ def iterate_family_endpoint(input_data: IterationFamilyInput):
 def iterate_settlement_2d_endpoint(input_data: SettlementIteration2DInput):
     """
     Iteración 2D B × Df del bloque de asentamientos.
-
     Para cada celda (B, Df) recomputa H, z̄, Es_eq y devuelve `qadm_settlement`
     + `qadm_diseno` + S_total si Q se proveyó. Devuelve `matrix[Df][B]` con
     `bValues` y `dfValues` para que el frontend dibuje un heatmap.
-
     Tope: 500 puntos (igual que el endpoint de capacidad).
     """
     MAX_POINTS = 500
     try:
         raw = input_data.model_dump()
         f = raw["foundation"]
-        Ds = raw["conditions"]["basementDepth"] if raw["conditions"]["hasBasement"] else 0.0
+        Ds = (
+            raw["conditions"]["basementDepth"]
+            if raw["conditions"]["hasBasement"]
+            else 0.0
+        )
 
         def _gen_range(start: float, end: float, step: float) -> list[float]:
             if step <= 0 or end < start:
@@ -453,7 +448,6 @@ def iterate_settlement_2d_endpoint(input_data: SettlementIteration2DInput):
             raise ValueError(
                 f"La iteración 2D generaría {total} puntos; el máximo es {MAX_POINTS}."
             )
-
         matrix: list[list[dict]] = []
         for df in df_values:
             row: list[dict] = []
@@ -475,39 +469,56 @@ def iterate_settlement_2d_endpoint(input_data: SettlementIteration2DInput):
                         qadm_falla=raw.get("qadm_falla"),
                         q_aplicada_net=None,
                     )
-                    row.append({
-                        "B": b,
-                        "Df": df,
-                        "qadm_settlement": r["qadm_settlement"],
-                        "qadm_falla": r.get("qadm_falla"),
-                        "qadm_diseno": (r["design"]["qadm_diseno"] if r["design"] else None),
-                        "criterio_gobernante": (
-                            r["design"]["criterio_gobernante"] if r["design"] else None
-                        ),
-                        "z_bar": r["z_bar"],
-                        "Es_eq": r["Es_eq"],
-                    })
+                    row.append(
+                        {
+                            "B": b,
+                            "Df": df,
+                            "qadm_settlement": r["qadm_settlement"],
+                            "qadm_falla": r.get("qadm_falla"),
+                            "qadm_diseno": (
+                                r["design"]["qadm_diseno"] if r["design"] else None
+                            ),
+                            "criterio_gobernante": (
+                                r["design"]["criterio_gobernante"]
+                                if r["design"]
+                                else None
+                            ),
+                            "z_bar": r["z_bar"],
+                            "Es_eq": r["Es_eq"],
+                        }
+                    )
                 except Exception as cell_err:
-                    row.append({
-                        "B": b, "Df": df,
-                        "error": str(cell_err),
-                        "qadm_settlement": None, "qadm_falla": None,
-                        "qadm_diseno": None, "criterio_gobernante": None,
-                        "z_bar": None, "Es_eq": None,
-                    })
+                    row.append(
+                        {
+                            "B": b,
+                            "Df": df,
+                            "error": str(cell_err),
+                            "qadm_settlement": None,
+                            "qadm_falla": None,
+                            "qadm_diseno": None,
+                            "criterio_gobernante": None,
+                            "z_bar": None,
+                            "Es_eq": None,
+                        }
+                    )
             matrix.append(row)
-
         return {
             "bValues": b_values,
             "dfValues": df_values,
             "matrix": matrix,
-            "B_start": raw["B_start"], "B_end": raw["B_end"], "B_step": raw["B_step"],
-            "Df_start": raw["Df_start"], "Df_end": raw["Df_end"], "Df_step": raw["Df_step"],
+            "B_start": raw["B_start"],
+            "B_end": raw["B_end"],
+            "B_step": raw["B_step"],
+            "Df_start": raw["Df_start"],
+            "Df_end": raw["Df_end"],
+            "Df_step": raw["Df_step"],
         }
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en iter 2D asentamiento: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error en iter 2D asentamiento: {str(e)}"
+        )
 
 
 @app.get("/api/health")
@@ -519,4 +530,3 @@ def health():
         "methods": ["terzaghi", "general", "rne"],
         "limits": {"max_iteration_points": 500, "phi_range": [0, 50]},
     }
-

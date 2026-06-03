@@ -2,7 +2,6 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install texlive for LaTeX → PDF compilation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base \
     texlive-latex-extra \
@@ -13,11 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar calculos (motor de cálculos) y backend (servidor API)
 COPY calculos/ ./calculos/
 COPY backend/ ./backend/
 
-# El server corre desde backend/ pero importa calculos/ del nivel superior
 WORKDIR /app/backend
 
 EXPOSE 8000

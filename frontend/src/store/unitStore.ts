@@ -1,25 +1,5 @@
-/**
- * unitStore — Sistema de unidades dual (Input / Output).
- *
- * Soporta 5 categorías de unidades configurables independientemente
- * para entrada (inputs del usuario) y salida (resultados/exports):
- *
- *   - Longitud   : m | cm | ft
- *   - Ángulos    : ° (solo grados)
- *   - Fuerza     : kN | t | kgf
- *   - Presión    : kPa | t/m² | kg/cm²
- *   - Peso unit. : kN/m³ | t/m³
- *
- * Internamente el backend siempre opera en SI (m, kN, kPa, kN/m³).
- * Las funciones de conversión transforman:
- *   - inputToSI()  : valor en unidades de input → SI (para enviar al backend)
- *   - siToOutput() : valor en SI → unidades de output (para mostrar resultados)
- */
 import { create } from 'zustand';
 
-/* ══════════════════════════════════════
- * TYPES
- * ══════════════════════════════════════ */
 
 export type LengthUnit = 'm' | 'cm' | 'ft';
 export type AngleUnit = '°';
@@ -39,12 +19,6 @@ export interface UnitConfig {
 
 export type UnitPreset = 'metric' | 'SI';
 
-/* ══════════════════════════════════════
- * CONVERSION FACTORS → SI
- *
- * Multiply by factor to get SI value.
- * Divide by factor to get display value.
- * ══════════════════════════════════════ */
 
 const LENGTH_TO_SI: Record<LengthUnit, number> = {
   'm': 1,
@@ -69,9 +43,6 @@ const UNIT_WEIGHT_TO_SI: Record<UnitWeightUnit, number> = {
   't/m³': 9.80665,
 };
 
-/* ══════════════════════════════════════
- * PRESETS
- * ══════════════════════════════════════ */
 
 const METRIC_CONFIG: UnitConfig = {
   length: 'm',
@@ -94,22 +65,17 @@ export const PRESETS: Record<UnitPreset, UnitConfig> = {
   SI: SI_CONFIG,
 };
 
-/* ══════════════════════════════════════
- * HELPERS
- * ══════════════════════════════════════ */
 
-/** Returns the SI conversion factor for a given unit config + category */
 function getFactor(config: UnitConfig, category: UnitCategory): number {
   switch (category) {
     case 'length': return LENGTH_TO_SI[config.length];
-    case 'angle': return 1; // always degrees
+    case 'angle': return 1;
     case 'force': return FORCE_TO_SI[config.force];
     case 'pressure': return PRESSURE_TO_SI[config.pressure];
     case 'unitWeight': return UNIT_WEIGHT_TO_SI[config.unitWeight];
   }
 }
 
-/** Returns the label string for a category in a given config */
 function getLabel(config: UnitConfig, category: UnitCategory): string {
   switch (category) {
     case 'length': return config.length;
@@ -120,7 +86,6 @@ function getLabel(config: UnitConfig, category: UnitCategory): string {
   }
 }
 
-/** Detects which preset (if any) matches a config */
 export function detectPreset(config: UnitConfig): UnitPreset | null {
   for (const [key, preset] of Object.entries(PRESETS) as [UnitPreset, UnitConfig][]) {
     if (
@@ -135,21 +100,13 @@ export function detectPreset(config: UnitConfig): UnitPreset | null {
   return null;
 }
 
-/* ══════════════════════════════════════
- * STORE
- * ══════════════════════════════════════ */
 
 interface UnitState {
-  /** Unidades de entrada (lo que el usuario escribe) */
   input: UnitConfig;
-  /** Unidades de salida (lo que se muestra en resultados/exports) */
   output: UnitConfig;
-  /** Controla visibilidad del modal de configuración */
   showModal: boolean;
-  /** Número de decimales para mostrar resultados */
   displayDecimals: number;
 
-  // ── Setters ──
   setInput: (config: Partial<UnitConfig>) => void;
   setOutput: (config: Partial<UnitConfig>) => void;
   setInputPreset: (preset: UnitPreset) => void;
@@ -157,23 +114,14 @@ interface UnitState {
   toggleModal: () => void;
   setDisplayDecimals: (n: number) => void;
 
-  // ── Conversión ──
-  /** Convierte un valor de unidades de input → SI */
   inputToSI: (value: number, category: UnitCategory) => number;
-  /** Convierte un valor de SI → unidades de output */
   siToOutput: (value: number, category: UnitCategory) => number;
 
-  // ── Labels ──
-  /** Label de la unidad de input para una categoría */
   inputLabel: (category: UnitCategory) => string;
-  /** Label de la unidad de output para una categoría */
   outputLabel: (category: UnitCategory) => string;
 
-  // ── Formatting ──
-  /** Formatea un número al número de decimales configurado */
   fmt: (value: number) => string;
 
-  // ── Shorthand labels object (for components that need all at once) ──
   inputLabels: () => Record<UnitCategory, string>;
   outputLabels: () => Record<UnitCategory, string>;
 }

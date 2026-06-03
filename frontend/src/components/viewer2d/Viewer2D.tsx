@@ -1,21 +1,7 @@
-/**
- * Viewer2D — Technical section cut view (Revit-style).
- * Shows:
- * - Strata layers as colored bands with hatch patterns
- * - Foundation (solid gray)
- * - Water table (blue dashed line)
- * - Dimension lines and level annotations
- * - Property table for each stratum
- * - Click to select (synced with store)
- * - Pan & zoom with mouse
- */
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useViewerSettings } from '../../store/viewerSettingsStore';
 
-/* SVG colors — read from CSS custom properties (--svg-*) so they stay
-   in sync with the design system. SVG attributes can't use CSS vars
-   directly, so we read them via getComputedStyle. */
 function useSvgColors() {
   const read = useCallback(() => {
     const s = getComputedStyle(document.documentElement);
@@ -64,17 +50,14 @@ export default function Viewer2D() {
   const basementDepth = conditions.hasBasement ? conditions.basementDepth : 0;
   const totalH = totalDepth;
 
-  // Layout constants
-  const SOIL_SIDE_PADDING = 2; // metres padding each side of foundation
+  const SOIL_SIDE_PADDING = 2;
   const VIEWBOX_MARGIN = 2;
   const LABEL_SPACE = 5;
   const VIEWBOX_RIGHT_PAD = 8;
 
-  // Soil block width: B + padding on each side
   const soilW = foundation.B + SOIL_SIDE_PADDING * 2;
   const halfW = soilW / 2;
 
-  // Auto-fit viewBox only on initial mount
   const hasInitialized = useRef(false);
   useEffect(() => {
     if (!hasInitialized.current) {
@@ -86,23 +69,15 @@ export default function Viewer2D() {
       });
       hasInitialized.current = true;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pan — left, middle, or right click
-  // SVG viewBox uses preserveAspectRatio="xMidYMid meet" (default), which
-  // applies a single uniform scale. We must use the same uniform scale for
-  // both axes, otherwise the axis with the smaller viewBox/container ratio
-  // (typically Y) feels sluggish.
   const panScaleRef = useRef(1);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Right-click or middle-click or left-click (when not on a clickable element)
     if (e.button === 2 || e.button === 1 || e.button === 0) {
       if (e.button === 2) e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      // Uniform scale: SVG "meet" uses the larger ratio (the one that fits)
       const scaleX = viewBox.w / rect.width;
       const scaleY = viewBox.h / rect.height;
       panScaleRef.current = Math.max(scaleX, scaleY);
@@ -128,7 +103,6 @@ export default function Viewer2D() {
 
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
-  // Zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const factor = e.deltaY > 0 ? 1.1 : 0.9;
@@ -163,7 +137,6 @@ export default function Viewer2D() {
         }}
       >
         <defs>
-          {/* Hatch patterns for strata */}
           {strata.map((_, i) => (
             <pattern key={i} id={`hatch-${i}`} patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)">
               <line x1="0" y1="0" x2="0" y2="4" stroke={strataColors[i % strataColors.length]} strokeWidth="0.3" opacity="0.4" />
@@ -171,17 +144,14 @@ export default function Viewer2D() {
           ))}
         </defs>
 
-        {/* ─── Surface line ─── */}
         <line x1={-halfW - 3} y1={0} x2={halfW + 3} y2={0} stroke={c.SURFACE} strokeWidth="0.05" strokeDasharray="0.2 0.1" />
         <text x={halfW + 0.5} y={-0.15} fontSize="0.35" fill={c.LABEL} fontFamily="Consolas, monospace">NTN 0.00</text>
 
-        {/* ─── Ground surface hatching ─── */}
         {Array.from({ length: Math.ceil(soilW / 0.4) + 6 }).map((_, i) => {
           const x = -halfW - 1 + i * 0.4;
           return <line key={`gs-${i}`} x1={x} y1={0} x2={x - 0.3} y2={-0.3} stroke={c.GRID} strokeWidth="0.03" />;
         })}
 
-        {/* ─── Strata layers ─── */}
         {(() => {
           let yOff = 0;
           return strata.map((s, i) => {
@@ -197,26 +167,21 @@ export default function Viewer2D() {
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Fill */}
                 <rect x={-halfW} y={y} width={soilW} height={s.thickness}
                   fill={color} opacity={isSelected ? 0.5 : 0.25}
                   stroke={isSelected ? c.DIMSEL : c.GRID}
                   strokeWidth={isSelected ? 0.08 : 0.03}
                 />
-                {/* Hatch */}
                 <rect x={-halfW} y={y} width={soilW} height={s.thickness}
                   fill={`url(#hatch-${i})`}
                 />
-                {/* Layer boundary */}
                 <line x1={-halfW} y1={yOff} x2={halfW} y2={yOff}
                   stroke={c.GRID} strokeWidth="0.03" strokeDasharray="0.15 0.08" />
 
-                {/* Right-side level label */}
                 <text x={halfW + 0.5} y={yOff - 0.15} fontSize="0.3" fill={c.LABEL} fontFamily="Consolas, monospace">
                   -{yOff.toFixed(2)}m
                 </text>
 
-                {/* Stratum center label */}
                 <text x={-halfW + 0.3} y={y + s.thickness / 2 + 0.12} fontSize="0.28" fill={c.STRATA_TEXT} fontFamily="Segoe UI, sans-serif" fontWeight="600">
                   E{i + 1}
                 </text>
@@ -225,9 +190,7 @@ export default function Viewer2D() {
           });
         })()}
 
-        {/* ─── Foundation ─── */}
         {(() => {
-          // Foundation top at basementDepth, pad at basementDepth + Df
           const fTop = basementDepth + foundation.Df;
           const padH = 0.3;
           const colW = Math.min(foundation.B * 0.3, 0.5);
@@ -245,16 +208,13 @@ export default function Viewer2D() {
               }}
               style={{ cursor: 'pointer' }}
             >
-              {/* Column — from basement level to pad */}
               {colH > 0 && (
                 <rect x={-colW / 2} y={colStartY} width={colW} height={colH}
                   fill={isSelected ? c.COL_SELECTED : c.COL_DEFAULT} stroke={c.STROKE} strokeWidth="0.04" />
               )}
-              {/* Pad */}
               <rect x={-foundation.B / 2} y={fTop - padH} width={foundation.B} height={padH}
                 fill={fColor} stroke={c.STROKE} strokeWidth="0.04" />
 
-              {/* Df dimension — measured from basement level */}
               <line x1={-foundation.B / 2 - 0.6} y1={basementDepth} x2={-foundation.B / 2 - 0.6} y2={fTop}
                 stroke={c.DIM} strokeWidth="0.03" />
               <line x1={-foundation.B / 2 - 0.7} y1={basementDepth} x2={-foundation.B / 2 - 0.5} y2={basementDepth}
@@ -267,7 +227,6 @@ export default function Viewer2D() {
                 Df={foundation.Df}m
               </text>
 
-              {/* B dimension */}
               <line x1={-foundation.B / 2} y1={fTop + 0.4} x2={foundation.B / 2} y2={fTop + 0.4}
                 stroke={c.DIM} strokeWidth="0.03" />
               <line x1={-foundation.B / 2} y1={fTop + 0.3} x2={-foundation.B / 2} y2={fTop + 0.5}
@@ -281,7 +240,6 @@ export default function Viewer2D() {
           );
         })()}
 
-        {/* ─── Basement level indicator ─── */}
         {basementDepth > 0 && (
           <>
             <line x1={-halfW} y1={basementDepth} x2={halfW} y2={basementDepth}
@@ -292,7 +250,6 @@ export default function Viewer2D() {
           </>
         )}
 
-        {/* ─── Water table (pointer events disabled so strata are clickable underneath) ─── */}
         {conditions.hasWaterTable && (
           <g pointerEvents="none">
             <line x1={-halfW - 1} y1={conditions.waterTableDepth} x2={halfW + 1} y2={conditions.waterTableDepth}
@@ -300,7 +257,6 @@ export default function Viewer2D() {
             <text x={halfW + 0.5} y={conditions.waterTableDepth - 0.15} fontSize="0.3" fill={c.WATER} fontFamily="Consolas, monospace">
               NF -{conditions.waterTableDepth.toFixed(2)}m
             </text>
-            {/* Water fill below NF */}
             <rect x={-halfW} y={conditions.waterTableDepth}
               width={soilW}
               height={Math.max(0, totalH - conditions.waterTableDepth)}
@@ -309,7 +265,6 @@ export default function Viewer2D() {
           </g>
         )}
 
-        {/* ─── Properties table (right side, with real cell borders) ─── */}
         {(() => {
           const tableX = halfW + 3.5;
           const colWidths = [0.5, 0.7, 0.6, 0.6, 0.6, 0.65];
@@ -324,11 +279,9 @@ export default function Viewer2D() {
                 PROPIEDADES
               </text>
 
-              {/* Header row background */}
               <rect x={tableX} y={headerY - 0.05} width={totalTableW} height={rowH}
                 fill={c.TABLE_BG} stroke={c.TABLE_BORDER} strokeWidth="0.02" />
 
-              {/* Header cells */}
               {(() => {
                 let cx = tableX;
                 return headerLabels.map((label, ci) => {
@@ -343,7 +296,6 @@ export default function Viewer2D() {
                 });
               })()}
 
-              {/* Data rows */}
               {strata.map((s, i) => {
                 const ry = headerY - 0.05 + rowH * (i + 1);
                 const isSelected = selectedIds.includes(s.id);
@@ -354,16 +306,13 @@ export default function Viewer2D() {
                     onClick={(e) => { e.stopPropagation(); toggleSelection(s.id, e.ctrlKey || e.metaKey); }}
                     style={{ cursor: 'pointer' }}
                   >
-                    {/* Row background */}
                     <rect x={tableX} y={ry} width={totalTableW} height={rowH}
                       fill={isSelected ? c.TABLE_SEL : c.TABLE_CELL}
                       stroke={isSelected ? c.DIMSEL : c.STROKE} strokeWidth="0.02" />
 
-                    {/* Color swatch in first cell */}
                     <rect x={tableX + 0.05} y={ry + 0.08} width={0.2} height={0.22}
                       fill={strataColors[i % strataColors.length]} opacity={0.7} />
 
-                    {/* Cell values */}
                     {(() => {
                       let cx = tableX;
                       return values.map((val, ci) => {

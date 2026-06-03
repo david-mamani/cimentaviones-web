@@ -1,22 +1,3 @@
-/**
- * SettlementTab — Pestaña dedicada "Asentamientos".
- *
- * Convención del curso (Das §9 + RNE E.050):
- *   - z̄ = min(H, 5·B); Es_eq promedio ponderado por espesor
- *   - μ del estrato bajo la base (NO se promedia)
- *   - Steinbrenner Is con fix arctan; Is = F1 si μ=0.5
- *   - Fox If interpolado del ábaco Das Fig. 9.6
- *   - Cw: Peck/Teng/Bowles; Cw=2 si Dw ≤ Df
- *   - q₀ NETA: qadm_asent = NETA
- *   - rigid + esquina ⇒ forzar centro
- *   - qadm_diseño = min(qadm_falla, qadm_asent)
- *
- * Layout:
- *   ┌──────────────────────────────────────┬──────────────────────┐
- *   │  Perfil del suelo  /  qadm(B)        │  Inputs + outputs    │
- *   │  (toggle en cabecera)                │  + botón "Calcular"  │
- *   └──────────────────────────────────────┴──────────────────────┘
- */
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useUnitStore } from '../../store/unitStore';
@@ -24,7 +5,7 @@ import CadNumericInput from '../common/CadNumericInput';
 import { ArrowDownToLine, Play, Loader2 } from 'lucide-react';
 import type { SettlementPoint, CwMethod } from '../../types/geotechnical';
 
-const G = 9.80665;  // tnf → kN (sólo conversión input Q)
+const G = 9.80665;
 
 export default function SettlementTab() {
   const f = useFoundationStore((s) => s.foundation);
@@ -50,8 +31,6 @@ export default function SettlementTab() {
   const runIter2D = async () => {
     setIter2DLoading(true);
     try {
-      // Reusar misma estrategia que calculateSettlementIteration:
-      // serializar strata + foundation a SI y enviar al endpoint.
       const fStore = useFoundationStore.getState();
       const strataForAPI = fStore.strata.map((s) => {
         const out: Record<string, unknown> = {
@@ -100,7 +79,6 @@ export default function SettlementTab() {
     }
   };
 
-  // Conversión a unidades de output (usuario)
   const siToOutput = useUnitStore((s) => s.siToOutput);
   const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
   const fUnit = useUnitStore((s) => s.outputLabel('force'));
@@ -117,7 +95,6 @@ export default function SettlementTab() {
       background: 'var(--lucid-surface-page-warm)',
       overflow: 'hidden',
     }}>
-      {/* ─── Izquierda: visualización ─── */}
       <div style={{
         flex: 1,
         display: 'flex',
@@ -192,7 +169,6 @@ export default function SettlementTab() {
         </div>
       </div>
 
-      {/* ─── Derecha: inputs + outputs ─── */}
       <div style={{
         width: 360,
         flexShrink: 0,
@@ -320,7 +296,6 @@ export default function SettlementTab() {
           )}
         </SectionBody>
 
-        {/* Botón Calcular */}
         <div style={{ padding: '14px 18px', borderTop: '1px solid var(--lucid-rule-white)' }}>
           <button
             onClick={() => calculateSettlement()}
@@ -341,7 +316,6 @@ export default function SettlementTab() {
           </button>
         </div>
 
-        {/* Resultado del backend */}
         {settlementResult && (
           <>
             <SectionTitle>Resultado</SectionTitle>
@@ -516,9 +490,6 @@ export default function SettlementTab() {
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────
- * Visualizaciones
- * ────────────────────────────────────────────────────────────────── */
 
 function totalDepth(strata: any[]): number {
   return strata.reduce((s, x) => s + x.thickness, 0);
@@ -725,11 +696,6 @@ function QadmChart({
   );
 }
 
-/**
- * Heatmap 2D B × Df de `qadm_diseño` (o qadm_settlement como fallback).
- * Color: gradiente del menor (rojo coral) al mayor (verde sage); celdas con
- * error en gris.
- */
 function Qadm2DHeatmap({
   result, loading, range, setRange, onRun, pUnit, toP,
 }: {
@@ -746,7 +712,6 @@ function Qadm2DHeatmap({
   const dfVals: number[] = result?.dfValues ?? [];
   const matrix: any[][] = result?.matrix ?? [];
 
-  // Métrica visible: qadm_diseno si existe, else qadm_settlement
   const cellValueSI = (cell: any): number | null => {
     if (!cell) return null;
     if (typeof cell.qadm_diseno === 'number') return cell.qadm_diseno;
@@ -754,7 +719,6 @@ function Qadm2DHeatmap({
     return null;
   };
 
-  // Rango para color
   let vMin = Infinity, vMax = -Infinity;
   for (const row of matrix) for (const c of row) {
     const v = cellValueSI(c);
@@ -765,10 +729,9 @@ function Qadm2DHeatmap({
   }
   const colorOf = (v: number | null): string => {
     if (v == null || !isFinite(v) || vMax === vMin) return 'var(--lucid-surface-figure)';
-    const t = (v - vMin) / (vMax - vMin);   // 0=min (peor), 1=max (mejor)
-    // Interpola coral (low) → sage (high)
-    const r1 = 0xf6, g1 = 0xc6, b1 = 0xb8;  // coral suave
-    const r2 = 0xc4, g2 = 0xdb, b2 = 0xb8;  // sage suave
+    const t = (v - vMin) / (vMax - vMin);
+    const r1 = 0xf6, g1 = 0xc6, b1 = 0xb8;
+    const r2 = 0xc4, g2 = 0xdb, b2 = 0xb8;
     const r = Math.round(r1 + t * (r2 - r1));
     const g = Math.round(g1 + t * (g2 - g1));
     const b = Math.round(b1 + t * (b2 - b1));
@@ -916,9 +879,6 @@ const Td = ({ children }: { children: React.ReactNode }) => (
   <td style={{ padding: '5px 8px', color: 'var(--lucid-ink-body)' }}>{children}</td>
 );
 
-/* ──────────────────────────────────────────────────────────────────
- * UI helpers
- * ────────────────────────────────────────────────────────────────── */
 
 const pillGroupStyle: React.CSSProperties = {
   display: 'flex',

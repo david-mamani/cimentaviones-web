@@ -1,6 +1,3 @@
-/**
- * CollapsiblePanel — Side panel with resize handle and collapse toggle.
- */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -101,7 +98,6 @@ export default function CollapsiblePanel({
       flexShrink: 0,
       overflow: 'hidden',
     }}>
-      {/* Header */}
       <div style={{
         height: 32,
         background: 'var(--lucid-surface-page)',
@@ -144,12 +140,10 @@ export default function CollapsiblePanel({
         </button>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {children}
       </div>
 
-      {/* Resize handle */}
       <div
         onMouseDown={handleMouseDown}
         className="resize-handle"

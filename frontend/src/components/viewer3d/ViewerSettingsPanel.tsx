@@ -1,7 +1,3 @@
-/**
- * ViewerSettingsPanel — CAD-styled panel to control 3D visualization.
- * Appears as an overlay when the settings button is clicked.
- */
 import { useViewerSettings } from '../../store/viewerSettingsStore';
 import { useFoundationStore } from '../../store/foundationStore';
 
@@ -19,7 +15,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
       width: 240, background: 'var(--bg-surface-1)', borderLeft: '1px solid var(--border)',
       overflowY: 'auto', zIndex: 20, display: 'flex', flexDirection: 'column',
     }}>
-      {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-2)',
@@ -34,7 +29,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
 
       <div style={{ padding: 10, flex: 1 }}>
 
-        {/* ─── Estratos ─── */}
         <SectionHeader title="Estratos" />
 
         <SliderControl
@@ -50,7 +44,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
           onChange={(v) => settings.set('strataWireframe', v)}
         />
 
-        {/* Per-stratum colors */}
         <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 8, marginBottom: 4 }}>Colores por estrato:</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {strata.map((s, i) => (
@@ -66,7 +59,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
           ))}
         </div>
 
-        {/* ─── Cimentación ─── */}
         <SectionHeader title="Cimentación" />
 
         <ColorControl
@@ -82,7 +74,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
           onChange={(v) => settings.set('foundationOpacity', v)}
         />
 
-        {/* ─── Nivel Freático ─── */}
         <SectionHeader title="Nivel Freático" />
 
         <ColorControl
@@ -98,7 +89,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
           onChange={(v) => settings.set('waterTableOpacity', v)}
         />
 
-        {/* ─── Escena ─── */}
         <SectionHeader title="Escena" />
 
         <CheckboxControl
@@ -127,7 +117,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
         />
       </div>
 
-      {/* Reset button */}
       <div style={{ padding: 10, borderTop: '1px solid var(--border)' }}>
         <button
           className="cad-btn"
@@ -141,7 +130,6 @@ export default function ViewerSettingsPanel({ onClose }: ViewerSettingsPanelProp
   );
 }
 
-// ─── Sub-components ───
 
 function SectionHeader({ title }: { title: string }) {
   return (

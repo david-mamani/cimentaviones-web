@@ -1,8 +1,3 @@
-/**
- * ResultsPanel — Full results view for workspace tab display.
- * Uses CSS variables for theme support.
- * Uses unitStore for dynamic unit labels and conversions.
- */
 import { useFoundationStore } from '../../store/foundationStore';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -42,7 +37,6 @@ export default function ResultsPanel() {
       overflow: 'auto',
     }}>
       <div style={{ maxWidth: 780, margin: '0 auto' }}>
-        {/* Eyebrow + Title */}
         <div style={{
           fontFamily: 'var(--lucid-font-sans)',
           fontSize: 10, fontWeight: 600,
@@ -68,7 +62,6 @@ export default function ResultsPanel() {
           </em>
         </h1>
 
-        {/* Resolución paso a paso (markdown del motor) */}
         {result.resolution_md && (
           <div className="lucid-md" style={{
             fontFamily: 'var(--lucid-font-serif)',
@@ -87,7 +80,6 @@ export default function ResultsPanel() {
           </div>
         )}
 
-        {/* Warnings — bloque Lucid con borde coral */}
         {result.warnings && result.warnings.length > 0 && (
           <div style={{ marginTop: 32 }}>
             <div style={{
@@ -115,9 +107,6 @@ export default function ResultsPanel() {
           </div>
         )}
       </div>
-
-      {/* Estilos del markdown Lucid — todos los selectores tienen el
-          mismo prefijo .lucid-md para no chocar con CSS global. */}
       <style>{`
         .lucid-md h1, .lucid-md h2, .lucid-md h3, .lucid-md h4 {
           font-family: var(--lucid-font-serif);
@@ -178,7 +167,6 @@ export default function ResultsPanel() {
           font-size: 13px;
         }
 
-        /* ── Tablas (estilo table.lucid del design) ────────────────── */
         .lucid-md table {
           display: table;
           width: 100%;
@@ -242,7 +230,6 @@ export default function ResultsPanel() {
           background: transparent;
         }
 
-        /* KaTeX display ecuaciones — eq-card Lucid */
         .lucid-md .katex-display {
           background: var(--lucid-surface-figure);
           border: 1px solid var(--lucid-rule-cream);

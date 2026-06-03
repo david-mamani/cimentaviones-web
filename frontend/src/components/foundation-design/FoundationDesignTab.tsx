@@ -1,26 +1,3 @@
-/**
- * FoundationDesignTab — Pestaña "Excentricidad".
- *
- * Convención del curso (profesor / RNE):
- *   - Eje 1 horizontal, eje 2 vertical.
- *   - B paralelo al eje 1, L paralelo al eje 2.
- *   - M1 = M_x sobre eje 1 → e1 = M1/Q → reduce L  → L' = L − 2·e1
- *   - M2 = M_y sobre eje 2 → e2 = M2/Q → reduce B  → B' = B − 2·e2
- *   - Swap final si B' > L' (B' siempre el menor).
- *
- * Layout:
- *   ┌─────────────────────────────┬──────────────────┐
- *   │                             │  Modo input      │
- *   │      FoundationPlanView     │  M / e           │
- *   │      con ejes 1, 2          │  (M1, M2, Q)     │
- *   │                             │  ó (e1, e2)      │
- *   │                             │  Outputs: B', L' │
- *   └─────────────────────────────┴──────────────────┘
- *
- * Geometría (Tipo, B, L, k, Df) y Carga (Q, β) viven en el panel izquierdo
- * (PropertiesPanel). Q también puede editarse aquí porque es necesaria
- * para derivar e = M/Q.
- */
 import { useFoundationStore } from '../../store/foundationStore';
 import CadNumericInput from '../common/CadNumericInput';
 import FoundationPlanView from './FoundationPlanView';
@@ -32,8 +9,6 @@ export default function FoundationDesignTab() {
   const mode = useFoundationStore((s) => s.eccentricityInputMode);
   const setMode = useFoundationStore((s) => s.setEccentricityInputMode);
 
-  // Vista en planta: usar siempre e1, e2 (sea que el usuario los haya
-  // ingresado directamente o derivados de M/Q en modo "M").
   const Q = typeof f.Q === 'number' && f.Q > 0 ? f.Q : 0;
   const e1Computed =
     mode === 'M'
@@ -44,7 +19,6 @@ export default function FoundationDesignTab() {
       ? (typeof f.M2 === 'number' && f.M2 > 0 && Q > 0 ? f.M2 / Q : 0)
       : (f.e2 ?? 0);
 
-  // Magnitudes derivadas (antes del swap de capacidad)
   const Beff = f.B - 2 * e2Computed;
   const Leff = f.L - 2 * e1Computed;
   const swapped = Beff > Leff;
@@ -71,7 +45,6 @@ export default function FoundationDesignTab() {
       background: 'var(--lucid-surface-page-warm)',
       overflow: 'hidden',
     }}>
-      {/* ─── Lado izquierdo: vista en planta ─── */}
       <div style={{
         flex: 1,
         display: 'flex',
@@ -102,14 +75,12 @@ export default function FoundationDesignTab() {
         </div>
       </div>
 
-      {/* ─── Lado derecho: inputs de excentricidad ─── */}
       <div style={{
         width: 360,
         flexShrink: 0,
         overflowY: 'auto',
         background: 'var(--lucid-surface-page)',
       }}>
-        {/* ─ Modo de input ─ */}
         <SectionTitle>Modo de entrada</SectionTitle>
         <SectionBody>
           <div style={{
@@ -133,7 +104,6 @@ export default function FoundationDesignTab() {
           </Note>
         </SectionBody>
 
-        {/* ─ Inputs: M ó e ─ */}
         <SectionTitle>Excentricidad</SectionTitle>
         <SectionBody>
           {mode === 'M' ? (
@@ -198,7 +168,6 @@ export default function FoundationDesignTab() {
           )}
         </SectionBody>
 
-        {/* ─ Método del área efectiva ─ */}
         <SectionTitle>Método del área efectiva</SectionTitle>
         <SectionBody>
           <div style={{
@@ -229,7 +198,6 @@ export default function FoundationDesignTab() {
           </Note>
         </SectionBody>
 
-        {/* ─ Outputs derivados ─ */}
         <SectionTitle>Resultado</SectionTitle>
         <SectionBody>
           <KV label="e₁" value={`${e1Computed.toFixed(3)} m`} hint="reduce L" />
@@ -292,7 +260,6 @@ export default function FoundationDesignTab() {
   );
 }
 
-/* ────────── Sub-componentes ────────── */
 
 function ModeBtn({
   active, onClick, children,

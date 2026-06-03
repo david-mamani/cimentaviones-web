@@ -1,10 +1,3 @@
-/**
- * Workspace — Tabbed center area with optional horizontal split.
- * Tracks which side is "active" so new tabs go to the right place.
- *
- * IMPORTANT: Tab contents are kept mounted (display:none) to preserve
- * state (3D model, iteration results) when switching tabs.
- */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import ResultsPanel from '../visualization/ResultsPanel';
 import ParametricIterations from '../iterations/ParametricIterations';
@@ -52,7 +45,6 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
   activeSlotRef.current = activeSlot;
 
   const addTab = useCallback((type: TabType, slot?: 'left' | 'right') => {
-    // Use specified slot, or the currently active slot (via ref to avoid stale closure)
     const targetSlot = slot || activeSlotRef.current;
     const newTab: TabInfo = {
       id: `tab-${++tabCounter}`,
@@ -88,7 +80,6 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
     }
   }, [activeLeft, activeRight]);
 
-  // Register addTab in workspace store for Toolbar/AppShell to consume
   const registerAddTab = useWorkspaceStore((s) => s.registerAddTab);
   const unregisterAddTab = useWorkspaceStore((s) => s.unregisterAddTab);
   useEffect(() => {
@@ -128,7 +119,6 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
       background: 'var(--lucid-surface-page-warm)',
       overflow: 'hidden',
     }}>
-      {/* Left slot */}
       <div
         style={{ flex: splitMode ? leftFraction : 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
         onPointerDownCapture={() => setSlot('left')}
@@ -142,10 +132,8 @@ export default function Workspace({ splitMode }: WorkspaceProps) {
         />
       </div>
 
-      {/* Right slot (only in split mode) */}
       {splitMode && (
         <>
-          {/* Draggable divider */}
           <div
             onPointerDown={handleDividerDown}
             onPointerMove={handleDividerMove}
@@ -187,7 +175,6 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
 }) {
   return (
     <>
-      {/* Tab bar */}
       <div className="tab-bar" style={{
         borderBottom: isActiveSlot
           ? '1px solid var(--lucid-acc-coral)'
@@ -212,7 +199,6 @@ function TabSlot({ tabs, activeTab, isActiveSlot, onActivate, onClose }: {
         ))}
       </div>
 
-      {/* Tab content — ALL tabs stay mounted, only active one is visible */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {tabs.length === 0 ? (
           <div style={{

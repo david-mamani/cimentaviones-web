@@ -1,6 +1,5 @@
 """
 Motor de generacion de reportes LaTeX.
-
 Genera archivos .tex completos con:
   - Portada profesional
   - Indice automatico
@@ -11,12 +10,10 @@ Genera archivos .tex completos con:
   - Vistas 2D/3D (imagenes)
   - Resultados y consideracion RNE
   - Todo en espanol
-
 Dependencia: texlive en el contenedor Docker para compilar a PDF.
 IMPORTANTE: Solo se usa ASCII puro en el contenido .tex generado,
 con comandos LaTeX para acentos (\\' para tildes, \\~ para ene).
 """
-
 import base64
 import math
 import os
@@ -28,15 +25,15 @@ from pathlib import Path
 def _escape_latex(text: str) -> str:
     """Escapa caracteres especiales de LaTeX."""
     replacements = {
-        '&': r'\&',
-        '%': r'\%',
-        '$': r'\$',
-        '#': r'\#',
-        '_': r'\_',
-        '{': r'\{',
-        '}': r'\}',
-        '~': r'\textasciitilde{}',
-        '^': r'\textasciicircum{}',
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
     }
     for char, replacement in replacements.items():
         text = text.replace(char, replacement)
@@ -63,10 +60,10 @@ def _fmt(value, decimals=2) -> str:
 
 def _save_base64_image(b64_data: str, filepath: str):
     """Decodifica una imagen base64 y la guarda como archivo."""
-    if ',' in b64_data:
-        b64_data = b64_data.split(',', 1)[1]
+    if "," in b64_data:
+        b64_data = b64_data.split(",", 1)[1]
     img_bytes = base64.b64decode(b64_data)
-    with open(filepath, 'wb') as f:
+    with open(filepath, "wb") as f:
         f.write(img_bytes)
 
 
@@ -89,78 +86,67 @@ def generate_latex(
         options = {}
     if images is None:
         images = {}
-
-    # ── Unit labels ──
-    # Defaults to SI if no unit_config provided
     if unit_config:
-        inp = unit_config.get('input', {})
-        out = unit_config.get('output', {})
+        inp = unit_config.get("input", {})
+        out = unit_config.get("output", {})
     else:
         inp = {}
         out = {}
+    iu_length = inp.get("length", "m")
+    iu_pressure = inp.get("pressure", "kPa")
+    iu_weight = inp.get("unitWeight", r"kN/m\textsuperscript{3}")
+    iu_force = inp.get("force", "kN")
+    ou_length = out.get("length", "m")
+    ou_pressure = out.get("pressure", "kPa")
+    ou_weight = out.get("unitWeight", r"kN/m\textsuperscript{3}")
+    ou_force = out.get("force", "kN")
 
-    # Input unit labels (for data entry sections)
-    iu_length = inp.get('length', 'm')
-    iu_pressure = inp.get('pressure', 'kPa')
-    iu_weight = inp.get('unitWeight', r'kN/m\textsuperscript{3}')
-    iu_force = inp.get('force', 'kN')
-
-    # Output unit labels (for results sections)
-    ou_length = out.get('length', 'm')
-    ou_pressure = out.get('pressure', 'kPa')
-    ou_weight = out.get('unitWeight', r'kN/m\textsuperscript{3}')
-    ou_force = out.get('force', 'kN')
-
-    # LaTeX-safe weight unit (superscript for m3)
     def _tex_unit(unit_str):
         """Convert unit strings to LaTeX-safe versions."""
-        return (unit_str
-                .replace('kN/m\u00b3', r'kN/m\textsuperscript{3}')
-                .replace('t/m\u00b3', r't/m\textsuperscript{3}')
-                .replace('t/m²', r't/m\textsuperscript{2}')
-                .replace('kg/cm²', r'kg/cm\textsuperscript{2}'))
+        return (
+            unit_str.replace("kN/m\u00b3", r"kN/m\textsuperscript{3}")
+            .replace("t/m\u00b3", r"t/m\textsuperscript{3}")
+            .replace("t/m²", r"t/m\textsuperscript{2}")
+            .replace("kg/cm²", r"kg/cm\textsuperscript{2}")
+        )
 
     iu_weight_tex = _tex_unit(iu_weight)
     iu_pressure_tex = _tex_unit(iu_pressure)
     ou_weight_tex = _tex_unit(ou_weight)
     ou_pressure_tex = _tex_unit(ou_pressure)
     ou_force_tex = _tex_unit(ou_force)
-
-    # Check if input != output (for conversion appendix)
-    units_differ = (iu_pressure != ou_pressure or iu_force != ou_force
-                    or iu_weight != ou_weight or iu_length != ou_length)
-
-    include_calculations = options.get('include_calculations', True)
-    include_strata = options.get('include_strata', True)
-    include_iterations = options.get('include_iterations', False)
-    include_charts = options.get('include_charts', False)
-    include_2d = options.get('include_2d', False)
-    include_3d = options.get('include_3d', False)
-
-    f_type = foundation.get('type', 'cuadrada')
-    B = _safe_float(foundation.get('B', 1.0))
-    L = _safe_float(foundation.get('L', 1.0))
-    Df = _safe_float(foundation.get('Df', 1.0))
-    FS = _safe_float(foundation.get('FS', 3.0))
-    beta = _safe_float(foundation.get('beta', 0))
-
-    # All labels use LaTeX accent commands (ASCII only)
+    units_differ = (
+        iu_pressure != ou_pressure
+        or iu_force != ou_force
+        or iu_weight != ou_weight
+        or iu_length != ou_length
+    )
+    include_calculations = options.get("include_calculations", True)
+    include_strata = options.get("include_strata", True)
+    include_iterations = options.get("include_iterations", False)
+    include_charts = options.get("include_charts", False)
+    include_2d = options.get("include_2d", False)
+    include_3d = options.get("include_3d", False)
+    f_type = foundation.get("type", "cuadrada")
+    B = _safe_float(foundation.get("B", 1.0))
+    L = _safe_float(foundation.get("L", 1.0))
+    Df = _safe_float(foundation.get("Df", 1.0))
+    FS = _safe_float(foundation.get("FS", 3.0))
+    beta = _safe_float(foundation.get("beta", 0))
     type_labels = {
-        'cuadrada': 'Cuadrada',
-        'rectangular': 'Rectangular',
-        'franja': 'Franja',
-        'circular': 'Circular',
+        "cuadrada": "Cuadrada",
+        "rectangular": "Rectangular",
+        "franja": "Franja",
+        "circular": "Circular",
     }
     method_labels = {
-        'terzaghi': r"Terzaghi Cl\'asico",
-        'general': r"Ecuaci\'on General (Das/Braja)",
-        'rne': 'RNE E.050',
+        "terzaghi": r"Terzaghi Cl\'asico",
+        "general": r"Ecuaci\'on General (Das/Braja)",
+        "rne": "RNE E.050",
     }
-
     tex = []
-
-    # ── Preambulo ──
-    tex.append(r"""\documentclass[12pt,a4paper]{article}
+    tex.append(
+        r"""\documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[spanish]{babel}
 \usepackage{geometry}
@@ -174,17 +160,14 @@ def generate_latex(
 \usepackage{titlesec}
 \usepackage{hyperref}
 \usepackage{float}
-
 \geometry{margin=2.5cm}
 \definecolor{accent}{RGB}{192,57,43}
 \definecolor{darkbg}{RGB}{45,45,45}
-
 \hypersetup{
     colorlinks=true,
     linkcolor=accent,
     urlcolor=accent,
 }
-
 % Header/Footer
 \pagestyle{fancy}
 \fancyhf{}
@@ -192,45 +175,43 @@ def generate_latex(
 \fancyhead[R]{\small\textcolor{gray}{An\'alisis Geot\'ecnico}}
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
-
 % Section styling
 \titleformat{\section}{\Large\bfseries\color{accent}}{}{0em}{}[\vspace{-0.5em}\textcolor{accent}{\rule{\textwidth}{0.5pt}}]
 \titleformat{\subsection}{\large\bfseries}{}{0em}{}
-
 \begin{document}
-""")
-
-    # ── Portada ──
-    tex.append(r"""
+"""
+    )
+    tex.append(
+        r"""
 \begin{titlepage}
 \centering
 \vspace*{3cm}
-
 {\Huge\bfseries\textcolor{accent}{Cimentaciones Web}}\\[0.5cm]
 {\Large An\'alisis de Capacidad Portante}\\[2cm]
-
 {\large\textbf{Reporte de Ingenier\'ia Geot\'ecnica}}\\[0.5cm]
-""")
-    tex.append(f"{{\\large M\\'etodo: {method_labels.get(method, method)}}}\\\\[0.3cm]\n")
-    tex.append(f"{{\\large Cimentaci\\'on: {type_labels.get(f_type, f_type)}}}\\\\[2cm]\n")
-    tex.append(r"""
+"""
+    )
+    tex.append(
+        f"{{\\large M\\'etodo: {method_labels.get(method, method)}}}\\\\[0.3cm]\n"
+    )
+    tex.append(
+        f"{{\\large Cimentaci\\'on: {type_labels.get(f_type, f_type)}}}\\\\[2cm]\n"
+    )
+    tex.append(
+        r"""
 {\large\today}\\[3cm]
-
 \vfill
 {\small Generado autom\'aticamente por Cimentaciones Web v1.1}\\
 {\small Motor de An\'alisis Geot\'ecnico}
 \end{titlepage}
-""")
-
-    # ── Indice ──
-    tex.append(r"""
+"""
+    )
+    tex.append(
+        r"""
 \tableofcontents
 \newpage
-""")
-
-    # ══════════════════════════════════════
-    # DATOS DE CIMENTACION
-    # ══════════════════════════════════════
+"""
+    )
     tex.append(r"\section{Datos de la Cimentaci\'on}" + "\n\n")
     tex.append(r"\begin{table}[H]" + "\n")
     tex.append(r"\centering" + "\n")
@@ -240,66 +221,63 @@ def generate_latex(
     tex.append(r"\midrule" + "\n")
     tex.append(f"Tipo de cimentaci\\'on & {type_labels.get(f_type, f_type)} \\\\\n")
     tex.append(f"Ancho $B$ & {_fmt(B)} m \\\\\n")
-    if f_type == 'rectangular':
+    if f_type == "rectangular":
         tex.append(f"Longitud $L$ & {_fmt(L)} m \\\\\n")
     tex.append(f"Profundidad de desplante $D_f$ & {_fmt(Df)} m \\\\\n")
     tex.append(f"Factor de seguridad $FS$ & {_fmt(FS)} \\\\\n")
-    tex.append(f"\\'{{A}}ngulo de inclinaci\\'on $\\beta$ & {_fmt(beta)}$^{{\\circ}}$ \\\\\n")
-
-    if conditions.get('hasWaterTable'):
-        tex.append(f"Nivel fre\\'atico $D_w$ & {_fmt(conditions.get('waterTableDepth', 0))} m \\\\\n")
+    tex.append(
+        f"\\'{{A}}ngulo de inclinaci\\'on $\\beta$ & {_fmt(beta)}$^{{\\circ}}$ \\\\\n"
+    )
+    if conditions.get("hasWaterTable"):
+        tex.append(
+            f"Nivel fre\\'atico $D_w$ & {_fmt(conditions.get('waterTableDepth', 0))} m \\\\\n"
+        )
     else:
         tex.append("Nivel fre\\'atico & No presente \\\\\n")
-
-    if conditions.get('hasBasement'):
-        tex.append(f"Profundidad de s\\'otano $D_s$ & {_fmt(conditions.get('basementDepth', 0))} m \\\\\n")
-
+    if conditions.get("hasBasement"):
+        tex.append(
+            f"Profundidad de s\\'otano $D_s$ & {_fmt(conditions.get('basementDepth', 0))} m \\\\\n"
+        )
     tex.append(r"\bottomrule" + "\n")
     tex.append(r"\end{tabular}" + "\n")
     tex.append(r"\caption{Par\'ametros de la cimentaci\'on}" + "\n")
     tex.append(r"\end{table}" + "\n\n")
-
-    # ══════════════════════════════════════
-    # ESTRATOS
-    # ══════════════════════════════════════
     if include_strata:
         tex.append(r"\section{Estratos del Suelo}" + "\n\n")
         tex.append(r"\begin{table}[H]" + "\n")
         tex.append(r"\centering" + "\n")
         tex.append(r"\begin{tabular}{c c c c c c}" + "\n")
         tex.append(r"\toprule" + "\n")
-        tex.append(f"\\textbf{{Estrato}} & \\textbf{{Espesor ({iu_length})}} & \\textbf{{$\\gamma$ ({iu_weight_tex})}} & \\textbf{{$c$ ({iu_pressure_tex})}} & \\textbf{{$\\phi$ ($^{{\\circ}}$)}} & \\textbf{{$\\gamma_{{sat}}$ ({iu_weight_tex})}} \\\\\n")
+        tex.append(
+            f"\\textbf{{Estrato}} & \\textbf{{Espesor ({iu_length})}} & \\textbf{{$\\gamma$ ({iu_weight_tex})}} & \\textbf{{$c$ ({iu_pressure_tex})}} & \\textbf{{$\\phi$ ($^{{\\circ}}$)}} & \\textbf{{$\\gamma_{{sat}}$ ({iu_weight_tex})}} \\\\\n"
+        )
         tex.append(r"\midrule" + "\n")
-
         for i, s in enumerate(strata):
-            tex.append(f"{i+1} & {_fmt(s.get('thickness', 0))} & {_fmt(s.get('gamma', 0))} & {_fmt(s.get('c', 0))} & {_fmt(s.get('phi', 0))} & {_fmt(s.get('gammaSat', 0))} \\\\\n")
-
+            tex.append(
+                f"{i+1} & {_fmt(s.get('thickness', 0))} & {_fmt(s.get('gamma', 0))} & {_fmt(s.get('c', 0))} & {_fmt(s.get('phi', 0))} & {_fmt(s.get('gammaSat', 0))} \\\\\n"
+            )
         tex.append(r"\bottomrule" + "\n")
         tex.append(r"\end{tabular}" + "\n")
         tex.append(r"\caption{Propiedades geot\'ecnicas de los estratos}" + "\n")
         tex.append(r"\end{table}" + "\n\n")
-
-    # ══════════════════════════════════════
-    # ECUACIONES Y CALCULOS
-    # ══════════════════════════════════════
     if include_calculations and result:
         tex.append(r"\section{Desarrollo del C\'alculo}" + "\n\n")
-
-        bf = result.get('bearingFactors', {})
-        sf = result.get('shapeFactors', {})
-        df = result.get('depthFactors', {})
-        inf = result.get('inclinationFactors', {})
-        ds = result.get('designStratum', {})
-        ds_idx = result.get('designStratumIndex', 0)
-
+        bf = result.get("bearingFactors", {})
+        sf = result.get("shapeFactors", {})
+        df = result.get("depthFactors", {})
+        inf = result.get("inclinationFactors", {})
+        ds = result.get("designStratum", {})
+        ds_idx = result.get("designStratumIndex", 0)
         tex.append(r"\subsection{Estrato de Dise\~no}" + "\n")
         tex.append(f"El estrato de dise\\~no es el \\textbf{{Estrato {ds_idx + 1}}} ")
-        tex.append(f"con $\\phi = {_fmt(ds.get('phi', 0))}^{{\\circ}}$, $c = {_fmt(ds.get('c', 0))}$ {iu_pressure_tex}, ")
+        tex.append(
+            f"con $\\phi = {_fmt(ds.get('phi', 0))}^{{\\circ}}$, $c = {_fmt(ds.get('c', 0))}$ {iu_pressure_tex}, "
+        )
         tex.append(f"$\\gamma = {_fmt(ds.get('gamma', 0))}$ {iu_weight_tex}.\n\n")
-
-        soil_type = result.get('soilType', 'Fri')
-        tex.append(f"Tipo de suelo: \\textbf{{{_escape_latex('Cohesivo' if soil_type == 'Coh' else 'Friccionante')}}}.\n\n")
-
+        soil_type = result.get("soilType", "Fri")
+        tex.append(
+            f"Tipo de suelo: \\textbf{{{_escape_latex('Cohesivo' if soil_type == 'Coh' else 'Friccionante')}}}.\n\n"
+        )
         tex.append(r"\subsection{Factores de Capacidad Portante}" + "\n")
         tex.append(f"Para $\\phi = {_fmt(ds.get('phi', 0))}^{{\\circ}}$:\n")
         tex.append(r"\begin{align*}" + "\n")
@@ -307,61 +285,61 @@ def generate_latex(
         tex.append(f"N_q &= {_fmt(bf.get('Nq', 0))} \\\\\n")
         tex.append(f"N_\\gamma &= {_fmt(bf.get('Ngamma', 0))}\n")
         tex.append(r"\end{align*}" + "\n\n")
-
         tex.append(r"\subsection{Factores de Forma}" + "\n")
         tex.append(r"\begin{align*}" + "\n")
         tex.append(f"s_c &= {_fmt(sf.get('sc', 1), 4)} \\\\\n")
         tex.append(f"s_q &= {_fmt(sf.get('sq', 1), 4)} \\\\\n")
         tex.append(f"s_\\gamma &= {_fmt(sf.get('sgamma', 1), 4)}\n")
         tex.append(r"\end{align*}" + "\n\n")
-
         tex.append(r"\subsection{Factores de Profundidad}" + "\n")
         tex.append(r"\begin{align*}" + "\n")
         tex.append(f"d_c &= {_fmt(df.get('dc', 1), 4)} \\\\\n")
         tex.append(f"d_q &= {_fmt(df.get('dq', 1), 4)} \\\\\n")
         tex.append(f"d_\\gamma &= {_fmt(df.get('dgamma', 1), 4)}\n")
         tex.append(r"\end{align*}" + "\n\n")
-
         tex.append(r"\subsection{Factores de Inclinaci\'on}" + "\n")
         tex.append(r"\begin{align*}" + "\n")
         tex.append(f"i_c &= {_fmt(inf.get('ic', 1), 4)} \\\\\n")
         tex.append(f"i_q &= {_fmt(inf.get('iq', 1), 4)} \\\\\n")
         tex.append(f"i_\\gamma &= {_fmt(inf.get('igamma', 1), 4)}\n")
         tex.append(r"\end{align*}" + "\n\n")
-
         tex.append(r"\subsection{Ecuaci\'on de Capacidad Portante}" + "\n")
-        q_val = _safe_float(result.get('q', 0))
-        gamma_eff = _safe_float(result.get('gammaEffective', 0))
-        F1 = _safe_float(result.get('F1', 0))
-        F2 = _safe_float(result.get('F2', 0))
-        F3 = _safe_float(result.get('F3', 0))
-
+        q_val = _safe_float(result.get("q", 0))
+        gamma_eff = _safe_float(result.get("gammaEffective", 0))
+        F1 = _safe_float(result.get("F1", 0))
+        F2 = _safe_float(result.get("F2", 0))
+        F3 = _safe_float(result.get("F3", 0))
         tex.append(f"Sobrecarga efectiva: $q = {_fmt(q_val)}$ {ou_pressure_tex}\n\n")
-        tex.append(f"Peso unitario efectivo: $\\gamma_{{eff}} = {_fmt(gamma_eff)}$ {ou_weight_tex}\n\n")
-
-        if method == 'terzaghi':
+        tex.append(
+            f"Peso unitario efectivo: $\\gamma_{{eff}} = {_fmt(gamma_eff)}$ {ou_weight_tex}\n\n"
+        )
+        if method == "terzaghi":
             tex.append(r"Ecuaci\'on de Terzaghi \cite{terzaghi1943}:" + "\n")
             tex.append(r"\begin{equation}\label{eq:terzaghi}" + "\n")
-            tex.append(r"q_u = c \cdot N_c \cdot s_c + q \cdot N_q + \frac{1}{2} \gamma B \cdot N_\gamma \cdot s_\gamma" + "\n")
+            tex.append(
+                r"q_u = c \cdot N_c \cdot s_c + q \cdot N_q + \frac{1}{2} \gamma B \cdot N_\gamma \cdot s_\gamma"
+                + "\n"
+            )
             tex.append(r"\end{equation}" + "\n\n")
             tex.append(r"Aplicando la Ecuaci\'on \ref{eq:terzaghi}:" + "\n")
         else:
-            tex.append(r"Ecuaci\'on General de Capacidad Portante \cite{meyerhof1963,das2011}:" + "\n")
+            tex.append(
+                r"Ecuaci\'on General de Capacidad Portante \cite{meyerhof1963,das2011}:"
+                + "\n"
+            )
             tex.append(r"\begin{equation}\label{eq:general}" + "\n")
-            tex.append(r"q_u = c \cdot N_c \cdot s_c \cdot d_c \cdot i_c + q \cdot N_q \cdot s_q \cdot d_q \cdot i_q + \frac{1}{2} \gamma B \cdot N_\gamma \cdot s_\gamma \cdot d_\gamma \cdot i_\gamma" + "\n")
+            tex.append(
+                r"q_u = c \cdot N_c \cdot s_c \cdot d_c \cdot i_c + q \cdot N_q \cdot s_q \cdot d_q \cdot i_q + \frac{1}{2} \gamma B \cdot N_\gamma \cdot s_\gamma \cdot d_\gamma \cdot i_\gamma"
+                + "\n"
+            )
             tex.append(r"\end{equation}" + "\n\n")
             tex.append(r"Aplicando la Ecuaci\'on \ref{eq:general}:" + "\n")
-
         tex.append(r"T\'erminos individuales:" + "\n")
         tex.append(r"\begin{align*}" + "\n")
         tex.append(f"F_1 &= {_fmt(F1)} \\text{{ {ou_pressure_tex}}} \\\\\n")
         tex.append(f"F_2 &= {_fmt(F2)} \\text{{ {ou_pressure_tex}}} \\\\\n")
         tex.append(f"F_3 &= {_fmt(F3)} \\text{{ {ou_pressure_tex}}}\n")
         tex.append(r"\end{align*}" + "\n\n")
-
-    # ══════════════════════════════════════
-    # RESULTADOS
-    # ══════════════════════════════════════
     if result:
         tex.append(r"\section{Resultados}" + "\n\n")
         tex.append(r"\begin{table}[H]" + "\n")
@@ -370,55 +348,67 @@ def generate_latex(
         tex.append(r"\toprule" + "\n")
         tex.append(r"\textbf{Resultado} & \textbf{Valor} & \textbf{Unidad} \\" + "\n")
         tex.append(r"\midrule" + "\n")
-        tex.append(f"Capacidad portante \\'ultima $q_u$ & {_fmt(result.get('qu', 0))} & {ou_pressure_tex} \\\\\n")
-        tex.append(f"Capacidad portante neta $q_{{neta}}$ & {_fmt(result.get('qnet', 0))} & {ou_pressure_tex} \\\\\n")
-        tex.append(f"\\textbf{{Capacidad admisible}} $q_a$ & \\textbf{{{_fmt(result.get('qa', 0))}}} & \\textbf{{{ou_pressure_tex}}} \\\\\n")
-        tex.append(f"Capacidad admisible neta $q_{{a,neta}}$ & {_fmt(result.get('qaNet', 0))} & {ou_pressure_tex} \\\\\n")
+        tex.append(
+            f"Capacidad portante \\'ultima $q_u$ & {_fmt(result.get('qu', 0))} & {ou_pressure_tex} \\\\\n"
+        )
+        tex.append(
+            f"Capacidad portante neta $q_{{neta}}$ & {_fmt(result.get('qnet', 0))} & {ou_pressure_tex} \\\\\n"
+        )
+        tex.append(
+            f"\\textbf{{Capacidad admisible}} $q_a$ & \\textbf{{{_fmt(result.get('qa', 0))}}} & \\textbf{{{ou_pressure_tex}}} \\\\\n"
+        )
+        tex.append(
+            f"Capacidad admisible neta $q_{{a,neta}}$ & {_fmt(result.get('qaNet', 0))} & {ou_pressure_tex} \\\\\n"
+        )
         tex.append(r"\midrule" + "\n")
-        tex.append(f"\\textbf{{Carga m\\'axima}} $Q_{{max}}$ & \\textbf{{{_fmt(result.get('Qmax', 0))}}} & \\textbf{{{ou_force_tex}}} \\\\\n")
+        tex.append(
+            f"\\textbf{{Carga m\\'axima}} $Q_{{max}}$ & \\textbf{{{_fmt(result.get('Qmax', 0))}}} & \\textbf{{{ou_force_tex}}} \\\\\n"
+        )
         tex.append(r"\bottomrule" + "\n")
         tex.append(r"\end{tabular}" + "\n")
         tex.append(r"\caption{Resultados del an\'alisis de capacidad portante}" + "\n")
         tex.append(r"\end{table}" + "\n\n")
-
-        # RNE consideration
-        rne = result.get('rneConsideration')
+        rne = result.get("rneConsideration")
         if rne:
             tex.append(r"\subsection{Consideraci\'on RNE E.050}" + "\n\n")
             tex.append(r"\begin{table}[H]" + "\n")
             tex.append(r"\centering" + "\n")
             tex.append(r"\begin{tabular}{l r l}" + "\n")
             tex.append(r"\toprule" + "\n")
-            tex.append(r"\textbf{Par\'ametro RNE} & \textbf{Valor} & \textbf{Unidad} \\" + "\n")
+            tex.append(
+                r"\textbf{Par\'ametro RNE} & \textbf{Valor} & \textbf{Unidad} \\" + "\n"
+            )
             tex.append(r"\midrule" + "\n")
-            tex.append(f"$q_u$ RNE & {_fmt(rne.get('qultRNE', 0))} & {ou_pressure_tex} \\\\\n")
-            tex.append(f"$q_a$ RNE & {_fmt(rne.get('qadmRNE', 0))} & {ou_pressure_tex} \\\\\n")
-            tex.append(f"$q_u$ RNE corregido & {_fmt(rne.get('qultRNECorrected', 0))} & {ou_pressure_tex} \\\\\n")
+            tex.append(
+                f"$q_u$ RNE & {_fmt(rne.get('qultRNE', 0))} & {ou_pressure_tex} \\\\\n"
+            )
+            tex.append(
+                f"$q_a$ RNE & {_fmt(rne.get('qadmRNE', 0))} & {ou_pressure_tex} \\\\\n"
+            )
+            tex.append(
+                f"$q_u$ RNE corregido & {_fmt(rne.get('qultRNECorrected', 0))} & {ou_pressure_tex} \\\\\n"
+            )
             tex.append(r"\bottomrule" + "\n")
             tex.append(r"\end{tabular}" + "\n")
             tex.append(r"\caption{Resultados seg\'un la Norma RNE E.050}" + "\n")
             tex.append(r"\end{table}" + "\n\n")
-
-    # ======================================
-    # ITERATION TABLE
-    # ======================================
     if include_iterations:
         tex.append(r"\section{Iteraciones Param\'etricas}" + "\n\n")
-
-        if not iteration_results or not iteration_results.get('matrix'):
-            tex.append(r"\textit{Sin datos para iteraciones. Ejecute las iteraciones param\'etricas primero.}" + "\n\n")
+        if not iteration_results or not iteration_results.get("matrix"):
+            tex.append(
+                r"\textit{Sin datos para iteraciones. Ejecute las iteraciones param\'etricas primero.}"
+                + "\n\n"
+            )
         else:
-            matrix = iteration_results.get('matrix', [])
-            df_values = iteration_results.get('dfValues', [])
+            matrix = iteration_results.get("matrix", [])
+            df_values = iteration_results.get("dfValues", [])
             calc_num = 1
-
             for di, df_val in enumerate(df_values):
                 if di >= len(matrix):
                     break
                 row = matrix[di]
                 if not row:
                     continue
-
                 tex.append(f"\\subsection{{$D_f = {_fmt(df_val)}$ m}}\n")
                 tex.append(r"\begin{table}[H]" + "\n")
                 tex.append(r"\centering" + "\n")
@@ -438,11 +428,10 @@ def generate_latex(
                     f"\\textbf{{({ou_force_tex})}} & & & \\\\" + "\n"
                 )
                 tex.append(r"\midrule" + "\n")
-
                 for cell in row:
-                    res = cell.get('result', {})
-                    bf = res.get('bearingFactors', {})
-                    L_val = cell.get('L', res.get('L', 0))
+                    res = cell.get("result", {})
+                    bf = res.get("bearingFactors", {})
+                    L_val = cell.get("L", res.get("L", 0))
                     tex.append(
                         f"{calc_num} & "
                         f"{_fmt(cell.get('B', 0))} & "
@@ -457,20 +446,13 @@ def generate_latex(
                         f"{_fmt(bf.get('Ngamma', 0))} \\\\ \n"
                     )
                     calc_num += 1
-
                 tex.append(r"\bottomrule" + "\n")
                 tex.append(r"\end{tabular}" + "\n")
                 tex.append(f"\\caption{{Iteraciones para $D_f = {_fmt(df_val)}$ m}}\n")
                 tex.append(r"\end{table}" + "\n\n")
-
-    # ══════════════════════════════════════
-    # IMAGENES (only if image data was provided)
-    # ══════════════════════════════════════
-    has_2d = include_2d and images.get('view2d_b64')
-    has_3d = include_3d and images.get('view3d_b64')
-    # Chart is generated by matplotlib in compile_latex_to_pdf, not from frontend
-    has_chart = include_charts and iteration_results and iteration_results.get('matrix')
-
+    has_2d = include_2d and images.get("view2d_b64")
+    has_3d = include_3d and images.get("view3d_b64")
+    has_chart = include_charts and iteration_results and iteration_results.get("matrix")
     if has_2d:
         tex.append(r"\section{Vista 2D --- Secci\'on Transversal}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
@@ -478,7 +460,6 @@ def generate_latex(
         tex.append(r"\includegraphics[width=0.85\textwidth]{view2d}" + "\n")
         tex.append(r"\caption{Secci\'on transversal del modelo geot\'ecnico}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
-
     if has_3d:
         tex.append(r"\section{Vista 3D --- Modelo BIM}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
@@ -486,94 +467,109 @@ def generate_latex(
         tex.append(r"\includegraphics[width=0.85\textwidth]{view3d}" + "\n")
         tex.append(r"\caption{Modelo 3D IFC de la cimentaci\'on}" + "\n")
         tex.append(r"\end{figure}" + "\n\n")
-
     if has_chart:
         tex.append(r"\section{Gr\'afico de Iteraciones}" + "\n\n")
         tex.append(r"\begin{figure}[H]" + "\n")
         tex.append(r"\centering" + "\n")
         tex.append(r"\includegraphics[width=0.9\textwidth]{chart}" + "\n")
-        tex.append(r"\caption{Gr\'afico de iteraciones param\'etricas de capacidad portante}" + "\n")
+        tex.append(
+            r"\caption{Gr\'afico de iteraciones param\'etricas de capacidad portante}"
+            + "\n"
+        )
         tex.append(r"\end{figure}" + "\n\n")
-
-    # ── Bibliografia ──
     tex.append(r"\begin{thebibliography}{9}" + "\n")
     tex.append(r"\bibitem{terzaghi1943}" + "\n")
-    tex.append(r"Terzaghi, K. (1943). \textit{Theoretical Soil Mechanics}. John Wiley \& Sons." + "\n")
+    tex.append(
+        r"Terzaghi, K. (1943). \textit{Theoretical Soil Mechanics}. John Wiley \& Sons."
+        + "\n"
+    )
     tex.append(r"\bibitem{meyerhof1963}" + "\n")
-    tex.append(r"Meyerhof, G. G. (1963). \textit{Some recent research on the bearing capacity of foundations}. Canadian Geotechnical Journal." + "\n")
+    tex.append(
+        r"Meyerhof, G. G. (1963). \textit{Some recent research on the bearing capacity of foundations}. Canadian Geotechnical Journal."
+        + "\n"
+    )
     tex.append(r"\bibitem{das2011}" + "\n")
-    tex.append(r"Das, B. M. (2011). \textit{Principles of Foundation Engineering}. Cengage Learning." + "\n")
+    tex.append(
+        r"Das, B. M. (2011). \textit{Principles of Foundation Engineering}. Cengage Learning."
+        + "\n"
+    )
     tex.append(r"\end{thebibliography}" + "\n\n")
-
-    # ── Footer ──
     tex.append(r"\vfill" + "\n")
     tex.append(r"\begin{center}" + "\n")
-    tex.append(r"{\small\textcolor{gray}{Generado por Cimentaciones Web v1.1 --- Motor de An\'alisis Geot\'ecnico}}" + "\n")
+    tex.append(
+        r"{\small\textcolor{gray}{Generado por Cimentaciones Web v1.1 --- Motor de An\'alisis Geot\'ecnico}}"
+        + "\n"
+    )
     tex.append(r"\end{center}" + "\n\n")
-
     tex.append(r"\end{document}" + "\n")
-
-    return ''.join(tex)
+    return "".join(tex)
 
 
 def _detect_img_ext(b64_data: str) -> str:
     """Detect image format from data URL prefix."""
-    if b64_data.startswith('data:image/jpeg') or b64_data.startswith('data:image/jpg'):
-        return '.jpg'
-    return '.png'
+    if b64_data.startswith("data:image/jpeg") or b64_data.startswith("data:image/jpg"):
+        return ".jpg"
+    return ".png"
 
 
 def _generate_iteration_chart(iteration_results: dict, tmpdir: str):
     """Generate iteration charts (qa + Qmax) using matplotlib and save as chart.png."""
     import matplotlib
-    matplotlib.use('Agg')  # Non-interactive backend
+
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    matrix = iteration_results.get('matrix', [])
-    df_values = iteration_results.get('dfValues', [])
-    b_values = iteration_results.get('bValues', [])
-
+    matrix = iteration_results.get("matrix", [])
+    df_values = iteration_results.get("dfValues", [])
+    b_values = iteration_results.get("bValues", [])
     if not matrix or not df_values:
         return
-
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    fig.patch.set_facecolor('white')
-
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-              '#8c564b', '#e377c2', '#bcbd22', '#17becf', '#7f7f7f']
-
+    fig.patch.set_facecolor("white")
+    colors = [
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#bcbd22",
+        "#17becf",
+        "#7f7f7f",
+    ]
     for di, df_val in enumerate(df_values):
         if di >= len(matrix):
             break
         row = matrix[di]
         if not row:
             continue
-        b_vals = [cell.get('B', 0) for cell in row]
-        qa_vals = [cell.get('result', {}).get('qa', 0) for cell in row]
-        qmax_vals = [cell.get('Qmax', 0) for cell in row]
+        b_vals = [cell.get("B", 0) for cell in row]
+        qa_vals = [cell.get("result", {}).get("qa", 0) for cell in row]
+        qmax_vals = [cell.get("Qmax", 0) for cell in row]
         color = colors[di % len(colors)]
         label = f"Df = {df_val:.2f} m"
-
-        ax1.plot(b_vals, qa_vals, 'o-', color=color, label=label, linewidth=2, markersize=5)
-        ax2.plot(b_vals, qmax_vals, 's-', color=color, label=label, linewidth=2, markersize=5)
-
-    ax1.set_xlabel('B (m)', fontsize=11)
-    ax1.set_ylabel('q_adm (kPa)', fontsize=11)
-    ax1.set_title('Capacidad Portante Admisible', fontsize=12, fontweight='bold')
+        ax1.plot(
+            b_vals, qa_vals, "o-", color=color, label=label, linewidth=2, markersize=5
+        )
+        ax2.plot(
+            b_vals, qmax_vals, "s-", color=color, label=label, linewidth=2, markersize=5
+        )
+    ax1.set_xlabel("B (m)", fontsize=11)
+    ax1.set_ylabel("q_adm (kPa)", fontsize=11)
+    ax1.set_title("Capacidad Portante Admisible", fontsize=12, fontweight="bold")
     ax1.legend(fontsize=9)
     ax1.grid(True, alpha=0.3)
-    ax1.set_facecolor('white')
-
-    ax2.set_xlabel('B (m)', fontsize=11)
-    ax2.set_ylabel('Q_max (kN)', fontsize=11)
-    ax2.set_title('Carga Maxima', fontsize=12, fontweight='bold')
+    ax1.set_facecolor("white")
+    ax2.set_xlabel("B (m)", fontsize=11)
+    ax2.set_ylabel("Q_max (kN)", fontsize=11)
+    ax2.set_title("Carga Maxima", fontsize=12, fontweight="bold")
     ax2.legend(fontsize=9)
     ax2.grid(True, alpha=0.3)
-    ax2.set_facecolor('white')
-
+    ax2.set_facecolor("white")
     plt.tight_layout()
-    chart_path = os.path.join(tmpdir, 'chart.png')
-    fig.savefig(chart_path, dpi=150, bbox_inches='tight', facecolor='white')
+    chart_path = os.path.join(tmpdir, "chart.png")
+    fig.savefig(chart_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
@@ -591,50 +587,50 @@ def compile_latex_to_pdf(
         images = {}
     if options is None:
         options = {}
-
     with tempfile.TemporaryDirectory() as tmpdir:
-        tex_path = os.path.join(tmpdir, 'report.tex')
-        pdf_path = os.path.join(tmpdir, 'report.pdf')
-
-        # Save frontend-captured images (auto-detect JPEG vs PNG)
-        for key, filename_base in [('view2d_b64', 'view2d'), ('view3d_b64', 'view3d')]:
+        tex_path = os.path.join(tmpdir, "report.tex")
+        pdf_path = os.path.join(tmpdir, "report.pdf")
+        for key, filename_base in [("view2d_b64", "view2d"), ("view3d_b64", "view3d")]:
             b64 = images.get(key)
             if b64:
                 ext = _detect_img_ext(b64)
                 _save_base64_image(b64, os.path.join(tmpdir, filename_base + ext))
-
-        # Generate chart with matplotlib (server-side, independent of frontend)
-        if options.get('include_charts') and iteration_results and iteration_results.get('matrix'):
+        if (
+            options.get("include_charts")
+            and iteration_results
+            and iteration_results.get("matrix")
+        ):
             try:
                 _generate_iteration_chart(iteration_results, tmpdir)
             except Exception as e:
                 print(f"Warning: Could not generate chart: {e}")
-
-        # Write .tex file
-        with open(tex_path, 'w', encoding='ascii', errors='replace') as f:
+        with open(tex_path, "w", encoding="ascii", errors="replace") as f:
             f.write(tex_content)
-
-        # Compile with pdflatex (run twice for TOC)
         for _ in range(2):
             proc = subprocess.run(
-                ['pdflatex', '-interaction=nonstopmode', '-output-directory', tmpdir, tex_path],
+                [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    "-output-directory",
+                    tmpdir,
+                    tex_path,
+                ],
                 capture_output=True,
                 timeout=60,
             )
-
         if not os.path.exists(pdf_path):
-            # Extract meaningful error from log
-            log_path = os.path.join(tmpdir, 'report.log')
+            log_path = os.path.join(tmpdir, "report.log")
             error_lines = []
             if os.path.exists(log_path):
-                with open(log_path, 'r', encoding='utf-8', errors='replace') as lf:
+                with open(log_path, "r", encoding="utf-8", errors="replace") as lf:
                     for line in lf:
-                        if line.startswith('!') or 'Error' in line or 'Fatal' in line:
+                        if line.startswith("!") or "Error" in line or "Fatal" in line:
                             error_lines.append(line.strip())
             if error_lines:
                 raise RuntimeError(f"LaTeX error: {'; '.join(error_lines[:5])}")
-            stderr = (proc.stderr or b'').decode('utf-8', errors='replace')
-            raise RuntimeError(f"LaTeX compilation failed (no PDF produced). stderr: {stderr[:300]}")
-
-        with open(pdf_path, 'rb') as f:
+            stderr = (proc.stderr or b"").decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"LaTeX compilation failed (no PDF produced). stderr: {stderr[:300]}"
+            )
+        with open(pdf_path, "rb") as f:
             return f.read()

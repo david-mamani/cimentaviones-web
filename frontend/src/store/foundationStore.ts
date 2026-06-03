@@ -1,7 +1,3 @@
-/**
- * Store global con Zustand.
- * Gestiona el estado completo de la aplicación Cimentaciones.
- */
 
 import { create } from 'zustand';
 import type {
@@ -19,105 +15,78 @@ import type {
   SettlementIterationResult,
 } from '../types/geotechnical';
 
-/** Genera un ID único para cada estrato */
 let stratumCounter = 0;
 function generateId(): string {
   return `stratum-${++stratumCounter}-${Date.now()}`;
 }
 
-/** Estado de la aplicación */
 interface FoundationState {
-  // Parámetros de cimentación
   foundation: FoundationParams;
 
-  // Estratos
   strata: Stratum[];
 
-  // Condiciones especiales
   conditions: SpecialConditions;
 
-  // Método de cálculo
   method: CalculationMethod;
 
-  // Criterio seleccionado para display de resultados (no afecta el cálculo)
   selectedCriterion: CriterionKey;
 
-  // Resultado
   result: CalculationResult | null;
 
-  // Errores de validación
   errors: string[];
 
-  // Selection (synced across all views)
-  selectedIds: string[];  // stratum IDs or 'foundation'
+  selectedIds: string[];
 
-  // L/B ratio for rectangular foundations
-  lbLocked: boolean;   // L = k × B mode
-  lbRatio: number;     // k value (default 2.0)
+  lbLocked: boolean;
+  lbRatio: number;
 
-  // Modo de entrada de excentricidad: 'M' (momentos) o 'e' (excentricidades)
   eccentricityInputMode: EccentricityInputMode;
 
-  // Bloque de asentamientos
   settlementParams: SettlementParams;
   settlementResult: SettlementResult | null;
   settlementIteration: SettlementIterationResult | null;
   isCalculatingSettlement: boolean;
 
-  // Iteration results (for PDF export)
   iterationResults: IterationResult | null;
 
-  // Iteration config
   iterationConfig: IterationConfig;
   parametricUiConfig: ParametricUiConfig;
   settlementUiConfig: SettlementUiConfig;
   compareSettlementConfig: CompareSettlementConfig;
 
-  // Loading state
   isCalculating: boolean;
 
-  // Acciones - Selección
   toggleSelection: (id: string, multi: boolean) => void;
   clearSelection: () => void;
 
-  // Acciones - Cimentación
   setFoundationType: (type: FoundationType) => void;
   setFoundationParam: <K extends keyof FoundationParams>(key: K, value: FoundationParams[K]) => void;
 
-  // Acciones - Estratos
   addStratum: () => void;
   removeStratum: (id: string) => void;
   updateStratum: (id: string, updates: Partial<Stratum>) => void;
 
-  // Acciones - Condiciones
   setCondition: <K extends keyof SpecialConditions>(key: K, value: SpecialConditions[K]) => void;
 
-  // Acciones - Método
   setMethod: (method: CalculationMethod) => void;
 
-  // Acciones - Criterio
   setSelectedCriterion: (criterion: CriterionKey) => void;
 
-  // Acciones - L/B ratio
   setLbLocked: (locked: boolean) => void;
   setLbRatio: (ratio: number) => void;
 
-  // Acciones - modo de excentricidad
   setEccentricityInputMode: (mode: EccentricityInputMode) => void;
 
-  // Acciones - asentamientos
   setSettlementParam: <K extends keyof SettlementParams>(key: K, value: SettlementParams[K]) => void;
   calculateSettlement: () => void;
   calculateSettlementIteration: (B_start: number, B_end: number, B_step: number) => void;
   clearSettlement: () => void;
 
-  // Acciones - Cálculo
   calculate: () => void;
   setErrors: (errors: string[]) => void;
   clearResult: () => void;
   reset: () => void;
 
-  // Acciones - Iterations
   setIterationResults: (data: IterationResult) => void;
   clearIterationResults: () => void;
   setIterationConfig: (config: IterationConfig) => void;
@@ -125,11 +94,9 @@ interface FoundationState {
   setSettlementUiConfig: (config: Partial<SettlementUiConfig>) => void;
   setCompareSettlementConfig: (config: CompareSettlementConfig) => void;
 
-  // Acciones - Proyecto
   loadProject: (data: ProjectData) => void;
 }
 
-/** Configuración de iteraciones paramétricas */
 export interface IterationConfig {
   varyB: boolean; bStart: number; bEnd: number; bStep: number;
   varyDf: boolean; dfStart: number; dfEnd: number; dfStep: number;
@@ -172,7 +139,6 @@ export interface CompareSettlementConfig {
   spans: number[][];
 }
 
-/** Datos serializables del proyecto */
 export interface ProjectData {
   foundation: FoundationParams;
   strata: Stratum[];
@@ -212,7 +178,7 @@ const defaultConditions: SpecialConditions = {
 };
 
 const defaultSettlementParams: SettlementParams = {
-  S_max: 0.025,           // 25 mm
+  S_max: 0.025,
   point: 'centro',
   rigid: false,
   H_rigid: null,
@@ -259,10 +225,10 @@ function createDefaultStratum(): Stratum {
   return {
     id: generateId(),
     thickness: 1.0,
-    gamma: 1.8,       // t/m³ (default métrico)
+    gamma: 1.8,
     c: 0,
     phi: 30,
-    gammaSat: 2.0,    // t/m³ (default métrico)
+    gammaSat: 2.0,
     Es: null,
     mu_s: null,
     is_clay: false,
@@ -275,18 +241,8 @@ function createDefaultStratum(): Stratum {
   };
 }
 
-// Constante de conversión Métrico ↔ SI
 const G = 9.80665;
 
-/**
- * Serializa estratos a SI para enviar al backend.
- * Conversiones:
- *   - γ, γsat: t/m³ → kN/m³ (×G)
- *   - c, σ'c: t/m² → kPa (×G)
- *   - Es: t/m² → kPa (×G)
- *   - φ, μs, Cc, Cs, e0, Cα, ep, is_clay: adimensionales (sin conversión)
- * Los campos opcionales se omiten si vienen `null`/`undefined`.
- */
 function serializeStratumForAPI(s: Stratum): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: s.id,
@@ -360,7 +316,6 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
   setFoundationParam: (key, value) => {
     set((state) => {
       const updated = { ...state.foundation, [key]: value };
-      // Auto-update L when B changes and lbLocked is active
       if (key === 'B' && state.lbLocked && state.foundation.type === 'rectangular') {
         updated.L = state.lbRatio * (value as number);
       }
@@ -462,7 +417,6 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     set({ isCalculatingSettlement: true });
     const state = get();
 
-    // Conversión Métrico → SI
     const strataForAPI = state.strata.map(serializeStratumForAPI);
 
     const f = state.foundation;
@@ -480,7 +434,6 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       foundationForAPI.Q = f.Q * G;
     }
 
-    // qadm_falla (kPa) si ya hay resultado del bloque de capacidad
     const qadm_falla_kPa = state.result?.qa ?? null;
 
     try {
@@ -550,13 +503,10 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
     set({ isCalculating: true, errors: [] });
     const state = get();
 
-    // Conversión Métrico → SI antes de enviar al motor
     const strataForAPI = state.strata.map(serializeStratumForAPI);
 
     const f = state.foundation;
     const mode = state.eccentricityInputMode;
-    // En modo "M" enviamos M1, M2 (tnf·m → kN·m × G) y dejamos que el
-    // motor derive e1=M1/Q, e2=M2/Q. En modo "e" enviamos e1, e2 directos.
     const eccentricityPayload =
       mode === 'M'
         ? {
@@ -575,7 +525,6 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
       FS: f.FS,
       beta: f.beta,
       ...eccentricityPayload,
-      // Q: tnf → kN (multiplicar por G). Si no fue provista, se omite.
       ...(typeof f.Q === 'number' && f.Q > 0 ? { Q: f.Q * G } : {}),
       ...(f.metodo_area ? { metodo_area: f.metodo_area } : {}),
     };
@@ -669,7 +618,6 @@ export const useFoundationStore = create<FoundationState>((set, get) => ({
 
   loadProject: (data) => {
     stratumCounter = data.strata.length;
-    // Backfill nuevos campos si vienen de un proyecto antiguo
     const foundationLoaded: FoundationParams = {
       ...defaultFoundation,
       ...data.foundation,

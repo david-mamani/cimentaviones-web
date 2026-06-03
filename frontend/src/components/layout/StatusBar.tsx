@@ -1,7 +1,3 @@
-/**
- * StatusBar — Bottom bar showing current state info.
- * Hardcoded to Metric units.
- */
 import { useFoundationStore } from '../../store/foundationStore';
 
 const G = 9.80665;

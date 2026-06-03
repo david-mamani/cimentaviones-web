@@ -1,7 +1,3 @@
-/**
- * AppShell — Main layout container: Toolbar + Panels + Workspace + StatusBar.
- * Supports dark (Photoshop grays) and light (cream) themes.
- */
 import { useState, useCallback, useEffect } from 'react';
 import Toolbar from './Toolbar';
 import StatusBar from './StatusBar';
@@ -26,7 +22,6 @@ export default function AppShell() {
     addTab?.(type as TabType);
   }, [addTab]);
 
-  // Apply theme class to root element
   useEffect(() => {
     document.documentElement.classList.toggle('light-mode', lightMode);
     localStorage.setItem('ca-theme', lightMode ? 'light' : 'dark');
@@ -40,7 +35,6 @@ export default function AppShell() {
       overflow: 'hidden',
       background: 'var(--lucid-surface-page-warm)',
     }}>
-      {/* Toolbar */}
       <Toolbar
         onToggleLeft={() => setLeftCollapsed(!leftCollapsed)}
         onToggleRight={() => setRightCollapsed(!rightCollapsed)}
@@ -53,9 +47,7 @@ export default function AppShell() {
         onToggleTheme={() => setLightMode(!lightMode)}
       />
 
-      {/* Main area: Left panel + Workspace + Right panel */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left Panel — Properties */}
         <CollapsiblePanel
           side="left"
           title="Propiedades"
@@ -68,10 +60,8 @@ export default function AppShell() {
           <PropertiesPanel />
         </CollapsiblePanel>
 
-        {/* Center — Workspace */}
         <Workspace splitMode={viewMode === 'split'} />
 
-        {/* Right Panel — Output */}
         <CollapsiblePanel
           side="right"
           title="Salida"
@@ -85,7 +75,6 @@ export default function AppShell() {
         </CollapsiblePanel>
       </div>
 
-      {/* Status bar */}
       <StatusBar />
     </div>
   );

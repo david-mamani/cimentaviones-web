@@ -1,7 +1,3 @@
-/**
- * UnitSettingsModal — Modal for configuring input/output unit systems.
- * Follows CreditsModal glassmorphism design pattern.
- */
 import { useUnitStore, detectPreset, PRESETS } from '../../store/unitStore';
 import type {
   UnitPreset, UnitConfig,
@@ -62,7 +58,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           overflowY: 'auto',
         }}
       >
-        {/* Eyebrow + Title */}
         <div style={{
           fontFamily: 'var(--lucid-font-sans)',
           fontSize: 10, fontWeight: 600,
@@ -93,7 +88,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           Configura las unidades de entrada y salida de forma independiente.
         </p>
 
-        {/* ── INPUT Section ── */}
         <UnitSection
           title="Unidades de Entrada"
           subtitle="Los valores que introduces en los inputs"
@@ -102,14 +96,12 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           onPreset={setInputPreset}
         />
 
-        {/* Divider */}
         <div style={{
           height: 1,
           background: 'var(--lucid-rule-white)',
           margin: '20px 0',
         }} />
 
-        {/* ── OUTPUT Section ── */}
         <UnitSection
           title="Unidades de Salida"
           subtitle="Resultados, gráficas y exportaciones"
@@ -118,7 +110,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           onPreset={setOutputPreset}
         />
 
-        {/* Input ≠ Output notice */}
         {inputPreset !== outputPreset && (
           <div style={{
             marginTop: 14,
@@ -135,7 +126,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
           </div>
         )}
 
-        {/* Close button */}
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <button
             onClick={onClose}
@@ -161,9 +151,6 @@ export default function UnitSettingsModal({ onClose }: UnitSettingsModalProps) {
   );
 }
 
-/* ═══════════════════════════════════════
- * SUB-COMPONENTS
- * ═══════════════════════════════════════ */
 
 function UnitSection({ title, subtitle, config, preset, onPreset }: {
   title: string;
@@ -174,7 +161,6 @@ function UnitSection({ title, subtitle, config, preset, onPreset }: {
 }) {
   return (
     <div>
-      {/* Section header */}
       <p style={{
         fontFamily: 'var(--lucid-font-sans)',
         fontSize: 11, fontWeight: 600,
@@ -193,7 +179,6 @@ function UnitSection({ title, subtitle, config, preset, onPreset }: {
         {subtitle}
       </p>
 
-      {/* Preset segmented control */}
       <div style={{
         display: 'flex',
         background: 'var(--lucid-surface-figure)',
@@ -229,7 +214,6 @@ function UnitSection({ title, subtitle, config, preset, onPreset }: {
         })}
       </div>
 
-      {/* Category dropdowns */}
       <div style={{
         background: 'var(--lucid-surface-figure)',
         border: '1px solid var(--lucid-rule-cream)',

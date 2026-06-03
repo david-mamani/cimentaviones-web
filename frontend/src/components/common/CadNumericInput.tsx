@@ -1,8 +1,3 @@
-/**
- * CadNumericInput — A numeric input that allows clearing.
- * When the field is cleared (empty), shows "—" and treats the value as 0.
- * When the user explicitly types 0, it shows "0" (not a dash).
- */
 import { useState, useEffect, useRef } from 'react';
 
 interface CadNumericInputProps {
@@ -26,14 +21,11 @@ export default function CadNumericInput({
   style,
   disabled = false,
 }: CadNumericInputProps) {
-  // text holds the raw string the user sees/types
   const [text, setText] = useState(String(value));
   const [focused, setFocused] = useState(false);
-  // Track whether the field was explicitly cleared (not just value===0)
   const [cleared, setCleared] = useState(false);
   const prevValue = useRef(value);
 
-  // Sync from parent when value changes externally
   useEffect(() => {
     if (value !== prevValue.current && !focused) {
       setText(String(value));
@@ -45,7 +37,6 @@ export default function CadNumericInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
 
-    // Sanitize: only allow digits, dot, minus, comma
     const sanitized = raw.replace(/[^0-9.\-,]/g, '').replace(',', '.');
     setText(sanitized);
 
@@ -65,13 +56,11 @@ export default function CadNumericInput({
 
   const handleFocus = () => {
     setFocused(true);
-    // On focus, show the actual text (empty if cleared, '0' if zero was typed)
   };
 
   const handleBlur = () => {
     setFocused(false);
     if (text === '' || text === '-') {
-      // Field was cleared → keep it cleared (dash will show)
       setText('');
       setCleared(true);
       onChange(0);
@@ -84,7 +73,6 @@ export default function CadNumericInput({
     }
   };
 
-  // Show dash only when the field was explicitly cleared, NOT when value is 0
   const showDash = !focused && cleared && text === '';
   const displayValue = focused ? text : (showDash ? '—' : text);
 

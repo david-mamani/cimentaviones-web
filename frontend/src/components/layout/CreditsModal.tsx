@@ -1,7 +1,3 @@
-/**
- * CreditsModal — Modal overlay showing app credits and author info.
- * Glassmorphism design.
- */
 import { useState, useEffect } from 'react';
 
 interface CreditsModalProps {

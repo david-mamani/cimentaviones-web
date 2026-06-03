@@ -1,18 +1,3 @@
-/**
- * OutputPanel — Right panel: botón Calcular + selector de criterio + resultados + export.
- *
- * Estructura:
- *   1. CalculateSection — botón Calcular y selector de criterio
- *   2. (si hay errores) — banner de errores
- *   3. (si hay resultado):
- *        QuickResultSection (con valores del criterio seleccionado)
- *        EccentricitySection (solo si eccentricity != null)
- *        FactorsSection
- *        WarningsSection
- *   4. ExportSection — opciones y botones de exportación
- *
- * Convención: todos los valores numéricos se muestran con 3 decimales.
- */
 import { useState, useCallback } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -44,15 +29,6 @@ const METHOD_LABELS: Record<CalculationMethod, string> = {
   rne: 'RNE E.050',
 };
 
-/**
- * Mapeo del código `waterTableCase` (0-4) devuelto por el motor
- * a descripción legible. Los códigos vienen de `water_table.py`:
- *   0 = sin nivel freático (no se evalúa)
- *   1 = NF sobre la base (cimentación sumergida) — γ_eff = γ'
- *   2 = NF justo en la base — γ_eff = γ'
- *   3 = NF dentro del bulbo (Df < Dw < Df+B) — γ_eff interpolado
- *   4 = NF por debajo del bulbo (Dw ≥ Df+B) — sin efecto
- */
 const WATER_TABLE_CASE_LABELS: Record<number, string> = {
   0: 'Sin NF',
   1: 'NF sobre la base (cimentación sumergida)',
@@ -67,7 +43,6 @@ const CRITERION_LABELS: Record<CriterionKey, string> = {
   rne_corrected: 'RNE corregido',
 };
 
-/** Formato de 3 decimales para valores numéricos */
 const fmt3 = (v: number | null | undefined): string =>
   (v == null || !isFinite(v)) ? '—' : v.toFixed(3);
 
@@ -132,9 +107,6 @@ export default function OutputPanel() {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * CALCULATE: botón + selector de criterio
- * ═══════════════════════════════════════════════ */
 function CalculateSection() {
   const isCalculating = useFoundationStore((s) => s.isCalculating);
   const selectedCriterion = useFoundationStore((s) => s.selectedCriterion);
@@ -169,7 +141,6 @@ function CalculateSection() {
         {isCalculating ? 'Calculando...' : 'Calcular'}
       </button>
 
-      {/* Selector de criterio — Lucid pill group */}
       <div style={{ marginTop: 14 }}>
         <div style={{
           fontFamily: 'var(--lucid-font-sans)',
@@ -210,17 +181,11 @@ function CalculateSection() {
         </div>
       </div>
 
-      {/* Selector de unidades de salida (presión y fuerza) */}
       <OutputUnitSelector />
     </div>
   );
 }
 
-/**
- * Selector inline de unidad de presión y fuerza de salida.
- * Se conecta al `unitStore`. Cambia cómo se ven los resultados sin
- * recalcular nada (los valores SI están en el store de resultados).
- */
 function OutputUnitSelector() {
   const pressure = useUnitStore((s) => s.output.pressure);
   const force = useUnitStore((s) => s.output.force);
@@ -284,17 +249,12 @@ function UnitPill({ active, onClick, children }: {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * QUICK RESULT — valores según método activo + criterio seleccionado
- * ═══════════════════════════════════════════════ */
 function QuickResultSection({ result, method, criterion }: {
   result: CalculationResult; method: CalculationMethod; criterion: CriterionKey;
 }) {
-  // Obtener qu/qa del criterio seleccionado (de methodCriteriaMatrix si está disponible)
   const matrixBlock = result.methodCriteriaMatrix?.[method];
   const critData = matrixBlock?.criteria?.[criterion];
 
-  // Fallback: si no hay matrixBlock (motor antiguo), usar campos top-level
   const qu = critData?.qu ?? result.qu;
   const qa = critData?.qa ?? result.qa;
   const Qmax = critData?.Qmax ?? result.Qmax;
@@ -304,7 +264,6 @@ function QuickResultSection({ result, method, criterion }: {
   const qnet = qu - result.q;
   const qa_net = qnet / (qu > 0 ? (qu / qa) : 1);
 
-  // Conversión a unidades del usuario
   const siToOutput = useUnitStore((s) => s.siToOutput);
   const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
   const fUnit = useUnitStore((s) => s.outputLabel('force'));
@@ -338,7 +297,6 @@ function QuickResultSection({ result, method, criterion }: {
           </span>
         </div>
 
-        {/* Gran número Lucid: eyebrow + serif XL + unidad sans muted */}
         <div style={{ textAlign: 'center', padding: '14px 0 18px' }}>
           <div style={{
             fontFamily: 'var(--lucid-font-sans)',
@@ -392,13 +350,6 @@ function QuickResultSection({ result, method, criterion }: {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * METHOD × CRITERION MATRIX — Tabla 3×3 comparativa
- *   Filas: métodos disponibles (Terzaghi, Ec. General, RNE).
- *   Columnas: 3 criterios (General, RNE, RNE Corregido).
- *   Métrica visible: qa (por defecto), con toggle a qu y Qmax.
- *   La celda (método activo × criterio seleccionado) queda destacada.
- * ═══════════════════════════════════════════════ */
 function MethodCriterionMatrix({ result, method, criterion }: {
   result: CalculationResult; method: CalculationMethod; criterion: CriterionKey;
 }) {
@@ -410,7 +361,6 @@ function MethodCriterionMatrix({ result, method, criterion }: {
   const fUnit = useUnitStore((s) => s.outputLabel('force'));
   if (!matrix) return null;
 
-  // Métodos que tienen datos (Terzaghi puede no estar si la zapata es rectangular).
   const availableMethods = (['terzaghi', 'general', 'rne'] as CalculationMethod[])
     .filter((m) => matrix[m]);
 
@@ -427,10 +377,6 @@ function MethodCriterionMatrix({ result, method, criterion }: {
       : siToOutput(v, 'pressure');
   };
 
-  // Identificar gobernante por columna (mayor qu o mayor qa = ¿el más conservador o el más alto?)
-  // Por defecto, en cimentaciones "gobierna" el qu/qa MENOR (más conservador) ⇒ destaco el mínimo.
-  // Pero si el usuario eligió RNE corregido (norma local), la prioridad es ese criterio.
-  // Para no opinar, destacamos visualmente: el "seleccionado" con anillo, el "menor por columna" con un punto.
   const minByCol: Partial<Record<CriterionKey, CalculationMethod>> = {};
   for (const c of criteria) {
     let bestM: CalculationMethod | null = null;
@@ -568,9 +514,6 @@ const matrixCellStyle: React.CSSProperties = {
   textAlign: 'right',
 };
 
-/* ═══════════════════════════════════════════════
- * ECCENTRICITY — Solo si hay e1, e2 o Q
- * ═══════════════════════════════════════════════ */
 function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo }) {
   const ec = eccentricity;
   const fellBack = ec.metodo_area === 'rne' && ec.metodo_area_solicitado === 'highter_anders';
@@ -583,7 +526,6 @@ function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo 
         Excentricidad
       </div>
       <div style={{ padding: '8px 14px 16px' }}>
-        {/* Chips de estado */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {ec.caso_carga && (
             <Chip variant="neutral">
@@ -653,15 +595,6 @@ function EccentricitySection({ eccentricity }: { eccentricity: EccentricityInfo 
   );
 }
 
-/**
- * ContactPressureDiagram — SVG con el perfil de presiones de contacto
- * bajo la zapata.
- *   - Régimen "uniforme"     : rectángulo plano (qmax = qmin).
- *   - Régimen "trapezoidal"  : trapecio (qmax > qmin > 0).
- *   - Régimen "triangular"   : triángulo (qmin = 0, ancho efectivo B − 2e).
- * El SVG es esquemático: las alturas son proporcionales a las presiones,
- * la base representa la zapata completa.
- */
 function ContactPressureDiagram({ qmax, qmin, B_eff, regime }: {
   qmax: number | null;
   qmin: number | null;
@@ -673,35 +606,26 @@ function ContactPressureDiagram({ qmax, qmin, B_eff, regime }: {
   const pUnit = useUnitStore((s) => s.outputLabel('pressure'));
   const siToOutput = useUnitStore((s) => s.siToOutput);
 
-  // Geometría SVG (espacio virtual)
-  const W = 240;          // ancho del SVG
-  const H = 90;           // alto del SVG
+  const W = 240;
+  const H = 90;
   const padL = 10, padR = 10, padT = 8, padB = 28;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
   const baseY = padT + innerH;
 
-  // Alturas proporcionales (qmax → innerH; clamp para que qmin no caiga muy abajo)
   const hMax = innerH;
   const hMin = qmax > 0 ? (qmn / qmax) * innerH : 0;
 
-  // Para régimen triangular, el ancho efectivo es menor que la zapata completa.
-  // Se asume distribución solo en la zona comprimida (3·(B − 2e) ≈ 3·B_eff/?...).
-  // Pero como no conocemos exactamente el ancho B original aquí, dibujamos el
-  // triángulo cubriendo el 75% del ancho del SVG (visualmente representativo).
   const triCoverage = 0.75;
   const triLeft = padL + (innerW * (1 - triCoverage)) / 2;
   const triRight = padL + innerW - (innerW * (1 - triCoverage)) / 2;
 
-  // Camino del perfil
   let path: string;
   if (regime === 'uniforme') {
     path = `M ${padL} ${baseY - hMax} L ${padL + innerW} ${baseY - hMax} L ${padL + innerW} ${baseY} L ${padL} ${baseY} Z`;
   } else if (regime === 'trapezoidal') {
-    // Lado izquierdo qmin, lado derecho qmax (o viceversa — usamos qmax a la derecha por convención)
     path = `M ${padL} ${baseY - hMin} L ${padL + innerW} ${baseY - hMax} L ${padL + innerW} ${baseY} L ${padL} ${baseY} Z`;
   } else {
-    // Triangular: pico a la derecha del área comprimida (triRight)
     path = `M ${triLeft} ${baseY} L ${triRight} ${baseY - hMax} L ${triRight} ${baseY} Z`;
   }
 
@@ -722,16 +646,12 @@ function ContactPressureDiagram({ qmax, qmin, B_eff, regime }: {
         Presiones de contacto ({regime})
       </div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
-        {/* Zapata (línea gruesa horizontal arriba) */}
         <line x1={padL - 4} y1={padT - 2} x2={padL + innerW + 4} y2={padT - 2}
               stroke="var(--lucid-ink-strong)" strokeWidth={2} />
-        {/* Perfil de presión */}
         <path d={path} fill="var(--lucid-acc-coral)" fillOpacity={0.35}
               stroke="var(--lucid-acc-coral)" strokeWidth={1.5} />
-        {/* Eje horizontal (suelo) */}
         <line x1={padL - 4} y1={baseY} x2={padL + innerW + 4} y2={baseY}
               stroke="var(--lucid-ink-body)" strokeWidth={1} />
-        {/* Etiquetas */}
         {regime === 'uniforme' ? (
           <text x={W / 2} y={baseY - hMax / 2}
                 fontSize={10} textAnchor="middle"
@@ -755,7 +675,6 @@ function ContactPressureDiagram({ qmax, qmin, B_eff, regime }: {
             </text>
           </>
         )}
-        {/* B' label */}
         <text x={W / 2} y={baseY + 14}
               fontSize={9} textAnchor="middle"
               fill="var(--lucid-ink-muted)"
@@ -767,9 +686,6 @@ function ContactPressureDiagram({ qmax, qmin, B_eff, regime }: {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * FACTORS — Nc, Nq, Nγ + factores correctivos (forma, profundidad, inclinación)
- * ═══════════════════════════════════════════════ */
 function FactorsSection({ result }: { result: CalculationResult }) {
   const bf = result.bearingFactors;
   const sf = result.shapeFactors;
@@ -784,13 +700,11 @@ function FactorsSection({ result }: { result: CalculationResult }) {
         Factores
       </div>
       <div style={{ padding: '8px 14px 16px' }}>
-        {/* Capacidad — Nc, Nq, Nγ */}
         <FactorRow label="Capacidad" items={[
           { sym: 'Nc', val: bf.Nc },
           { sym: 'Nq', val: bf.Nq },
           { sym: 'Nγ', val: bf.Ngamma },
         ]} />
-        {/* Forma */}
         {sf && (sf.sc !== 1 || sf.sq !== 1 || sf.sgamma !== 1) && (
           <FactorRow label="Forma" items={[
             { sym: 'Fcs', val: sf.sc },
@@ -798,7 +712,6 @@ function FactorsSection({ result }: { result: CalculationResult }) {
             { sym: 'Fγs', val: sf.sgamma },
           ]} />
         )}
-        {/* Profundidad */}
         {df && (df.dc !== 1 || df.dq !== 1 || df.dgamma !== 1) && (
           <FactorRow label="Profundidad" items={[
             { sym: 'Fcd', val: df.dc },
@@ -806,7 +719,6 @@ function FactorsSection({ result }: { result: CalculationResult }) {
             { sym: 'Fγd', val: df.dgamma },
           ]} />
         )}
-        {/* Inclinación */}
         {inc && (inc.ic !== 1 || inc.iq !== 1 || inc.igamma !== 1) && (
           <FactorRow label="Inclinación" items={[
             { sym: 'Fci', val: inc.ic },
@@ -868,9 +780,6 @@ function FactorRow({ label, items }: {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * WARNINGS — Avisos del motor
- * ═══════════════════════════════════════════════ */
 function WarningsSection({ warnings }: { warnings: string[] }) {
   return (
     <div style={{ borderBottom: '1px solid var(--lucid-rule-white)' }}>
@@ -894,9 +803,6 @@ function WarningsSection({ warnings }: { warnings: string[] }) {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * RNE CONSIDERATION — info adicional
- * ═══════════════════════════════════════════════ */
 function RNESection({ result }: { result: CalculationResult }) {
   if (!result.rneConsideration) return null;
   const rne = result.rneConsideration;
@@ -917,9 +823,6 @@ function RNESection({ result }: { result: CalculationResult }) {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * UTILITY — chip de estado (ok / warn / neutral)
- * ═══════════════════════════════════════════════ */
 function Chip({ variant, children }: {
   variant: 'ok' | 'warn' | 'neutral';
   children: React.ReactNode;
@@ -939,9 +842,6 @@ function Chip({ variant, children }: {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * UTILITY — fila de resultado
- * ═══════════════════════════════════════════════ */
 function ResultRow({ label, value, unit, accent }: {
   label: string; value: number; unit: string; accent?: boolean;
 }) {
@@ -979,9 +879,6 @@ function ResultRow({ label, value, unit, accent }: {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * EXPORT SECTION — (sin cambios funcionales)
- * ═══════════════════════════════════════════════ */
 function ExportSection({ foundation, strata, conditions, method, result }: {
   foundation: FoundationParams;
   strata: Stratum[];

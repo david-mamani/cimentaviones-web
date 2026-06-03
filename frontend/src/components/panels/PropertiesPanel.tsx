@@ -1,10 +1,3 @@
-/**
- * PropertiesPanel — Left panel reorganizado en 3 secciones:
- *   1. DATOS GENERALES — Estratos, condiciones (NF, sótano), Df, Q, β,
- *                        toggle Asentamiento (Es/μs/S_max)
- *   2. DISEÑO RÁPIDO   — Tipo, B, L, k, botón para abrir ventana de Diseño
- *   3. SOLUCIÓN        — FS, método (con bloqueo β para Terzaghi)
- */
 import { useState } from 'react';
 import { useFoundationStore } from '../../store/foundationStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -27,31 +20,22 @@ const METHODS: { value: CalculationMethod; label: string }[] = [
 export default function PropertiesPanel() {
   return (
     <div>
-      {/* ────── 1. DATOS GENERALES ────── */}
       <SectionGroupHeader>Datos Generales</SectionGroupHeader>
       <StrataSection />
       <ConditionsSection />
       <SiteParamsSection />
 
-      {/* ────── 2. DISEÑO RÁPIDO ────── */}
       <SectionGroupHeader>Diseño de Cimentación</SectionGroupHeader>
       <QuickDesignSection />
 
-      {/* ────── 3. SOLUCIÓN ────── */}
       <SectionGroupHeader>Solución</SectionGroupHeader>
       <SolutionSection />
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SECCIÓN: ESTRATOS
- *   - Tabla principal: h, γ, c, φ, γsat, Es, μs (Es/μs siempre visibles).
- *   - Sub-panel expandible por estrato: is_clay + parámetros de consolidación.
- * ═══════════════════════════════════════════════ */
 function StrataSection() {
   const [open, setOpen] = useState(true);
-  // IDs de estratos cuyo sub-panel de consolidación está expandido.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const strata = useFoundationStore((s) => s.strata);
   const addStratum = useFoundationStore((s) => s.addStratum);
@@ -59,7 +43,6 @@ function StrataSection() {
   const updateStratum = useFoundationStore((s) => s.updateStratum);
   const strataColors = useViewerSettings((s) => s.strataColors);
   const setStrataColor = useViewerSettings((s) => s.setStrataColor);
-  // Estrato de diseño (índice) viene del último resultado del backend.
   const designStratumIndex = useFoundationStore((s) => s.result?.designStratumIndex ?? null);
 
   const toggleExpand = (id: string) => {
@@ -73,7 +56,6 @@ function StrataSection() {
 
   const headers = ['', 'h(m)', 'Σh(m)', 'γ(t/m³)', 'c(t/m²)', 'φ°', 'γsat(t/m³)', 'Es(t/m²)', 'μs', ''];
 
-  // Profundidad acumulada al fondo de cada estrato (z₁, z₂, ...)
   let cum = 0;
   const cumDepths: number[] = strata.map((s) => { cum += s.thickness; return cum; });
 
@@ -264,9 +246,6 @@ function StrataSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SECCIÓN: CONDICIONES (NF y sótano)
- * ═══════════════════════════════════════════════ */
 function ConditionsSection() {
   const [open, setOpen] = useState(true);
   const cond = useFoundationStore((s) => s.conditions);
@@ -302,9 +281,6 @@ function ConditionsSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SECCIÓN: PARÁMETROS DEL SITIO (Df, Q, β)
- * ═══════════════════════════════════════════════ */
 function SiteParamsSection() {
   const [open, setOpen] = useState(true);
   const f = useFoundationStore((s) => s.foundation);
@@ -344,13 +320,6 @@ function SiteParamsSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SUB-PANEL: CONSOLIDACIÓN por estrato
- *   - is_clay (toggle)
- *   - Cc, Cs, e0, σ'c   (consolidación primaria)
- *   - Cα, e_p           (consolidación secundaria)
- * Los inputs solo emiten al store si > 0; vacío/0 ⇒ null.
- * ═══════════════════════════════════════════════ */
 function ConsolidationSubPanel({
   stratum: s,
   onChange,
@@ -426,9 +395,6 @@ function SubRow({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SECCIÓN: DISEÑO RÁPIDO (tipo + B/L/k + botón ventana)
- * ═══════════════════════════════════════════════ */
 function QuickDesignSection() {
   const [open, setOpen] = useState(true);
   const f = useFoundationStore((s) => s.foundation);
@@ -442,7 +408,6 @@ function QuickDesignSection() {
 
   return (
     <Section title="Geometría Rápida" open={open} onToggle={() => setOpen(!open)}>
-      {/* Type segmented control (Lucid pill group) */}
       <div style={{
         display: 'flex',
         background: 'var(--lucid-surface-figure)',
@@ -589,9 +554,6 @@ function QuickDesignSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SECCIÓN: SOLUCIÓN (FS, método)
- * ═══════════════════════════════════════════════ */
 function SolutionSection() {
   const [open, setOpen] = useState(true);
   const f = useFoundationStore((s) => s.foundation);
@@ -601,7 +563,6 @@ function SolutionSection() {
   const fType = useFoundationStore((s) => s.foundation.type);
   const isRectangular = fType === 'rectangular';
 
-  // Auto-switch a General si Terzaghi+rectangular
   if (isRectangular && method === 'terzaghi') {
     setMethod('general');
   }
@@ -665,9 +626,6 @@ function SolutionSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════
- * SUB-COMPONENTES REUSABLES
- * ═══════════════════════════════════════════════ */
 
 function SectionGroupHeader({ children }: { children: React.ReactNode }) {
   return (

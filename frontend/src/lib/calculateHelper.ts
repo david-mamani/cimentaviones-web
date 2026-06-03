@@ -1,7 +1,3 @@
-/**
- * Helper compartido para disparar el cálculo con validación previa.
- * Usado por Toolbar y OutputPanel para evitar duplicar lógica de validación.
- */
 
 import { useFoundationStore } from '../store/foundationStore';
 import {

@@ -1,19 +1,3 @@
-/**
- * IfcViewer — Visor IFC profesional con web-ifc + Three.js.
- *
- * Pipeline:
- *   1. Frontend envía datos del modelo al backend
- *   2. Backend genera archivo .ifc con ifcopenshell
- *   3. web-ifc parsea el IFC y extrae la geometría
- *   4. Three.js renderiza la geometría con materiales y colores IFC
- *
- * Features:
- *   - Visualización profesional tipo BIM
- *   - Orbit, pan, zoom con OrbitControls
- *   - Exportar IFC para abrir en Revit/ArchiCAD
- *   - Auto-actualización cuando cambian los datos del modelo
- *   - Panel de personalización (transparencia, colores, wireframe, etc.)
- */
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -23,13 +7,11 @@ import { useViewerSettings } from '../../store/viewerSettingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import ViewerSettingsPanel from './ViewerSettingsPanel';
 
-// IFC type IDs — imported from web-ifc (never hardcode these!)
 const IFCSLAB = WebIFC.IFCSLAB;
 const IFCFOOTING = WebIFC.IFCFOOTING;
 const IFCCOLUMN = WebIFC.IFCCOLUMN;
 const IFCBUILDINGELEMENTPROXY = WebIFC.IFCBUILDINGELEMENTPROXY;
 
-// ── Scene constants ──
 const SCENE_DEFAULTS = {
   camera: { fov: 75, near: 0.1, far: 1000, position: [8, 6, 8] as const },
   grid: { size: 20, divisions: 20, colorCenter: 0x444444, colorGrid: 0x333333, darkOpacity: 0.7, lightOpacity: 0.4 },
@@ -56,7 +38,6 @@ export default function IfcViewer() {
   const gridRef = useRef<THREE.GridHelper | null>(null);
   const ambientRef = useRef<THREE.AmbientLight | null>(null);
 
-  // Mesh tracking by IFC type for settings
   const strataMeshesRef = useRef<THREE.Mesh[]>([]);
   const foundationMeshesRef = useRef<THREE.Mesh[]>([]);
   const waterMeshesRef = useRef<THREE.Mesh[]>([]);
@@ -73,19 +54,16 @@ export default function IfcViewer() {
 
   const settings = useViewerSettings();
 
-  // ── Initialize Three.js + web-ifc ──
   useEffect(() => {
     if (!containerRef.current || initedRef.current) return;
     initedRef.current = true;
 
     const container = containerRef.current;
 
-    // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(settings.bgColor);
     sceneRef.current = scene;
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(
       50,
       container.clientWidth / container.clientHeight,
@@ -96,11 +74,10 @@ export default function IfcViewer() {
     camera.lookAt(0, -1, 0);
     cameraRef.current = camera;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
-      preserveDrawingBuffer: true,  // needed for toDataURL() capture
+      preserveDrawingBuffer: true,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -109,7 +86,6 @@ export default function IfcViewer() {
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
@@ -122,7 +98,6 @@ export default function IfcViewer() {
     controls.update();
     controlsRef.current = controls;
 
-    // Lighting
     const ambient = new THREE.AmbientLight(0xffffff, settings.ambientIntensity);
     scene.add(ambient);
     ambientRef.current = ambient;
@@ -141,13 +116,11 @@ export default function IfcViewer() {
       scene.add(light);
     }
 
-    // Grid — transparent, theme-aware opacity
     const { grid: gridCfg } = SCENE_DEFAULTS;
     const grid = new THREE.GridHelper(gridCfg.size, gridCfg.divisions, gridCfg.colorCenter, gridCfg.colorGrid);
     grid.position.y = 0.001;
     grid.visible = settings.showGrid;
-    grid.userData.__permanent = true;  // Don't remove during model reload
-    // Set grid transparency
+    grid.userData.__permanent = true;
     const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
     gridMaterials.forEach((m) => {
       m.transparent = true;
@@ -156,7 +129,6 @@ export default function IfcViewer() {
     scene.add(grid);
     gridRef.current = grid;
 
-    // Animation loop
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
       controls.update();
@@ -164,7 +136,6 @@ export default function IfcViewer() {
     };
     animate();
 
-    // Resize handler
     const onResize = () => {
       if (!container) return;
       const w = container.clientWidth;
@@ -176,7 +147,6 @@ export default function IfcViewer() {
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(container);
 
-    // Init web-ifc
     const ifcApi = new WebIFC.IfcAPI();
     ifcApi.SetWasmPath('/wasm/');
     ifcApi.Init().then(() => {
@@ -196,40 +166,32 @@ export default function IfcViewer() {
       }
       initedRef.current = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── React to settings changes ──
   useEffect(() => {
-    // Background color
     if (sceneRef.current) {
       sceneRef.current.background = new THREE.Color(settings.bgColor);
     }
 
-    // Grid visibility
     if (gridRef.current) {
       gridRef.current.visible = settings.showGrid;
     }
 
-    // Ambient light intensity
     if (ambientRef.current) {
       ambientRef.current.intensity = settings.ambientIntensity;
     }
 
-    // Strata meshes — opacity, wireframe, colors
     strataMeshesRef.current.forEach((mesh, i) => {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       mat.opacity = settings.strataOpacity;
       mat.transparent = settings.strataOpacity < 1.0;
       mat.depthWrite = settings.strataOpacity >= 1.0;
       mat.wireframe = settings.strataWireframe;
-      // Apply per-stratum color from settings
       const hexColor = settings.strataColors[i % settings.strataColors.length];
       mat.color.set(hexColor);
       mat.needsUpdate = true;
     });
 
-    // Foundation meshes — opacity, color (zapata + columna)
     foundationMeshesRef.current.forEach((mesh) => {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       mat.opacity = settings.foundationOpacity;
@@ -239,7 +201,6 @@ export default function IfcViewer() {
       mat.needsUpdate = true;
     });
 
-    // Water table meshes — opacity, color
     waterMeshesRef.current.forEach((mesh) => {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       mat.opacity = settings.waterTableOpacity;
@@ -249,19 +210,16 @@ export default function IfcViewer() {
     });
   }, [settings]);
 
-  // ── Sync 3D bg + grid opacity with theme toggle ──
   useEffect(() => {
     const root = document.documentElement;
     const updateTheme = () => {
       const isLight = root.classList.contains('light-mode');
-      // Read --bg-viewport from CSS (no hardcoded hex)
       const style = getComputedStyle(root);
       const newBg = style.getPropertyValue('--bg-viewport').trim() || '#1e1e1e';
       if (sceneRef.current) {
         sceneRef.current.background = new THREE.Color(newBg);
       }
       settings.set('bgColor', newBg);
-      // Grid opacity: more transparent in light mode
       if (gridRef.current) {
         const gridMats = Array.isArray(gridRef.current.material)
           ? gridRef.current.material
@@ -271,16 +229,12 @@ export default function IfcViewer() {
         });
       }
     };
-    // Initial sync
     updateTheme();
-    // Watch for class changes
     const observer = new MutationObserver(updateTheme);
     observer.observe(root, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Register capture function in workspace store for PDF export ──
   const registerCapture = useWorkspaceStore((s) => s.registerCaptureView3D);
   const unregisterCapture = useWorkspaceStore((s) => s.unregisterCaptureView3D);
 
@@ -291,22 +245,18 @@ export default function IfcViewer() {
       const camera = cameraRef.current;
       if (!scene || !renderer || !camera) return null;
 
-      // Save current state
       const origBg = (scene.background as THREE.Color)?.clone();
       const origGridVisible = gridRef.current?.visible ?? false;
       const origStrataState = strataMeshesRef.current.map((m) => {
         const mat = m.material as THREE.MeshStandardMaterial;
         return { opacity: mat.opacity, transparent: mat.transparent };
       });
-      // Find axes helper using children search (avoids TS closure narrowing)
       const foundAxes = scene.children.find((c) => (c as any).isAxesHelper) as THREE.Object3D | undefined;
       const origAxesVisible = foundAxes?.visible ?? false;
 
-      // Save current camera state
       const origPos = camera.position.clone();
       const origTarget = controlsRef.current?.target.clone() ?? new THREE.Vector3(0, -1, 0);
 
-      // Apply PDF settings: white bg, low opacity, no grid/axes
       scene.background = new THREE.Color('#ffffff');
       if (gridRef.current) gridRef.current.visible = false;
       if (foundAxes) foundAxes.visible = false;
@@ -317,7 +267,6 @@ export default function IfcViewer() {
         mat.needsUpdate = true;
       });
 
-      // Fit camera to object for PDF capture
       const allMeshes = [
         ...strataMeshesRef.current,
         ...foundationMeshesRef.current,
@@ -331,7 +280,6 @@ export default function IfcViewer() {
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-          // For PDF, we want it a bit tighter than the default viewport
           const dist = maxDim * 1.5;
 
           camera.position.set(
@@ -361,11 +309,9 @@ export default function IfcViewer() {
       }
       camera.updateProjectionMatrix();
 
-      // Render and capture
       renderer.render(scene, camera);
       const dataUrl = renderer.domElement.toDataURL('image/jpeg', 0.85);
 
-      // Restore original camera
       camera.position.copy(origPos);
       if (controlsRef.current) {
         controlsRef.current.target.copy(origTarget);
@@ -374,7 +320,6 @@ export default function IfcViewer() {
       camera.lookAt(origTarget);
       camera.updateProjectionMatrix();
 
-      // Restore original visual state
       scene.background = origBg || new THREE.Color(settings.bgColor);
       if (gridRef.current) gridRef.current.visible = origGridVisible;
       if (foundAxes) foundAxes.visible = origAxesVisible;
@@ -393,7 +338,6 @@ export default function IfcViewer() {
     return () => unregisterCapture();
   }, [settings, registerCapture, unregisterCapture]);
 
-  // ── Load IFC model ──
   const loadModel = useCallback(async () => {
     if (!ready || !ifcApiRef.current || !sceneRef.current) return;
 
@@ -401,7 +345,6 @@ export default function IfcViewer() {
     setError(null);
 
     try {
-      // Clear ALL model meshes from scene (robust — avoids race conditions)
       const scene = sceneRef.current;
       const toRemove: THREE.Object3D[] = [];
       scene.traverse((obj) => {
@@ -424,7 +367,6 @@ export default function IfcViewer() {
       waterMeshesRef.current = [];
       edgeMeshesRef.current = [];
 
-      // Build request
       const body = {
         foundation: {
           type: foundation.type,
@@ -450,7 +392,6 @@ export default function IfcViewer() {
         },
       };
 
-      // Fetch IFC from backend
       const response = await fetch('/api/export-ifc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -464,14 +405,9 @@ export default function IfcViewer() {
       const buffer = await response.arrayBuffer();
       const data = new Uint8Array(buffer);
 
-      // Parse IFC with web-ifc
       const ifcApi = ifcApiRef.current;
       const modelID = ifcApi.OpenModel(data);
 
-      // ── Pre-build type lookup map ──
-      // Using GetLineIdsWithType is the only reliable way to classify elements.
-      // GetLine().type can return different numeric IDs depending on IFC schema
-      // version, and our hardcoded constants may not match.
       const typeMap = new Map<number, number>();
       const typeIds = [IFCSLAB, IFCFOOTING, IFCCOLUMN, IFCBUILDINGELEMENTPROXY];
       for (const typeId of typeIds) {
@@ -480,32 +416,26 @@ export default function IfcViewer() {
           for (let i = 0; i < ids.size(); i++) {
             typeMap.set(ids.get(i), typeId);
           }
-        } catch { /* type may not exist in this schema */ }
+        } catch { }
       }
 
-      // Counters for stratum ordering
       let strataIndex = 0;
-      // Track processed express IDs to avoid duplicates
       const processedIDs = new Set<number>();
 
-      // Get all meshes from the IFC
       ifcApi.StreamAllMeshes(modelID, (mesh: WebIFC.FlatMesh) => {
         const expressID = mesh.expressID;
 
-        // Skip already-processed elements
         if (processedIDs.has(expressID)) return;
         processedIDs.add(expressID);
 
         const placedGeometries = mesh.geometries;
 
-        // Look up IFC type from pre-built map (infallible)
         const ifcType = typeMap.get(expressID) ?? 0;
 
         for (let i = 0; i < placedGeometries.size(); i++) {
           const placedGeom = placedGeometries.get(i);
           const geomData = ifcApi.GetGeometry(modelID, placedGeom.geometryExpressID);
 
-          // Extract vertex data
           const verts = ifcApi.GetVertexArray(
             geomData.GetVertexData(),
             geomData.GetVertexDataSize()
@@ -515,10 +445,8 @@ export default function IfcViewer() {
             geomData.GetIndexDataSize()
           );
 
-          // Create Three.js geometry
           const geometry = new THREE.BufferGeometry();
 
-          // web-ifc vertex format: x, y, z, nx, ny, nz (6 floats per vertex)
           const positions = new Float32Array(verts.length / 2);
           const normals = new Float32Array(verts.length / 2);
 
@@ -536,28 +464,23 @@ export default function IfcViewer() {
           geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
           geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
-          // Determine color and opacity based on IFC type
           const ifcColor = placedGeom.color;
           let materialColor: THREE.Color;
           let opacity: number;
           let wireframe = false;
 
           if (ifcType === IFCSLAB) {
-            // Stratum — use settings color
             const hexColor = settings.strataColors[strataIndex % settings.strataColors.length];
             materialColor = new THREE.Color(hexColor);
             opacity = settings.strataOpacity;
             wireframe = settings.strataWireframe;
           } else if (ifcType === IFCFOOTING || ifcType === IFCCOLUMN) {
-            // Foundation — use settings color
             materialColor = new THREE.Color(settings.foundationColor);
             opacity = settings.foundationOpacity;
           } else if (ifcType === IFCBUILDINGELEMENTPROXY) {
-            // Water table — use settings color
             materialColor = new THREE.Color(settings.waterTableColor);
             opacity = settings.waterTableOpacity;
           } else {
-            // Fallback to IFC embedded color
             materialColor = new THREE.Color(ifcColor.x, ifcColor.y, ifcColor.z);
             opacity = ifcColor.w;
           }
@@ -575,26 +498,23 @@ export default function IfcViewer() {
 
           const mesh3d = new THREE.Mesh(geometry, mat);
 
-          // Apply transform matrix
           const matrix = new THREE.Matrix4();
           matrix.fromArray(placedGeom.flatTransformation);
           mesh3d.applyMatrix4(matrix);
 
-          // Track by type for settings reactivity + render order
           if (ifcType === IFCSLAB) {
             strataMeshesRef.current.push(mesh3d);
             mesh3d.renderOrder = 0;
           } else if (ifcType === IFCFOOTING || ifcType === IFCCOLUMN) {
             foundationMeshesRef.current.push(mesh3d);
-            mesh3d.renderOrder = 10; // render after strata for proper transparency
+            mesh3d.renderOrder = 10;
           } else if (ifcType === IFCBUILDINGELEMENTPROXY) {
             waterMeshesRef.current.push(mesh3d);
-            mesh3d.renderOrder = 20; // render last (always transparent)
+            mesh3d.renderOrder = 20;
           }
 
           scene.add(mesh3d);
 
-          // Add edges for clean look (not for wireframe)
           if (!wireframe) {
             const edges = new THREE.EdgesGeometry(geometry, SCENE_DEFAULTS.edge.thresholdAngle);
             const edgeMat = new THREE.LineBasicMaterial({
@@ -608,11 +528,9 @@ export default function IfcViewer() {
             edgeMeshesRef.current.push(edgeMesh);
           }
 
-          // Cleanup
           geomData.delete();
         }
 
-        // Increment stratum index for slabs
         if (ifcType === IFCSLAB) {
           strataIndex++;
         }
@@ -620,7 +538,6 @@ export default function IfcViewer() {
 
       ifcApi.CloseModel(modelID);
 
-      // Auto-fit camera to model
       const allMeshes = [
         ...strataMeshesRef.current,
         ...foundationMeshesRef.current,
@@ -646,7 +563,6 @@ export default function IfcViewer() {
             controlsRef.current.update();
           }
         }
-        // Dispose cloned meshes
         tempGroup.traverse((obj) => {
           if (obj instanceof THREE.Mesh) {
             obj.geometry.dispose();
@@ -660,10 +576,8 @@ export default function IfcViewer() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, foundation, strata, conditions]);
 
-  // Trigger model load when data changes
   useEffect(() => {
     if (ready) {
       const timer = setTimeout(() => loadModel(), 500);
@@ -671,7 +585,6 @@ export default function IfcViewer() {
     }
   }, [ready, foundation, strata, conditions, loadModel]);
 
-  // ── Export IFC ──
   const handleExportIFC = useCallback(async () => {
     try {
       const body = {
@@ -719,7 +632,6 @@ export default function IfcViewer() {
     }
   }, [foundation, strata, conditions]);
 
-  // ── Reset camera ──
   const handleResetCamera = useCallback(() => {
     if (controlsRef.current && cameraRef.current) {
       cameraRef.current.position.set(8, 6, 8);
@@ -732,7 +644,6 @@ export default function IfcViewer() {
     <div style={{ width: '100%', height: '100%', position: 'relative', background: 'var(--lucid-surface-page-warm)' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
-      {/* Toolbar Lucid */}
       <div style={{
         position: 'absolute', top: 16, right: showSettings ? 256 : 16,
         display: 'flex', gap: 6, transition: 'right 0.2s ease', zIndex: 5,
@@ -768,12 +679,10 @@ export default function IfcViewer() {
         </V3Tool>
       </div>
 
-      {/* Settings Panel */}
       {showSettings && (
         <ViewerSettingsPanel onClose={() => setShowSettings(false)} />
       )}
 
-      {/* Loading overlay */}
       {loading && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -797,7 +706,6 @@ export default function IfcViewer() {
         </div>
       )}
 
-      {/* Error message */}
       {error && (
         <div style={{
           position: 'absolute', bottom: 16, left: 16, right: 16,
@@ -813,7 +721,6 @@ export default function IfcViewer() {
         </div>
       )}
 
-      {/* Help text */}
       <div style={{
         position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
         fontFamily: 'var(--lucid-font-serif)',
