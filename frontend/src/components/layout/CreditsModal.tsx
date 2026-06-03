@@ -95,6 +95,16 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
             David Mamani
           </p>
           <p style={{
+            fontFamily: 'var(--lucid-font-sans)',
+            fontSize: 10, fontWeight: 600,
+            color: 'var(--lucid-ink-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.12em',
+            marginTop: 12,
+            marginBottom: 10,
+          }}>
+            Comprobado por
+          </p>
+          <p style={{
             fontFamily: 'var(--lucid-font-serif)',
             fontSize: 15, color: 'var(--lucid-ink-strong)',
           }}>
@@ -152,18 +162,6 @@ export default function CreditsModal({ onClose }: CreditsModalProps) {
             Arequipa, Perú
           </p>
         </div>
-
-        <p style={{
-          fontFamily: 'var(--lucid-font-serif)',
-          fontSize: 12, fontStyle: 'italic',
-          color: 'var(--lucid-ink-muted)',
-          marginBottom: 24,
-          lineHeight: 1.5,
-        }}>
-          Análisis de capacidad portante según Terzaghi, Meyerhof/Hansen (Das) y RNE E.050.
-          <br />
-          Visualización BIM con IFC2X3 · gráficos con Plotly.js.
-        </p>
 
         <button
           onClick={onClose}
