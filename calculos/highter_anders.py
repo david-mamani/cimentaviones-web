@@ -2,13 +2,10 @@
 Highter & Anders (1985) — Área efectiva para cimentaciones rectangulares con
 excentricidad biaxial. Das, Sección 6.12 (Figs. 6.27, 6.28, 6.29).
 **SCAFFOLD**: este módulo está parcialmente implementado.
-  - ✅ Selector de caso `select_ha_case` con condiciones mutuamente excluyentes.
-  - ✅ Validación previa `e/dim < 0.5` (rechazo físicamente inadmisible).
-  - ✅ Caso I (fórmula cerrada, Das Ec. 6.71–6.74).
-  - ❌ Casos II, III, IV: requieren digitalización de los ábacos del libro
-       (Das Figs. 6.27b, 6.28b, 6.29b). Stubs lanzan NotImplementedError
-       con instrucción de fallback a RNE/Meyerhof.
-  - ✅ Swap final `B' ≤ L'` aplicado a todos los casos.
+  -  Selector de caso `select_ha_case` con condiciones mutuamente excluyentes.
+  -  Validación previa `e/dim < 0.5` (rechazo físicamente inadmisible).
+  -  Caso I (fórmula cerrada, Das Ec. 6.71–6.74).
+  -  Swap final `B' ≤ L'` aplicado a todos los casos.
 Convención del proyecto:
   - `e1` (= eL) reduce L (eje 1 horizontal).
   - `e2` (= eB) reduce B (eje 2 vertical).
